@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Activity, Project, Lookup, ActivityStatus, Language, PaymentStatus, ActivityUpdate, User } from '../types';
 
@@ -178,7 +179,10 @@ const EditActivityModal: React.FC<EditActivityModalProps> = ({ activityToEdit, t
                     <div>
                         <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.paymentStatus}</label>
                         <select name="paymentStatus" value={formData.paymentStatus || ''} onChange={handleChange} required className={selectClasses}>
-                            {Object.values(PaymentStatus).sort().map(s => (<option key={s} value={s}>{t[s as keyof typeof t]}</option>))}
+                            {Object.values(PaymentStatus)
+                                .map(s => ({ value: s, label: t[s as keyof typeof t] || s }))
+                                .sort((a, b) => a.label.localeCompare(b.label))
+                                .map(s => (<option key={s.value} value={s.value}>{s.label}</option>))}
                         </select>
                     </div>
                 )}

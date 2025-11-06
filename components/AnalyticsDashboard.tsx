@@ -173,6 +173,7 @@ const ProjectsByCountryWidget: React.FC<AnalyticsDashboardProps> = ({ projects, 
                         </div>
                     </div>
                 )) : <p className="text-gray-500 dark:text-gray-400 text-sm">{t.noProjects}</p>}
+            </div>
         </WidgetWrapper>
     );
 };
@@ -206,6 +207,7 @@ const ProjectsByProductWidget: React.FC<AnalyticsDashboardProps> = ({ projects, 
                         </div>
                     </div>
                 )) : <p className="text-gray-500 dark:text-gray-400 text-sm">{t.noProjects}</p>}
+            </div>
         </WidgetWrapper>
     );
 };

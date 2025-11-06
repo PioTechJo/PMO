@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Activity, Lookup, Language, PaymentStatus } from '../types';
 
@@ -63,13 +64,16 @@ const PaymentActivityRow: React.FC<PaymentActivityRowProps> = ({ activity, team,
                     </button>
                     {paymentMenuOpen && (
                         <div className="absolute top-full right-1/2 translate-x-1/2 mt-1 w-32 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-20">
-                            {Object.values(PaymentStatus).sort().map(status => (
+                            {Object.values(PaymentStatus)
+                                .map(status => ({ value: status, label: t[status as keyof typeof t] || status }))
+                                .sort((a, b) => a.label.localeCompare(b.label))
+                                .map(s => (
                                 <button
-                                    key={status}
-                                    onClick={() => handleStatusChange(status)}
+                                    key={s.value}
+                                    onClick={() => handleStatusChange(s.value)}
                                     className="w-full text-start px-3 py-1.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
                                 >
-                                    {t[status as keyof typeof t]}
+                                    {s.label}
                                 </button>
                             ))}
                         </div>
