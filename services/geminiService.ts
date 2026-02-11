@@ -28,16 +28,12 @@ const resultSchema = {
     required: ['resultType'],
 };
 
-/**
- * الحصول على مفتاح API بشكل آمن
- * يحاول الجلب من الاسم القياسي أو الاسم المتوافق مع Vite/Netlify
- */
+// وظيفة لجلب المفتاح بمرونة من بيئة Vite أو Node
 const getApiKey = () => {
-    return process.env.API_KEY || (process.env as any).VITE_API_KEY;
+    return (import.meta as any).env?.VITE_API_KEY || process.env.API_KEY || (process.env as any).VITE_API_KEY;
 };
 
 const formatDataForPrompt = (projects: Project[], milestones: Milestone[]): string => {
-    // تقليص البيانات لأقصى حد لضمان عدم تجاوز حدود الـ Token والسرعة
     const context = {
         p: projects.map(p => ({
             id: p.id,
@@ -59,16 +55,16 @@ const formatDataForPrompt = (projects: Project[], milestones: Milestone[]): stri
 };
 
 export const analyzeQuery = async (query: string, projects: Project[], milestones: Milestone[], users: User[], teams: Lookup[]): Promise<AnalysisResult> => {
-    try {
-        const apiKey = getApiKey();
-        if (!apiKey) {
-            console.error("Critical: API_KEY or VITE_API_KEY is missing from environment variables.");
-            return { 
-                resultType: 'ERROR', 
-                error: "نظام الذكاء الاصطناعي غير مهيأ حالياً. يرجى التأكد من إضافة VITE_API_KEY في إعدادات Netlify وإعادة بناء المشروع (Redeploy)." 
-            };
-        }
+    const apiKey = getApiKey();
+    
+    if (!apiKey) {
+        return { 
+            resultType: 'ERROR', 
+            error: "مفتاح VITE_API_KEY غير موجود في بيئة التشغيل. يرجى التأكد من عمل Trigger Deploy في Netlify بعد إضافة المتغير." 
+        };
+    }
 
+    try {
         const ai = new GoogleGenAI({ apiKey });
         const dataContext = formatDataForPrompt(projects, milestones);
         
@@ -98,32 +94,30 @@ export const analyzeQuery = async (query: string, projects: Project[], milestone
         return result as AnalysisResult;
 
     } catch (error: any) {
-        console.error("AI Analysis Error:", error);
+        console.error("AI Error:", error);
         return { 
             resultType: 'ERROR', 
-            error: error.message?.includes('403') 
-                ? "انتهت صلاحية مفتاح الربط أو أن الخدمة غير مفعلة لهذا النطاق." 
-                : "نعتذر، المساعد الذكي يواجه ضغطاً في الطلبات حالياً. يرجى المحاولة بعد لحظات." 
+            error: "فشل الاتصال بمحرك الذكاء الاصطناعي. يرجى التحقق من صحة المفتاح في Netlify." 
         };
     }
 };
 
 export const getChatResponse = async (query: string, projects: Project[], milestones: Milestone[], users: User[], teams: Lookup[]): Promise<string> => {
-    try {
-        const apiKey = getApiKey();
-        if (!apiKey) return "عذراً، نظام المحادثة غير مفعل حالياً لعدم وجود مفتاح الربط في البيئة السحابية.";
+    const apiKey = getApiKey();
+    if (!apiKey) return "المساعد غير متاح بسبب نقص في إعدادات VITE_API_KEY.";
 
+    try {
         const ai = new GoogleGenAI({ apiKey });
         const dataContext = formatDataForPrompt(projects, milestones);
         
         const response = await ai.models.generateContent({
             model: "gemini-3-flash-preview",
             contents: `You are 'Pio-Bot'. Answer concisely based on this data: ${dataContext}. Query: "${query}"`,
-            config: { thinkingBudget: 0 }
+            config: { thinkingConfig: { thinkingBudget: 0 } }
         });
 
         return response.text.trim();
     } catch (error) {
-        return "أواجه صعوبة في معالجة طلبك حالياً، هل يمكنني مساعدتك في شيء آخر؟";
+        return "حدث خطأ أثناء المحادثة، يرجى المحاولة لاحقاً.";
     }
 };
