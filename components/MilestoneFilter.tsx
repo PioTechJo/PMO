@@ -144,7 +144,6 @@ const MilestoneFilter: React.FC<MilestoneFilterProps> = ({ projects, milestones,
         }).sort((a, b) => {
             const [yearA, monthA] = a.value.split('-').map(Number);
             const [yearB, monthB] = b.value.split('-').map(Number);
-            // Fixed: Changed sort order to ASC (a - b) as requested
             if (yearA !== yearB) return yearA - yearB;
             return monthA - monthB;
         });
@@ -406,7 +405,7 @@ const MilestoneFilter: React.FC<MilestoneFilterProps> = ({ projects, milestones,
                     <SearchableSelect value={selectedMonthYear} onChange={setSelectedMonthYear} options={finalMonthYearOptions} placeholder={t.allMonths} searchPlaceholder={t.searchMonths} language={language}/>
                     <SearchableSelect value={selectedPaymentStatus} onChange={setSelectedPaymentStatus} options={paymentStatusOptions} placeholder={t.allPaymentStatuses} searchPlaceholder={t.searchPaymentStatuses} language={language}/>
                     <button onClick={handleClearFilters} className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-slate-200 dark:bg-slate-700/50 rounded-md border border-slate-300 dark:border-slate-600 hover:bg-slate-300 dark:hover:bg-slate-600/50 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 110 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 110 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 11.61-1.276z" clipRule="evenodd" /></svg>
                         <span>{t.clearFilters}</span>
                     </button>
                     <button onClick={handleExport} disabled={projectsWithMilestones.length === 0} className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-slate-200 dark:bg-slate-700/50 rounded-md border border-slate-300 dark:border-slate-600 hover:bg-slate-300 dark:hover:bg-slate-600/50 transition-colors disabled:opacity-50">

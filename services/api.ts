@@ -107,6 +107,10 @@ export const fetchAllData = async () => {
             status: lookups.projectStatuses.find(l => l.id === p.statusId),
             projectManager: lookups.projectManagers.find(l => l.id === p.projectManagerId),
             customer: lookups.customers.find(l => l.id === p.customerId),
+            country: lookups.countries.find(l => l.id === p.countryId),
+            category: lookups.categories.find(l => l.id === p.categoryId),
+            team: lookups.teams.find(l => l.id === p.teamId),
+            product: lookups.products.find(l => l.id === p.productId),
         };
     });
 

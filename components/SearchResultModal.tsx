@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { AnalysisResult, Language } from '../types';
 
@@ -12,13 +13,17 @@ const translations = {
         title: "نتيجة بحث المساعد الذكي",
         summaryTitle: "ملخص",
         kpiTitle: "مؤشرات الأداء الرئيسية",
+        errorTitle: "تنبيه من المساعد",
         close: "إغلاق",
+        noData: "لم يتم العثور على بيانات مطابقة لاستفسارك.",
     },
     en: {
         title: "AI Assistant Search Result",
         summaryTitle: "Summary",
         kpiTitle: "Key Performance Indicators",
+        errorTitle: "AI Assistant Notice",
         close: "Close",
+        noData: "No data found matching your query.",
     }
 };
 
@@ -26,6 +31,22 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ result, onClose, 
     const t = translations[language];
 
     const renderContent = () => {
+        if (result.resultType === 'ERROR') {
+            return (
+                <div className="flex flex-col items-center py-6 text-center">
+                    <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-600 dark:text-red-400 mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">{t.errorTitle}</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm">
+                        {result.error || t.noData}
+                    </p>
+                </div>
+            );
+        }
+
         if (result.resultType === 'SUMMARY' && result.summary) {
             return (
                 <div>
@@ -53,7 +74,11 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ result, onClose, 
             );
         }
 
-        return null;
+        return (
+            <div className="text-center py-10 text-slate-500 dark:text-slate-400">
+                {t.noData}
+            </div>
+        );
     };
 
     return (
@@ -62,8 +87,8 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ result, onClose, 
                 <div className="p-6 max-h-[90vh] overflow-y-auto">
                     <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-4 mb-6">
                         <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-3">
-                             <span className="p-2 bg-violet-100 dark:bg-violet-900/50 rounded-full">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-violet-600 dark:text-violet-300" viewBox="0 0 20 20" fill="currentColor">
+                             <span className={`p-2 rounded-full ${result.resultType === 'ERROR' ? 'bg-red-100 dark:bg-red-900/50' : 'bg-violet-100 dark:bg-violet-900/50'}`}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${result.resultType === 'ERROR' ? 'text-red-600 dark:text-red-300' : 'text-violet-600 dark:text-violet-300'}`} viewBox="0 0 20 20" fill="currentColor">
                                     <path fillRule="evenodd" d="M10 2a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 0110 2zM5.05 3.55a.75.75 0 01.04 1.06l-1.06 1.06a.75.75 0 01-1.1-1.06l1.06-1.06a.75.75 0 011.06-.04zM14.95 3.55a.75.75 0 011.06.04l1.06 1.06a.75.75 0 01-1.06 1.1l-1.06-1.06a.75.75 0 01-.04-1.06zM10 18a.75.75 0 01.75-.75h.01a.75.75 0 010 1.5H10a.75.75 0 01-.75-.75zM3.55 14.95a.75.75 0 011.06-.04l1.06 1.06a.75.75 0 01-1.1 1.06l-1.06-1.06a.75.75 0 01.04-1.06zM16.45 14.95a.75.75 0 01.04 1.06l-1.06 1.06a.75.75 0 01-1.1-1.06l1.06-1.06a.75.75 0 011.06-.04zM17.25 10a.75.75 0 01-1.5 0h.01a.75.75 0 010-1.5H17.25a.75.75 0 01.75.75zM2.75 10a.75.75 0 01-1.5 0h.01a.75.75 0 010-1.5H2.75a.75.75 0 01.75.75zM10 6a4 4 0 100 8 4 4 0 000-8zM8.5 10a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" clipRule="evenodd" />
                                 </svg>
                              </span>

@@ -1,6 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Project, Lookups, Language, User } from '../types';
+import SearchableSelect from './SearchableSelect';
 
 interface EditProjectModalProps {
   projectToEdit: Project;
@@ -64,70 +65,94 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({ projectToEdit, look
       ar: {
           title: "تعديل المشروع",
           projectName: "اسم المشروع",
-          projectCode: "كود المشروع",
+          projectCode: "كود",
           description: "الوصف",
           country: "الدولة",
           category: "الفئة",
           team: "الفريق",
           product: "المنتج",
           status: "الحالة",
-          projectManager: "مدير المشروع",
+          projectManager: "المدير",
           customer: "العميل",
-          launchDate: "تاريخ الإطلاق",
-          actualStartDate: "تاريخ البدء الفعلي",
-          expectedClosureDate: "تاريخ الإغلاق المتوقع",
-          progress: "نسبة التقدم",
-          weightTitle: "أوزان المشروع (1-5)",
-          revenueImpact: "تأثير الإيرادات",
-          strategicValue: "القيمة الاستراتيجية",
-          deliveryRisk: "مخاطر التسليم",
-          customerPressure: "ضغط العميل",
-          resourceLoad: "حمل الموارد",
-          update: "تحديث المشروع",
+          launchDate: "الإطلاق",
+          actualStartDate: "البدء الفعلي",
+          expectedClosureDate: "الإغلاق المتوقع",
+          progress: "التقدم",
+          weightTitle: "الأوزان (1-5)",
+          revenueImpact: "الإيرادات",
+          strategicValue: "الاستراتيجية",
+          deliveryRisk: "المخاطر",
+          customerPressure: "الضغط",
+          resourceLoad: "الموارد",
+          update: "تحديث",
           cancel: "إلغاء",
-          submitting: "جاري التحديث...",
-          successMessage: "تم التحديث بنجاح!",
-          selectHere: "اختر من هنا...",
+          submitting: "تحديث...",
+          successMessage: "تم التحديث!",
+          selectHere: "اختر...",
+          searchCustomers: "بحث...",
+          searchCountries: "بحث...",
       },
       en: {
           title: "Edit Project",
           projectName: "Project Name",
-          projectCode: "Project Code",
+          projectCode: "Code",
           description: "Description",
           country: "Country",
           category: "Category",
           team: "Team",
           product: "Product",
           status: "Status",
-          projectManager: "Project Manager",
+          projectManager: "Manager",
           customer: "Customer",
-          launchDate: "Launch Date",
-          actualStartDate: "Actual Start Date",
-          expectedClosureDate: "Expected Closure Date",
+          launchDate: "Launch",
+          actualStartDate: "Actual Start",
+          expectedClosureDate: "Expected Closure",
           progress: "Progress",
-          weightTitle: "Project Weights (1–5)",
-          revenueImpact: "Revenue Impact",
-          strategicValue: "Strategic Value",
-          deliveryRisk: "Delivery Risk",
-          customerPressure: "Customer Pressure",
-          resourceLoad: "Resource Load",
-          update: "Update Project",
+          weightTitle: "Weights (1–5)",
+          revenueImpact: "Revenue",
+          strategicValue: "Strategic",
+          deliveryRisk: "Risk",
+          customerPressure: "Pressure",
+          resourceLoad: "Resources",
+          update: "Update",
           cancel: "Cancel",
           submitting: "Updating...",
-          successMessage: "Updated successfully!",
-          selectHere: "Select from here...",
+          successMessage: "Updated!",
+          selectHere: "Select...",
+          searchCustomers: "Search...",
+          searchCountries: "Search...",
       },
   };
   const t = translations[language];
+
+  const customerOptions = useMemo(() => 
+    lookups.customers.map(c => ({ value: c.id, label: c.name })),
+    [lookups.customers]
+  );
+
+  const countryOptions = useMemo(() => 
+    [...lookups.countries]
+        .map(c => ({ value: c.id, label: c.name }))
+        .sort((a, b) => a.label.localeCompare(b.label, language === 'ar' ? 'ar' : 'en')),
+    [lookups.countries, language]
+  );
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       const { name, value } = e.target;
       setFormData(prev => ({...prev, [name]: value}));
   };
 
+  const handleCustomerChange = (val: string) => {
+    setFormData(prev => ({ ...prev, customerId: val }));
+  };
+
+  const handleCountryChange = (val: string) => {
+    setFormData(prev => ({ ...prev, countryId: val }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name) return;
+    if (!formData.name || !formData.customerId) return;
     
     setError(null);
     setIsSuccess(false);
@@ -153,18 +178,18 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({ projectToEdit, look
             onClose();
         }, 1000);
     } catch (err: any) {
-        setError(err?.message || "An unknown error occurred while updating.");
+        setError(err?.message || "Error updating.");
     } finally {
         setIsSubmitting(false);
     }
   };
   
-  const inputClasses = "w-full p-3 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-white";
-  const selectClasses = "w-full p-3 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-white";
+  const inputClasses = "w-full p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-violet-500 text-slate-800 dark:text-white text-xs";
+  const selectClasses = "w-full p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-violet-500 text-slate-800 dark:text-white text-xs";
 
   const WeightSelect = ({ label, name, value }: { label: string, name: string, value: number }) => (
-      <div className="flex flex-col gap-1">
-          <label className="text-xs font-bold text-slate-500 dark:text-slate-400">{label}</label>
+      <div className="flex-1 min-w-0">
+          <label className="block text-[9px] font-bold text-slate-500 mb-1 truncate uppercase">{label}</label>
           <select name={name} value={value} onChange={handleChange} className={selectClasses}>
               {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v}</option>)}
           </select>
@@ -172,60 +197,63 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({ projectToEdit, look
   );
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity">
-      <div className="bg-white dark:bg-slate-900/50 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 p-2 rounded-2xl shadow-2xl w-full max-w-3xl m-4" dir={language === 'ar' ? 'rtl' : 'ltr'}>
-        <div className="p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-4 mb-6">
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{t.title}</h2>
-                <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.projectName}</label>
-                    <input type="text" name="name" value={formData.name} onChange={handleChange} required className={inputClasses}/>
+    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+        <div className="p-5 flex justify-between items-center border-b border-slate-100 dark:border-slate-800">
+            <h2 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">{t.title}</h2>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-2xl font-bold transition-colors">&times;</button>
+        </div>
+        
+        <div className="p-5 space-y-4">
+            {error && <div className="p-2.5 text-[10px] font-bold text-red-600 bg-red-50 rounded-xl">{error}</div>}
+            {isSuccess && <div className="p-2.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-xl">{t.successMessage}</div>}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="md:col-span-3">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.projectName}</label>
+                    <input type="text" name="name" value={formData.name} onChange={handleChange} required disabled={isSubmitting} className={inputClasses}/>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.projectCode}</label>
-                    <input type="text" value={projectToEdit.projectCode} disabled className={`${inputClasses} bg-slate-200 dark:bg-slate-800 cursor-not-allowed`}/>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.projectCode}</label>
+                    <input type="text" value={projectToEdit.projectCode} disabled className={`${inputClasses} opacity-50`}/>
                   </div>
-              </div>
-              <div>
-                  <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.description}</label>
-                  <textarea name="description" value={formData.description} onChange={handleChange} rows={2} className={inputClasses}/>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                 <div>
-                      <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.customer}</label>
-                      <select name="customerId" value={formData.customerId} onChange={handleChange} required className={selectClasses}>
-                          <option value="" disabled>{t.selectHere}</option>
-                          {lookups.customers.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
-                      </select>
+              <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.description}</label>
+                  <input type="text" name="description" value={formData.description} onChange={handleChange} disabled={isSubmitting} className={inputClasses}/>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.customer}</label>
+                      <SearchableSelect options={customerOptions} value={formData.customerId} onChange={handleCustomerChange} placeholder={t.selectHere} searchPlaceholder={t.searchCustomers} language={language} />
                   </div>
                   <div>
-                      <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.projectManager}</label>
-                      <select name="projectManagerId" value={formData.projectManagerId} onChange={handleChange} required className={selectClasses}>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.country}</label>
+                      <SearchableSelect options={countryOptions} value={formData.countryId} onChange={handleCountryChange} placeholder={t.selectHere} searchPlaceholder={t.searchCountries} language={language} />
+                  </div>
+                  <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.projectManager}</label>
+                      <select name="projectManagerId" value={formData.projectManagerId} onChange={handleChange} required disabled={isSubmitting} className={selectClasses}>
                           <option value="" disabled>{t.selectHere}</option>
                           {lookups.projectManagers.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
                       </select>
                   </div>
-                  <div>
-                      <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.status}</label>
-                      <select name="statusId" value={formData.statusId} onChange={handleChange} required className={selectClasses}>
+                   <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.status}</label>
+                      <select name="statusId" value={formData.statusId} onChange={handleChange} required disabled={isSubmitting} className={selectClasses}>
                           <option value="" disabled>{t.selectHere}</option>
                           {lookups.projectStatuses.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
                       </select>
                   </div>
               </div>
 
-              {/* Weighting Section */}
-              <div className="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                  <h3 className="text-sm font-bold text-violet-600 dark:text-violet-400 uppercase mb-4 tracking-wider">{t.weightTitle}</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {/* Weighting Section - Compact */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <h3 className="text-[9px] font-black text-violet-500 uppercase mb-3 tracking-widest">{t.weightTitle}</h3>
+                  <div className="flex flex-wrap md:flex-nowrap gap-3">
                       <WeightSelect label={t.revenueImpact} name="revenueImpact" value={formData.revenueImpact} />
                       <WeightSelect label={t.strategicValue} name="strategicValue" value={formData.strategicValue} />
                       <WeightSelect label={t.deliveryRisk} name="deliveryRisk" value={formData.deliveryRisk} />
@@ -233,37 +261,34 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({ projectToEdit, look
                       <WeightSelect label={t.resourceLoad} name="resourceLoad" value={formData.resourceLoad} />
                   </div>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-200 dark:border-slate-700 pt-4">
+
+              <div className="grid grid-cols-3 gap-4">
                   <div>
-                      <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.launchDate}</label>
-                      <input type="date" name="launchDate" value={formData.launchDate} onChange={handleChange} className={inputClasses}/>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.launchDate}</label>
+                      <input type="date" name="launchDate" value={formData.launchDate} onChange={handleChange} disabled={isSubmitting} className={inputClasses}/>
                   </div>
                   <div>
-                      <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.actualStartDate}</label>
-                      <input type="date" name="actualStartDate" value={formData.actualStartDate} onChange={handleChange} className={inputClasses}/>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.actualStartDate}</label>
+                      <input type="date" name="actualStartDate" value={formData.actualStartDate} onChange={handleChange} disabled={isSubmitting} className={inputClasses}/>
                   </div>
                   <div>
-                      <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.expectedClosureDate}</label>
-                      <input type="date" name="expectedClosureDate" value={formData.expectedClosureDate} onChange={handleChange} className={inputClasses}/>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.expectedClosureDate}</label>
+                      <input type="date" name="expectedClosureDate" value={formData.expectedClosureDate} onChange={handleChange} disabled={isSubmitting} className={inputClasses}/>
                   </div>
               </div>
 
-              <div>
-                  <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.progress} ({formData.progress}%)</label>
-                  <input type="range" name="progress" min="0" max="100" value={formData.progress} onChange={handleChange} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-700 accent-violet-600"/>
+              <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.progress} ({formData.progress}%)</label>
+                    <input type="range" name="progress" min="0" max="100" value={formData.progress} onChange={handleChange} disabled={isSubmitting} className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-violet-600"/>
+                  </div>
               </div>
 
-              <div className="flex justify-end items-center space-x-4 rtl:space-x-reverse pt-6 border-t border-slate-200 dark:border-slate-700 mt-6">
-                  <div className="flex-grow text-sm">
-                      {error && <p className="text-red-600 dark:text-red-400 font-medium">{error}</p>}
-                      {isSuccess && <p className="text-green-600 dark:text-green-400 font-medium">{t.successMessage}</p>}
-                  </div>
-                  <button type="button" onClick={onClose} className="px-5 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-slate-800/80 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-700/80 transition-colors">
-                  {t.cancel}
-                  </button>
-                  <button type="submit" disabled={isSubmitting || isSuccess} className="px-5 py-3 text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-indigo-600 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
-                  {isSubmitting ? t.submitting : t.update}
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <button type="button" onClick={onClose} disabled={isSubmitting} className="px-6 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.cancel}</button>
+                  <button type="submit" disabled={isSubmitting || isSuccess} className="px-10 py-2.5 bg-violet-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-violet-700 shadow-lg shadow-violet-500/20 flex items-center gap-2">
+                    {isSubmitting && <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>}
+                    {isSuccess ? t.successMessage : (isSubmitting ? t.submitting : t.update)}
                   </button>
               </div>
             </form>

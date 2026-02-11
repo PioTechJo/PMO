@@ -237,10 +237,12 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allUsers, language, on
         ...lookups.projectStatuses.map(s => ({ value: s.id, label: s.name }))
     ], [lookups.projectStatuses, t.allStatuses]);
 
-    const countryOptions = useMemo(() => [
-        { value: 'all', label: t.allCountries },
-        ...lookups.countries.map(c => ({ value: c.id, label: c.name }))
-    ], [lookups.countries, t.allCountries]);
+    const countryOptions = useMemo(() => {
+        const sorted = [...lookups.countries]
+            .map(c => ({ value: c.id, label: c.name }))
+            .sort((a, b) => a.label.localeCompare(b.label, language === 'ar' ? 'ar' : 'en'));
+        return [{ value: 'all', label: t.allCountries }, ...sorted];
+    }, [lookups.countries, t.allCountries, language]);
 
     const projectsToDisplay = useMemo(() => {
         let filteredProjects = searchResult
@@ -356,7 +358,7 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allUsers, language, on
                     title={t.clearFilters}
                     className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-slate-200 dark:bg-slate-700/50 rounded-md border border-slate-300 dark:border-slate-600 hover:bg-slate-300 dark:hover:bg-slate-600/50 transition-colors"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 110 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 110 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 11.61-1.276z" clipRule="evenodd" /></svg>
                     <span>{t.clearFilters}</span>
                 </button>
             </div>

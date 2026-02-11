@@ -54,7 +54,6 @@ const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, 
     };
     
     setMilestonesList(prev => [...prev, newItem]);
-    // Reset but keep project & common settings
     setCurrentMilestone({ 
         title: '', 
         description: '', 
@@ -77,87 +76,77 @@ const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, 
         await onAddMilestone(milestonesList);
         setIsSuccess(true);
         setIsSaving(false);
-        // Delay closing so user sees the success message
-        setTimeout(() => {
-            onClose();
-        }, 1500);
+        setTimeout(() => onClose(), 1200);
     } catch (err: any) {
-        console.error("Save failed:", err);
-        setError(err?.message || "Critical: Save failed. Database connection error.");
+        setError(err?.message || "Save failed.");
         setIsSaving(false);
     }
   };
 
-  const inputClasses = "w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:ring-1 focus:ring-violet-500 transition-all";
+  const inputClasses = "w-full p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none focus:ring-1 focus:ring-violet-500 transition-all";
+  const labelClasses = "block text-[9px] font-black text-slate-400 uppercase mb-1 tracking-wider";
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 rounded-3xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[90vh]">
-        <div className="p-6 border-b flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50 rounded-t-3xl">
-            <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{t.title}</h2>
-            <button onClick={onClose} disabled={isSaving} className="text-slate-400 hover:text-slate-600 text-2xl font-bold">&times;</button>
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-5xl flex flex-col overflow-hidden max-h-[85vh]">
+        <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
+            <h2 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight">{t.title}</h2>
+            <button onClick={onClose} disabled={isSaving} className="text-slate-400 hover:text-slate-600 text-xl font-bold transition-colors">&times;</button>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
-            {error && (
-                <div className="p-4 text-xs font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl animate-in fade-in slide-in-from-top-2">
-                    {error}
-                </div>
-            )}
-            
-            {isSuccess && (
-                <div className="p-4 text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-3 animate-in fade-in zoom-in-95">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
-                    {t.successMsg}
-                </div>
-            )}
-            
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Form Section */}
-                <div className="lg:col-span-7 space-y-6">
-                    <div className="bg-violet-50/50 dark:bg-violet-900/10 p-5 rounded-2xl border border-violet-100 dark:border-violet-800/50">
-                         <label className="block text-[10px] font-black text-violet-600 dark:text-violet-400 uppercase mb-2 tracking-widest">{t.project}</label>
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+            {/* Form Section */}
+            <div className="flex-1 p-5 border-e border-slate-100 dark:border-slate-800 overflow-y-auto custom-scrollbar space-y-4">
+                {error && <div className="p-2 text-[10px] font-bold text-red-600 bg-red-50 rounded-lg">{error}</div>}
+                {isSuccess && <div className="p-2 text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-lg">{t.successMsg}</div>}
+
+                <div className="space-y-4">
+                    <div className="p-3 bg-violet-50/50 dark:bg-violet-900/10 rounded-xl border border-violet-100 dark:border-violet-800/50">
+                         <label className={labelClasses + " text-violet-600"}>{t.project}</label>
                          <SearchableSelect options={projectOptions} value={selectedProjectId} onChange={setSelectedProjectId} placeholder={t.selectHere} language={language} />
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4">
-                        <input type="text" name="title" value={currentMilestone.title} onChange={handleInputChange} placeholder={t.milestoneTitle} className={inputClasses} />
+                    <div className="grid grid-cols-1 gap-3">
+                        <div>
+                            <label className={labelClasses}>{t.milestoneTitle}</label>
+                            <input type="text" name="title" value={currentMilestone.title} onChange={handleInputChange} placeholder={t.milestoneTitle} className={inputClasses} />
+                        </div>
                         
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.team}</label>
+                                <label className={labelClasses}>{t.team}</label>
                                 <select name="teamId" value={currentMilestone.teamId} onChange={handleInputChange} className={inputClasses}>
                                     <option value="">{t.selectTeam}</option>
                                     {teams.map(tm => <option key={tm.id} value={tm.id}>{tm.name}</option>)}
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.dueDate}</label>
+                                <label className={labelClasses}>{t.dueDate}</label>
                                 <input type="date" name="dueDate" value={currentMilestone.dueDate} onChange={handleInputChange} className={inputClasses} />
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-3 items-center">
                             <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.status}</label>
+                                <label className={labelClasses}>{t.status}</label>
                                 <select name="status" value={currentMilestone.status} onChange={handleInputChange} className={inputClasses}>
                                     {Object.values(MilestoneStatus).map(s => <option key={s} value={s}>{t[s] || s}</option>)}
                                 </select>
                             </div>
-                            <div className="flex items-center gap-2 pt-5">
-                                <input id="hasPayment" name="hasPayment" type="checkbox" checked={currentMilestone.hasPayment} onChange={handleInputChange} className="w-4 h-4 text-violet-600 rounded border-slate-300" />
-                                <label htmlFor="hasPayment" className="text-xs font-bold text-slate-600 dark:text-slate-300">{t.hasPayment}</label>
+                            <div className="flex items-center gap-2 pt-3">
+                                <input id="hasPayment" name="hasPayment" type="checkbox" checked={currentMilestone.hasPayment} onChange={handleInputChange} className="w-3.5 h-3.5 text-violet-600 rounded border-slate-300" />
+                                <label htmlFor="hasPayment" className="text-[10px] font-black text-slate-500 uppercase">{t.hasPayment}</label>
                             </div>
                         </div>
 
                         {currentMilestone.hasPayment && (
-                            <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 animate-in slide-in-from-top-1">
+                            <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 animate-in slide-in-from-top-1">
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.paymentAmount}</label>
+                                    <label className={labelClasses}>{t.paymentAmount}</label>
                                     <input type="number" name="paymentAmount" value={currentMilestone.paymentAmount} onChange={handleInputChange} className={inputClasses} placeholder="0.00" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.paymentStatus}</label>
+                                    <label className={labelClasses}>{t.paymentStatus}</label>
                                     <select name="paymentStatus" value={currentMilestone.paymentStatus} onChange={handleInputChange} className={inputClasses}>
                                         {Object.values(PaymentStatus).map(s => <option key={s} value={s}>{t[s] || s}</option>)}
                                     </select>
@@ -165,41 +154,40 @@ const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, 
                             </div>
                         )}
 
-                        <button type="button" onClick={addMilestoneToList} className="w-full py-4 bg-slate-800 dark:bg-slate-700 text-white rounded-2xl text-xs font-black uppercase hover:bg-black transition-all shadow-lg">+ {t.addToList}</button>
+                        <button type="button" onClick={addMilestoneToList} className="w-full py-2 bg-slate-800 dark:bg-slate-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all">+ {t.addToList}</button>
                     </div>
                 </div>
+            </div>
 
-                {/* Queue Section */}
-                <div className="lg:col-span-5 bg-slate-50 dark:bg-slate-800/20 rounded-3xl p-6 border border-slate-100 dark:border-slate-800 flex flex-col">
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase mb-6 tracking-widest">{t.listTitle}</h3>
-                    <div className="space-y-3 flex-grow overflow-y-auto custom-scrollbar pr-2">
-                        {milestonesList.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full opacity-30 italic">
-                                <svg className="w-12 h-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                                <p className="text-sm font-bold">{t.noItems}</p>
-                            </div>
-                        ) : milestonesList.map((m, i) => (
-                            <div key={i} className="flex justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm animate-in slide-in-from-right-2">
-                                <div className="min-w-0">
-                                    <p className="font-bold text-slate-800 dark:text-white truncate text-sm">{m.title}</p>
-                                    <div className="flex gap-3 text-[9px] font-black text-slate-400 uppercase mt-1">
-                                        <span>{t[m.status]}</span>
-                                        {m.hasPayment && <span className="text-green-600 dark:text-green-400">${m.paymentAmount.toLocaleString()}</span>}
-                                    </div>
+            {/* Queue Section */}
+            <div className="w-full md:w-[350px] bg-slate-50 dark:bg-slate-900/40 p-5 flex flex-col overflow-hidden">
+                <h3 className="text-[9px] font-black text-slate-400 uppercase mb-4 tracking-[0.2em]">{t.listTitle}</h3>
+                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1">
+                    {milestonesList.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full opacity-20 italic">
+                            <p className="text-[10px] font-black uppercase tracking-widest">{t.noItems}</p>
+                        </div>
+                    ) : milestonesList.map((m, i) => (
+                        <div key={i} className="flex justify-between items-center bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm animate-in slide-in-from-right-1">
+                            <div className="min-w-0">
+                                <p className="font-bold text-slate-800 dark:text-white truncate text-[11px]">{m.title}</p>
+                                <div className="flex gap-2 text-[8px] font-black text-slate-400 uppercase mt-0.5">
+                                    <span className="text-violet-500">{t[m.status]}</span>
+                                    {m.hasPayment && <span className="text-emerald-500">${m.paymentAmount.toLocaleString()}</span>}
                                 </div>
-                                <button onClick={() => setMilestonesList(prev => prev.filter((_, idx) => idx !== i))} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                </button>
                             </div>
-                        ))}
-                    </div>
+                            <button onClick={() => setMilestonesList(prev => prev.filter((_, idx) => idx !== i))} className="p-1 text-slate-300 hover:text-red-500 transition-colors">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>
 
-        <div className="p-6 border-t flex justify-end gap-4 bg-slate-50/50 dark:bg-slate-800/50 rounded-b-3xl">
-            <button onClick={onClose} disabled={isSaving} className="px-8 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">{t.cancel}</button>
-            <button onClick={handleFinalSubmit} disabled={isSaving || milestonesList.length === 0 || isSuccess} className="px-12 py-3 bg-violet-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-violet-700 disabled:opacity-50 flex items-center gap-3 shadow-xl shadow-violet-500/20 transition-all">
+        <div className="px-5 py-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 bg-white dark:bg-slate-900">
+            <button onClick={onClose} disabled={isSaving} className="px-5 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.cancel}</button>
+            <button onClick={handleFinalSubmit} disabled={isSaving || milestonesList.length === 0 || isSuccess} className="px-8 py-2 bg-violet-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-violet-700 disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-violet-500/10 transition-all">
                 {isSaving && <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>}
                 {isSuccess ? t.successLabel : (isSaving ? t.submitting : t.saveAll)}
             </button>
@@ -211,23 +199,23 @@ const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, 
 
 const translations = {
     ar: { 
-        title: "إدارة معالم المشروع", project: "المشروع المستهدف", selectHere: "اختر المشروع...", milestoneTitle: "عنوان المعلم / النشاط", 
-        team: "الفريق المسؤول", selectTeam: "اختر الفريق...", dueDate: "تاريخ الاستحقاق", status: "الحالة الحالية",
-        hasPayment: "مرتبط بدفعة مالية", paymentAmount: "المبلغ", paymentStatus: "حالة الدفعة",
-        addToList: "إضافة للمعالجة", listTitle: "قائمة المعالم الجديدة بانتظار الحفظ", noItems: "القائمة فارغة تماماً.", 
-        saveAll: "حفظ نهائي لقاعدة البيانات", cancel: "إلغاء", noProjectSelected: "يرجى اختيار مشروع أولاً.", 
-        validationErrorFields: "يرجى تعبئة العنوان وتحديد الفريق.", submitting: "جاري الحفظ...",
-        successMsg: "تم حفظ كافة المعالم بنجاح في قاعدة البيانات!", successLabel: "تم الحفظ",
+        title: "معالم المشروع", project: "المشروع", selectHere: "اختر المشروع...", milestoneTitle: "اسم المعلم", 
+        team: "الفريق", selectTeam: "اختر الفريق...", dueDate: "التاريخ", status: "الحالة",
+        hasPayment: "يوجد دفعة", paymentAmount: "المبلغ", paymentStatus: "الحالة",
+        addToList: "إضافة للقائمة", listTitle: "قائمة الحفظ", noItems: "فارغة", 
+        saveAll: "حفظ الكل", cancel: "إلغاء", noProjectSelected: "اختر مشروعاً.", 
+        validationErrorFields: "الاسم والفريق مطلوبان.", submitting: "حفظ...",
+        successMsg: "تم الحفظ!", successLabel: "تم",
         Pending: "معلق", "In Progress": "قيد التنفيذ", Completed: "مكتمل", Sent: "مرسلة", Paid: "مدفوعة"
     },
     en: { 
-        title: "Project Milestones Mgt", project: "Target Project", selectHere: "Select project...", milestoneTitle: "Milestone / Activity Title", 
-        team: "Responsible Team", selectTeam: "Select team...", dueDate: "Due Date", status: "Current Status",
-        hasPayment: "Include Payment", paymentAmount: "Amount", paymentStatus: "Payment Status",
-        addToList: "Add to Queue", listTitle: "Ready for Batch Save", noItems: "Queue is empty.", 
-        saveAll: "Save All to Database", cancel: "Cancel", noProjectSelected: "Select a project first.", 
-        validationErrorFields: "Title and Team are required.", submitting: "Saving Data...",
-        successMsg: "All milestones have been saved successfully!", successLabel: "Saved",
+        title: "Milestones Mgt", project: "Project", selectHere: "Select...", milestoneTitle: "Title", 
+        team: "Team", selectTeam: "Select...", dueDate: "Date", status: "Status",
+        hasPayment: "Payment", paymentAmount: "Amount", paymentStatus: "Status",
+        addToList: "Add to Queue", listTitle: "Batch Queue", noItems: "Empty", 
+        saveAll: "Save Batch", cancel: "Cancel", noProjectSelected: "Select project.", 
+        validationErrorFields: "Required fields missing.", submitting: "Saving...",
+        successMsg: "Saved successfully!", successLabel: "Done",
         Pending: "Pending", "In Progress": "In Progress", Completed: "Completed", Sent: "Sent", Paid: "Paid"
     }
 };

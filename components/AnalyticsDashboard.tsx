@@ -12,11 +12,11 @@ const getCurrentMonthYearLabel = (lang: Language) => {
 };
 
 const WidgetWrapper: React.FC<{ title: string, children: React.ReactNode, maxHeight?: string }> = ({ title, children, maxHeight = 'none' }) => (
-    <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl flex flex-col overflow-hidden h-full shadow-sm">
-        <div className="flex justify-between items-center py-4 px-6 border-b border-slate-50 dark:border-slate-800/50">
-            <h2 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{title}</h2>
+    <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] flex flex-col overflow-hidden h-full shadow-sm">
+        <div className="flex justify-between items-center py-5 px-8 border-b border-slate-50 dark:border-slate-800/50">
+            <h2 className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em]">{title}</h2>
         </div>
-        <div className="flex-grow overflow-y-auto custom-scrollbar px-6 py-5" style={{ maxHeight }}>{children}</div>
+        <div className="flex-grow overflow-y-auto custom-scrollbar px-8 py-6" style={{ maxHeight }}>{children}</div>
     </div>
 );
 
@@ -47,32 +47,105 @@ const StatsOverviewWidget: React.FC<{ filteredProjects: Project[], filteredMiles
 
 const ExecutionPerformanceChartWidget: React.FC<{ filteredMilestones: Milestone[], language: Language }> = ({ filteredMilestones = [], language }) => {
     const t = translations[language];
+    
     const graphData = useMemo(() => {
         const groups = new Map<string, { totalAmount: number; sortKey: number }>();
         filteredMilestones.forEach(m => {
             if (!m || !m.dueDate || !m.hasPayment) return;
             const date = new Date(m.dueDate);
             if (isNaN(date.getTime())) return;
-            const monthName = date.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { month: 'long' });
+            const monthName = date.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { month: 'short' });
             const year = date.getFullYear();
             const labelKey = `${monthName} ${year}`;
             const sortKey = year * 100 + date.getMonth();
             if (!groups.has(labelKey)) groups.set(labelKey, { totalAmount: 0, sortKey });
             groups.get(labelKey)!.totalAmount += (m.paymentAmount || 0);
         });
-        return Array.from(groups.entries()).map(([monthYear, data]) => ({ monthYear, ...data })).sort((a, b) => a.sortKey - b.sortKey);
+        return Array.from(groups.entries())
+            .map(([monthYear, data]) => ({ monthYear, ...data }))
+            .sort((a, b) => a.sortKey - b.sortKey)
+            .slice(-12); // Show last 12 months
     }, [filteredMilestones, language]);
-    const maxAmount = Math.max(...graphData.map(d => d.totalAmount), 1);
+
+    const maxAmount = Math.max(...graphData.map(d => d.totalAmount), 1000);
+    const yAxisSteps = 5;
+    const stepValue = Math.ceil(maxAmount / yAxisSteps / 100) * 100;
+    const adjustedMax = stepValue * yAxisSteps;
+
+    const formatCurrencyShort = (val: number) => {
+        if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
+        if (val >= 1000) return `${(val / 1000).toFixed(1)}K`;
+        return val.toString();
+    };
+
+    if (graphData.length === 0) {
+        return (
+            <WidgetWrapper title={t.executionChartTitle}>
+                <div className="h-64 flex flex-col items-center justify-center text-slate-300">
+                    <svg className="w-12 h-12 mb-3 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{t.noData}</span>
+                </div>
+            </WidgetWrapper>
+        );
+    }
+
     return (
         <WidgetWrapper title={t.executionChartTitle}>
-            <div className="h-40 flex items-end gap-2 pt-6 min-w-0">
-                {graphData.map((d, i) => (
-                    <div key={i} className="flex-1 flex flex-col items-center justify-end h-full group relative">
-                        <div style={{ height: `${(d.totalAmount / maxAmount) * 100}%` }} className="w-full max-w-[20px] bg-slate-100 dark:bg-slate-800 rounded-t group-hover:bg-violet-500 transition-all duration-300" />
-                        <span className="text-[7px] font-bold text-slate-400 mt-2 truncate w-full text-center">{d.monthYear.split(' ')[0]}</span>
+            <div className="relative pt-10 pb-2">
+                <div className="flex h-64">
+                    {/* Y-Axis Labels */}
+                    <div className="flex flex-col justify-between items-end pr-4 text-[9px] font-bold text-slate-400 w-12 pb-6">
+                        {Array.from({ length: yAxisSteps + 1 }).map((_, i) => (
+                            <span key={i}>${formatCurrencyShort(stepValue * (yAxisSteps - i))}</span>
+                        ))}
                     </div>
-                ))}
-                {graphData.length === 0 && <div className="w-full text-center text-slate-300 text-[10px] py-10 uppercase font-black">{t.noData}</div>}
+
+                    {/* Chart Area */}
+                    <div className="flex-1 relative border-l border-b border-slate-100 dark:border-slate-800 flex items-end px-2">
+                        {/* Horizontal Grid Lines */}
+                        <div className="absolute inset-0 flex flex-col justify-between pb-6 pointer-events-none">
+                            {Array.from({ length: yAxisSteps + 1 }).map((_, i) => (
+                                <div key={i} className="w-full border-t border-slate-50 dark:border-slate-800/50" />
+                            ))}
+                        </div>
+
+                        {/* Bars */}
+                        <div className="flex-1 h-full flex items-end justify-around gap-2 z-10">
+                            {graphData.map((d, i) => {
+                                const heightPercentage = (d.totalAmount / adjustedMax) * 100;
+                                return (
+                                    <div key={i} className="flex-1 flex flex-col items-center justify-end h-full group relative max-w-[50px]">
+                                        {/* Value Label */}
+                                        <div className="absolute bottom-full mb-2 bg-slate-900 text-white text-[8px] font-black px-1.5 py-0.5 rounded transition-all opacity-100 group-hover:scale-110 z-20">
+                                            {formatCurrencyShort(d.totalAmount)}
+                                        </div>
+                                        
+                                        {/* Bar */}
+                                        <div 
+                                            style={{ height: `${heightPercentage}%` }} 
+                                            className="w-full bg-gradient-to-t from-violet-600 to-indigo-400 rounded-t-lg transition-all duration-700 shadow-lg shadow-violet-500/10 group-hover:shadow-violet-500/30 group-hover:from-violet-500 group-hover:to-indigo-300" 
+                                        />
+                                        
+                                        {/* X-Axis Label */}
+                                        <div className="absolute top-full pt-3 w-full text-center">
+                                            <span className="text-[8px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tighter block truncate">
+                                                {d.monthYear}
+                                            </span>
+                                        </div>
+
+                                        {/* Pro Tooltip on Hover */}
+                                        <div className="absolute hidden group-hover:flex flex-col items-center bottom-[110%] left-1/2 -translate-x-1/2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-2xl p-2 rounded-xl z-50 pointer-events-none animate-in zoom-in-90 min-w-[100px]">
+                                            <p className="text-[7px] font-black text-slate-400 uppercase mb-1">{d.monthYear}</p>
+                                            <p className="text-[11px] font-black text-violet-600">{d.totalAmount.toLocaleString()} USD</p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+                {/* Spacer for X-axis labels */}
+                <div className="h-6" />
             </div>
         </WidgetWrapper>
     );
@@ -263,8 +336,8 @@ const AggregatedSummaryWidget: React.FC<{ projectsWithMilestones: any[], project
 };
 
 const translations = {
-    ar: { dashboard: "لوحة التحكم", overview: "نظرة عامة على التدفقات المالية.", totalProjects: "المشاريع", filteredPending: "معلقة", filteredSent: "مرسلة", filteredPaid: "مدفوعة", executionChartTitle: "النمو الشهري", executionAggregation: "تجميع التدفقات", noData: "لا توجد بيانات.", quickSearch: "بحث بالمشروع...", customize: "تخصيص", allProjects: "كل المشاريع", allMonths: "كل الشهور", allManagers: "كل المدراء", clearFilters: "مسح", milestoneUnit: "معالم", totalPayments: "إجمالي الدفعات", Paid: "مدفوعة", Sent: "مرسلة", Pending: "معلقة", projectName: "المشروع", projectManager: "مدير المشروع", milestoneTitle: "عنوان المعلم", amount: "المبلغ", status: "الحالة" },
-    en: { dashboard: "Dashboard", overview: "Financial cashflow overview.", totalProjects: "Projects", filteredPending: "Pending", filteredSent: "Invoiced", filteredPaid: "Collected", executionChartTitle: "Monthly Growth", executionAggregation: "Flow Aggregation", noData: "No data found.", quickSearch: "Search Project...", customize: "Customize", allProjects: "All Projects", allMonths: "All Months", allManagers: "All Managers", clearFilters: "Clear", milestoneUnit: "Milestones", totalPayments: "Total Payments", Paid: "Paid", Sent: "Sent", Pending: "Pending", projectName: "Project", projectManager: "Project Manager", milestoneTitle: "Milestone", amount: "Amount", status: "Status" }
+    ar: { dashboard: "لوحة التحكم", overview: "نظرة عامة على التدفقات المالية.", totalProjects: "المشاريع", filteredPending: "معلقة", filteredSent: "مرسلة", filteredPaid: "مدفوعة", executionChartTitle: "نمو الدفعات الشهري", executionAggregation: "تجميع التدفقات", noData: "لا توجد بيانات.", quickSearch: "بحث بالمشروع...", customize: "تخصيص", allProjects: "كل المشاريع", allMonths: "كل الشهور", allManagers: "كل المدراء", clearFilters: "مسح", milestoneUnit: "معالم", totalPayments: "إجمالي الدفعات", Paid: "مدفوعة", Sent: "مرسلة", Pending: "معلقة", projectName: "المشروع", projectManager: "مدير المشروع", milestoneTitle: "عنوان المعلم", amount: "المبلغ", status: "الحالة" },
+    en: { dashboard: "Dashboard", overview: "Financial cashflow overview.", totalProjects: "Projects", filteredPending: "Pending", filteredSent: "Invoiced", filteredPaid: "Collected", executionChartTitle: "Monthly Revenue Growth", executionAggregation: "Flow Aggregation", noData: "No data found.", quickSearch: "Search Project...", customize: "Customize", allProjects: "All Projects", allMonths: "All Months", allManagers: "All Managers", clearFilters: "Clear", milestoneUnit: "Milestones", totalPayments: "Total Payments", Paid: "Paid", Sent: "Sent", Pending: "Pending", projectName: "Project", projectManager: "Project Manager", milestoneTitle: "Milestone", amount: "Amount", status: "Status" }
 };
 
 export const WIDGETS_CONFIG = [
