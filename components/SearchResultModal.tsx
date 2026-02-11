@@ -10,20 +10,24 @@ interface SearchResultModalProps {
 
 const translations = {
     ar: {
-        title: "نتيجة بحث المساعد الذكي",
-        summaryTitle: "ملخص",
-        kpiTitle: "مؤشرات الأداء الرئيسية",
+        title: "نتائج البحث الذكي",
+        summaryTitle: "الملخص التحليلي",
+        kpiTitle: "مؤشرات الأداء المكتشفة",
         errorTitle: "تنبيه من المساعد",
         close: "إغلاق",
-        noData: "لم يتم العثور على بيانات مطابقة لاستفسارك.",
+        noData: "لم نتمكن من العثور على بيانات مطابقة بدقة، حاول تغيير صياغة السؤال.",
+        retry: "إعادة المحاولة",
+        aiLabel: "AI INSIGHTS"
     },
     en: {
-        title: "AI Assistant Search Result",
-        summaryTitle: "Summary",
-        kpiTitle: "Key Performance Indicators",
-        errorTitle: "AI Assistant Notice",
-        close: "Close",
-        noData: "No data found matching your query.",
+        title: "AI Search Insights",
+        summaryTitle: "Analytical Summary",
+        kpiTitle: "Performance Metrics",
+        errorTitle: "Assistant Notice",
+        close: "Dismiss",
+        noData: "No precise data found, try rephrasing your question.",
+        retry: "Try Again",
+        aiLabel: "AI INSIGHTS"
     }
 };
 
@@ -33,40 +37,50 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ result, onClose, 
     const renderContent = () => {
         if (result.resultType === 'ERROR') {
             return (
-                <div className="flex flex-col items-center py-6 text-center">
-                    <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-600 dark:text-red-400 mb-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <div className="flex flex-col items-center py-10 text-center animate-in fade-in zoom-in-95 duration-300">
+                    <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 mb-6 ring-4 ring-red-500/5">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
                     </div>
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">{t.errorTitle}</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm">
+                    <h3 className="text-xl font-black text-slate-800 dark:text-white mb-3 uppercase tracking-tight">{t.errorTitle}</h3>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400 max-w-sm leading-relaxed mb-8">
                         {result.error || t.noData}
                     </p>
+                    <button onClick={onClose} className="px-8 py-3 bg-slate-900 dark:bg-white dark:text-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:scale-105 transition-transform">
+                        {t.close}
+                    </button>
                 </div>
             );
         }
 
         if (result.resultType === 'SUMMARY' && result.summary) {
             return (
-                <div>
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-3">{t.summaryTitle}</h3>
-                    <blockquote className="p-4 bg-slate-100 dark:bg-slate-800/50 border-l-4 border-violet-500 dark:border-violet-400 rounded-r-lg">
-                        <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap italic">{result.summary}</p>
-                    </blockquote>
+                <div className="animate-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex items-center gap-2 mb-4">
+                        <span className="px-2 py-0.5 bg-violet-600 text-white text-[8px] font-black rounded uppercase">{t.aiLabel}</span>
+                        <h3 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t.summaryTitle}</h3>
+                    </div>
+                    <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-3xl relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-violet-500"></div>
+                        <p className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-relaxed italic">{result.summary}</p>
+                    </div>
                 </div>
             );
         }
 
         if (result.resultType === 'KPIS' && result.kpis?.length) {
             return (
-                 <div>
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">{t.kpiTitle}</h3>
+                 <div className="animate-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex items-center gap-2 mb-6">
+                        <span className="px-2 py-0.5 bg-violet-600 text-white text-[8px] font-black rounded uppercase">{t.aiLabel}</span>
+                        <h3 className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t.kpiTitle}</h3>
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {result.kpis.map((kpi, index) => (
-                            <div key={index} className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-xl text-center flex flex-col justify-center items-center shadow-sm">
-                                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{kpi.title}</p>
-                                <p className="text-3xl font-bold text-violet-600 dark:text-violet-400 mt-1">{kpi.value}</p>
+                            <div key={index} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 rounded-3xl shadow-sm hover:border-violet-500 transition-colors group">
+                                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest mb-2">{kpi.title}</p>
+                                <p className="text-3xl font-black text-violet-600 dark:text-violet-400 group-hover:scale-105 transition-transform origin-left">{kpi.value}</p>
                             </div>
                         ))}
                     </div>
@@ -75,39 +89,34 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ result, onClose, 
         }
 
         return (
-            <div className="text-center py-10 text-slate-500 dark:text-slate-400">
-                {t.noData}
+            <div className="text-center py-20">
+                <p className="text-[10px] font-black text-slate-300 dark:text-slate-700 uppercase tracking-[0.4em]">{t.noData}</p>
             </div>
         );
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity">
-            <div className="bg-white dark:bg-slate-900/50 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 p-2 rounded-2xl shadow-2xl w-full max-w-lg m-4" dir={language === 'ar' ? 'rtl' : 'ltr'}>
-                <div className="p-6 max-h-[90vh] overflow-y-auto">
-                    <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-4 mb-6">
-                        <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-3">
-                             <span className={`p-2 rounded-full ${result.resultType === 'ERROR' ? 'bg-red-100 dark:bg-red-900/50' : 'bg-violet-100 dark:bg-violet-900/50'}`}>
-                                <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${result.resultType === 'ERROR' ? 'text-red-600 dark:text-red-300' : 'text-violet-600 dark:text-violet-300'}`} viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 2a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 0110 2zM5.05 3.55a.75.75 0 01.04 1.06l-1.06 1.06a.75.75 0 01-1.1-1.06l1.06-1.06a.75.75 0 011.06-.04zM14.95 3.55a.75.75 0 011.06.04l1.06 1.06a.75.75 0 01-1.06 1.1l-1.06-1.06a.75.75 0 01-.04-1.06zM10 18a.75.75 0 01.75-.75h.01a.75.75 0 010 1.5H10a.75.75 0 01-.75-.75zM3.55 14.95a.75.75 0 011.06-.04l1.06 1.06a.75.75 0 01-1.1 1.06l-1.06-1.06a.75.75 0 01.04-1.06zM16.45 14.95a.75.75 0 01.04 1.06l-1.06 1.06a.75.75 0 01-1.1-1.06l1.06-1.06a.75.75 0 011.06-.04zM17.25 10a.75.75 0 01-1.5 0h.01a.75.75 0 010-1.5H17.25a.75.75 0 01.75.75zM2.75 10a.75.75 0 01-1.5 0h.01a.75.75 0 010-1.5H2.75a.75.75 0 01.75.75zM10 6a4 4 0 100 8 4 4 0 000-8zM8.5 10a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" clipRule="evenodd" />
-                                </svg>
-                             </span>
-                             {t.title}
-                        </h2>
-                        <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-[200] p-4 transition-all duration-500">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+                <div className="p-8">
+                    <div className="flex justify-between items-center mb-8">
+                        <h2 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-[0.2em]">{t.title}</h2>
+                        <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                         </button>
                     </div>
                     
-                    <div className="py-4">
+                    <div className="min-h-[200px]">
                         {renderContent()}
                     </div>
                     
-                    <div className="flex justify-end pt-6 border-t border-slate-200 dark:border-slate-700 mt-6">
-                        <button onClick={onClose} className="px-5 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-slate-800/80 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-700/80 transition-colors">
-                            {t.close}
-                        </button>
-                    </div>
+                    {result.resultType !== 'ERROR' && (
+                        <div className="flex justify-end mt-10 pt-6 border-t border-slate-50 dark:border-slate-800">
+                            <button onClick={onClose} className="px-10 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest hover:text-violet-600 transition-colors">
+                                {t.close}
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

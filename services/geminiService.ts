@@ -28,18 +28,24 @@ const resultSchema = {
     required: ['resultType'],
 };
 
-const formatDataForPrompt = (projects: Project[], milestones: Milestone[], users: User[], teams: Lookup[]): string => {
-    // تقليص البيانات المرسلة لزيادة السرعة
+/**
+ * الحصول على مفتاح API بشكل آمن
+ * يحاول الجلب من الاسم القياسي أو الاسم المتوافق مع Vite/Netlify
+ */
+const getApiKey = () => {
+    return process.env.API_KEY || (process.env as any).VITE_API_KEY;
+};
+
+const formatDataForPrompt = (projects: Project[], milestones: Milestone[]): string => {
+    // تقليص البيانات لأقصى حد لضمان عدم تجاوز حدود الـ Token والسرعة
     const context = {
         p: projects.map(p => ({
             id: p.id,
             n: p.name,
-            c: p.projectCode,
             s: p.status?.name,
-            cnt: p.country?.name,
-            cat: p.category?.name,
-            cust: p.customer?.name
-        })),
+            c: p.customer?.name,
+            pm: p.projectManager?.name
+        })).slice(0, 50),
         m: milestones.map(m => ({
             id: m.id,
             t: m.title,
@@ -47,80 +53,77 @@ const formatDataForPrompt = (projects: Project[], milestones: Milestone[], users
             d: m.dueDate,
             ps: m.paymentStatus,
             a: m.paymentAmount
-        })),
+        })).slice(0, 100),
     };
-    return `Context: ${JSON.stringify(context)}`;
+    return `Data: ${JSON.stringify(context)}`;
 };
 
 export const analyzeQuery = async (query: string, projects: Project[], milestones: Milestone[], users: User[], teams: Lookup[]): Promise<AnalysisResult> => {
     try {
-        if (!process.env.API_KEY) {
-            throw new Error("API_KEY environment variable is not set.");
+        const apiKey = getApiKey();
+        if (!apiKey) {
+            console.error("Critical: API_KEY or VITE_API_KEY is missing from environment variables.");
+            return { 
+                resultType: 'ERROR', 
+                error: "نظام الذكاء الاصطناعي غير مهيأ حالياً. يرجى التأكد من إضافة VITE_API_KEY في إعدادات Netlify وإعادة بناء المشروع (Redeploy)." 
+            };
         }
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+        const ai = new GoogleGenAI({ apiKey });
+        const dataContext = formatDataForPrompt(projects, milestones);
         
-        const dataContext = formatDataForPrompt(projects, milestones, users, teams);
         const prompt = `
-            Analyze this query for a project tool: "${query}"
-            Current Date: ${new Date().toISOString()}.
-            
-            Return JSON only.
-            Intent Rules:
-            - PROJECTS: if asking for lists (e.g. "projects in Jordan")
-            - MILESTONES: if asking for specific activities
-            - KPIS: for counts/sums (e.g. "# of projects", "total value")
-            - SUMMARY: for status text.
+            You are a project analyst. Analyze: "${query}"
+            Rules:
+            1. PROJECTS: for lists of project items.
+            2. MILESTONES: for specific tasks/milestones.
+            3. KPIS: for stats (counts, sums, totals).
+            4. SUMMARY: for general status updates.
             
             ${dataContext}
+            Answer in JSON only matching the schema.
         `;
 
         const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview", // استخدام Flash للسرعة القصوى
+            model: "gemini-3-flash-preview",
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: resultSchema,
-                thinkingConfig: { thinkingBudget: 0 }, // إلغاء وقت التفكير لزيادة السرعة
+                thinkingConfig: { thinkingBudget: 0 },
             },
         });
 
-        const jsonText = response.text.trim();
-        const result = JSON.parse(jsonText);
-        
-        if (result.milestones && !Array.isArray(result.milestones)) result.milestones = [result.milestones];
-        if (result.projects && !Array.isArray(result.projects)) result.projects = [result.projects];
-
+        const result = JSON.parse(response.text.trim());
         return result as AnalysisResult;
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("AI Analysis Error:", error);
-        return { resultType: 'ERROR', error: "AI temporary delay or error." };
+        return { 
+            resultType: 'ERROR', 
+            error: error.message?.includes('403') 
+                ? "انتهت صلاحية مفتاح الربط أو أن الخدمة غير مفعلة لهذا النطاق." 
+                : "نعتذر، المساعد الذكي يواجه ضغطاً في الطلبات حالياً. يرجى المحاولة بعد لحظات." 
+        };
     }
 };
 
 export const getChatResponse = async (query: string, projects: Project[], milestones: Milestone[], users: User[], teams: Lookup[]): Promise<string> => {
     try {
-        if (!process.env.API_KEY) {
-            throw new Error("API_KEY environment variable is not set.");
-        }
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const dataContext = formatDataForPrompt(projects, milestones, users, teams);
-        const prompt = `
-            You are "Pio-Bot". Answer concisely based on this data:
-            ${dataContext}
-            Query: "${query}"
-        `;
+        const apiKey = getApiKey();
+        if (!apiKey) return "عذراً، نظام المحادثة غير مفعل حالياً لعدم وجود مفتاح الربط في البيئة السحابية.";
 
+        const ai = new GoogleGenAI({ apiKey });
+        const dataContext = formatDataForPrompt(projects, milestones);
+        
         const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview", // استخدام Flash للمحادثة السريعة أيضاً
-            contents: prompt,
-            config: {
-                thinkingConfig: { thinkingBudget: 0 }
-            }
+            model: "gemini-3-flash-preview",
+            contents: `You are 'Pio-Bot'. Answer concisely based on this data: ${dataContext}. Query: "${query}"`,
+            config: { thinkingBudget: 0 }
         });
 
         return response.text.trim();
     } catch (error) {
-        return "Sorry, I'm having trouble responding quickly right now.";
+        return "أواجه صعوبة في معالجة طلبك حالياً، هل يمكنني مساعدتك في شيء آخر؟";
     }
 };
