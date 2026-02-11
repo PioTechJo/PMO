@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { User, Project, Language } from '../types';
 import UserCard from './UserCard';
@@ -11,12 +12,12 @@ interface TeamProps {
 const Team: React.FC<TeamProps> = ({ allUsers, allProjects, language }) => {
   const translations = {
     ar: {
-      title: "إدارة الفريق",
-      subtitle: "نظرة عامة على جميع أعضاء الفريق."
+      title: "إدارة مديري المشاريع",
+      subtitle: "نظرة عامة على جميع مديري المشاريع."
     },
     en: {
-      title: "Team Management",
-      subtitle: "An overview of all team members."
+      title: "Projects Managers Management",
+      subtitle: "An overview of all project managers."
     }
   };
   const t = translations[language];

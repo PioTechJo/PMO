@@ -1,6 +1,7 @@
+
 export type Language = 'ar' | 'en';
 export type Theme = 'light' | 'dark' | 'system';
-export type View = 'dashboard' | 'projects' | 'activities' | 'team' | 'payments' | 'system';
+export type View = 'dashboard' | 'projects' | 'milestones' | 'team' | 'payments' | 'system' | 'maintenanceContracts' | 'filter' | 'reports';
 
 export interface Lookup {
     id: string;
@@ -8,7 +9,7 @@ export interface Lookup {
 }
 
 export interface User {
-    id: string;
+    id:string;
     name: string;
     avatarUrl?: string;
 }
@@ -19,9 +20,9 @@ export interface ChatMessage {
   sender: 'user' | 'ai';
 }
 
-export interface ActivityUpdate {
+export interface MilestoneUpdate {
     id: string;
-    activityId: string;
+    milestoneId: string;
     userId: string;
     updateText: string;
     createdAt: string;
@@ -38,26 +39,26 @@ export interface Lookups {
     customers: Lookup[];
 }
 
-export enum ActivityStatus {
-    Completed = 'Completed',
-    InProgress = 'In Progress',
+export enum MilestoneStatus {
     Pending = 'Pending',
+    InProgress = 'In Progress',
+    Completed = 'Completed',
 }
 
 export enum PaymentStatus {
-    Paid = 'Paid',
-    Sent = 'Sent',
     Pending = 'Pending',
+    Sent = 'Sent',
+    Paid = 'Paid',
 }
 
-export interface Activity {
+export interface Milestone {
     id: string;
     title: string;
     description: string;
     projectId: string;
     teamId: string | null;
     dueDate: string | null; // ISO string
-    status: ActivityStatus;
+    status: MilestoneStatus;
     hasPayment: boolean;
     paymentAmount: number;
     paymentStatus: PaymentStatus | null;
@@ -79,6 +80,12 @@ export interface Project {
     actualStartDate: string | null;
     expectedClosureDate: string | null;
     progress: number;
+    // Weight Fields
+    revenueImpact: number;
+    strategicValue: number;
+    deliveryRisk: number;
+    customerPressure: number;
+    resourceLoad: number;
     // Expanded properties from lookups
     country?: Lookup;
     category?: Lookup;
@@ -89,10 +96,29 @@ export interface Project {
     customer?: Lookup;
 }
 
+export interface MaintenanceContract {
+    id: string;
+    createdAt: string;
+    type: string | null;
+    month: number | null;
+    year: number;
+    customerId: string;
+    projectCode: string | null;
+    totalAmount: number;
+    collectedAmount: number;
+    lostAmount: number;
+    startDate: string | null;
+    endDate: string | null;
+    notes: string | null;
+    // Expanded properties for display
+    customer?: Lookup;
+}
+
+
 export interface AnalysisResult {
-    resultType: 'PROJECTS' | 'ACTIVITIES' | 'SUMMARY' | 'KPIS' | 'ERROR';
+    resultType: 'PROJECTS' | 'MILESTONES' | 'SUMMARY' | 'KPIS' | 'ERROR';
     projects?: { id: string }[];
-    activities?: { id: string }[];
+    milestones?: { id: string }[];
     summary?: string;
     kpis?: { title: string; value: string }[];
     error?: string;
@@ -113,4 +139,19 @@ export interface ProjectImportRow {
     actualStartDate?: string; // YYYY-MM-DD
     expectedClosureDate?: string; // YYYY-MM-DD
     progress?: string; // number as string
+}
+
+export interface MaintenanceContractImportRow {
+    [key: string]: string | undefined;
+    type?: string;
+    month: string; // number as string
+    year: string; // number as string
+    customerName: string;
+    projectCode: string;
+    totalAmount: string; // number as string
+    collectedAmount?: string; // number as string
+    lostAmount?: string; // number as string
+    startDate?: string; // YYYY-MM-DD
+    endDate?: string; // YYYY-MM-DD
+    notes?: string;
 }

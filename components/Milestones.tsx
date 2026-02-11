@@ -1,30 +1,23 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-// Fixed: Changed 'Activity' to 'Milestone' to match the exported members in types.ts
-import { Milestone, Project, Lookup, Language, Lookups, User, PaymentStatus, MilestoneStatus } from '../types';
-import ActivityListItem from './ActivityListItem';
-import AddActivityModal from './AddActivityModal';
+import { Milestone, Project, Lookup, Language, Lookups, User, PaymentStatus } from '../types';
+import MilestoneListItem from './MilestoneListItem';
+import AddMilestoneModal from './AddMilestoneModal';
 import SearchableSelect from './SearchableSelect';
 
-interface ActivitiesProps {
-    // Fixed: Changed 'Activity' to 'Milestone'
-    allActivities: Milestone[];
+interface MilestonesProps {
+    allMilestones: Milestone[];
     allProjects: Project[];
     language: Language;
-    // Fixed: Changed 'Activity' to 'Milestone'
-    onAddActivities: (activities: Omit<Milestone, 'id'>[]) => Promise<void>;
-    // Fixed: Changed 'Activity' to 'Milestone'
-    onOpenEditModal: (activity: Milestone) => void;
-    // Fixed: Changed 'Activity' to 'Milestone'
-    onViewActivityDetails: (activity: Milestone) => void;
-    // Fixed: Changed 'Activity' to 'Milestone'
-    onUpdateActivity: (activityId: string, updatedData: Partial<Omit<Milestone, 'id'>>) => Promise<void>;
+    onAddMilestones: (milestones: Omit<Milestone, 'id'>[]) => Promise<void>;
+    onOpenEditModal: (milestone: Milestone) => void;
+    onViewMilestoneDetails: (milestone: Milestone) => void;
+    onUpdateMilestone: (milestoneId: string, updatedData: Partial<Omit<Milestone, 'id'>>) => Promise<void>;
     searchResult?: { id: string }[];
     lookups: Lookups;
     currentUser?: User;
 }
 
-const Activities: React.FC<ActivitiesProps> = ({ allActivities, allProjects, language, onAddActivities, onOpenEditModal, onViewActivityDetails, onUpdateActivity, searchResult, lookups, currentUser }) => {
+const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, language, onAddMilestones, onOpenEditModal, onViewMilestoneDetails, onUpdateMilestone, searchResult, lookups, currentUser }) => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
     const [selectedManagerId, setSelectedManagerId] = useState<string>('all');
@@ -45,12 +38,12 @@ const Activities: React.FC<ActivitiesProps> = ({ allActivities, allProjects, lan
     
     const translations = {
         ar: {
-            title: "الأنشطة",
-            subtitle: "نظرة على جميع الأنشطة الخاصة بك، منظمة حسب المشروع.",
-            newActivity: "إضافة نشاط",
-            unassignedActivities: "أنشطة غير مسندة لمشروع",
-            noActivitiesInProject: "لا توجد أنشطة في هذا المشروع.",
-            noActivitiesFound: "لم يتم العثور على أنشطة.",
+            title: "المعالم",
+            subtitle: "نظرة على جميع المعالم الخاصة بك، منظمة حسب المشروع.",
+            newMilestone: "إضافة معلم",
+            unassignedMilestones: "معالم غير مسندة لمشروع",
+            noMilestonesInProject: "لا توجد معالم في هذا المشروع.",
+            noMilestonesFound: "لم يتم العثور على معالم.",
             totalPayments: "إجمالي الدفعات",
             allProjects: "كل المشاريع",
             allManagers: "كل المدراء",
@@ -73,12 +66,12 @@ const Activities: React.FC<ActivitiesProps> = ({ allActivities, allProjects, lan
             end: "النهاية",
         },
         en: {
-            title: "Activities",
-            subtitle: "An overview of all your activities, organized by project.",
-            newActivity: "Add Activity",
-            unassignedActivities: "Unassigned Activities",
-            noActivitiesInProject: "No activities in this project.",
-            noActivitiesFound: "No activities found.",
+            title: "Milestones",
+            subtitle: "An overview of all your milestones, organized by project.",
+            newMilestone: "Add Milestone",
+            unassignedMilestones: "Unassigned Milestones",
+            noMilestonesInProject: "No milestones in this project.",
+            noMilestonesFound: "No milestones found.",
             totalPayments: "Total Payments",
             allProjects: "All Projects",
             allManagers: "All Managers",
@@ -120,7 +113,7 @@ const Activities: React.FC<ActivitiesProps> = ({ allActivities, allProjects, lan
 
     const paymentStatusOptions = useMemo(() => [
         { value: 'all', label: t.allPaymentStatuses },
-        ...Object.values(PaymentStatus).map(s => ({ value: s, label: t[s as keyof typeof t] || s })).sort((a,b) => a.label.localeCompare(b.label))
+        ...Object.values(PaymentStatus).map(s => ({ value: s, label: t[s] || s })).sort((a,b) => a.label.localeCompare(b.label))
     ], [t]);
 
     const hasPaymentOptions = useMemo(() => [
@@ -131,9 +124,9 @@ const Activities: React.FC<ActivitiesProps> = ({ allActivities, allProjects, lan
     
     const monthYearOptions = useMemo(() => {
         const uniqueMonthYears = new Set<string>();
-        allActivities.forEach(activity => {
-            if (activity.dueDate) {
-                const date = new Date(activity.dueDate);
+        allMilestones.forEach(milestone => {
+            if (milestone.dueDate) {
+                const date = new Date(milestone.dueDate);
                 const year = date.getFullYear();
                 const month = date.getMonth();
                 uniqueMonthYears.add(`${year}-${month}`);
@@ -152,7 +145,7 @@ const Activities: React.FC<ActivitiesProps> = ({ allActivities, allProjects, lan
             if (yearB !== yearA) return yearB - yearA;
             return monthB - monthA;
         });
-    }, [allActivities, language]);
+    }, [allMilestones, language]);
 
     const finalMonthYearOptions = useMemo(() => [
         { value: 'all', label: t.allMonths },
@@ -160,74 +153,71 @@ const Activities: React.FC<ActivitiesProps> = ({ allActivities, allProjects, lan
     ], [monthYearOptions, t.allMonths]);
 
     useEffect(() => {
-        // If the current selected project is no longer in the filtered list of projects, reset it.
         if (selectedProjectId !== 'all' && !projectsFilteredByManager.some(p => p.id === selectedProjectId)) {
             setSelectedProjectId('all');
         }
     }, [projectsFilteredByManager, selectedProjectId]);
     
 
-    const filteredActivities = useMemo(() => {
-        let activities = searchResult
-            ? allActivities.filter(a => searchResult.some(res => res.id === a.id))
-            : allActivities;
+    const filteredMilestones = useMemo(() => {
+        let milestones = searchResult
+            ? allMilestones.filter(a => searchResult.some(res => res.id === a.id))
+            : allMilestones;
 
         const managerProjectIds = new Set(projectsFilteredByManager.map(p => p.id));
         
-        return activities.filter(activity => {
-            if (selectedManagerId !== 'all' && !managerProjectIds.has(activity.projectId)) {
+        return milestones.filter(milestone => {
+            if (selectedManagerId !== 'all' && !managerProjectIds.has(milestone.projectId)) {
                 return false;
             }
-            if (selectedProjectId !== 'all' && activity.projectId !== selectedProjectId) {
+            if (selectedProjectId !== 'all' && milestone.projectId !== selectedProjectId) {
                 return false;
             }
             if (selectedHasPayment !== 'all') {
-                if ((selectedHasPayment === 'yes' && !activity.hasPayment) || (selectedHasPayment === 'no' && activity.hasPayment)) {
+                if ((selectedHasPayment === 'yes' && !milestone.hasPayment) || (selectedHasPayment === 'no' && milestone.hasPayment)) {
                     return false;
                 }
             }
-            if (selectedPaymentStatus !== 'all' && activity.paymentStatus !== selectedPaymentStatus) {
+            if (selectedPaymentStatus !== 'all' && milestone.paymentStatus !== selectedPaymentStatus) {
                 return false;
             }
-            const monthYearMatch = selectedMonthYear === 'all' || (activity.dueDate && `${new Date(activity.dueDate).getFullYear()}-${new Date(activity.dueDate).getMonth()}` === selectedMonthYear);
+            const monthYearMatch = selectedMonthYear === 'all' || (milestone.dueDate && `${new Date(milestone.dueDate).getFullYear()}-${new Date(milestone.dueDate).getMonth()}` === selectedMonthYear);
             if (!monthYearMatch) {
                 return false;
             }
             return true;
         });
-    }, [searchResult, allActivities, selectedManagerId, projectsFilteredByManager, selectedProjectId, selectedHasPayment, selectedPaymentStatus, selectedMonthYear]);
+    }, [searchResult, allMilestones, selectedManagerId, projectsFilteredByManager, selectedProjectId, selectedHasPayment, selectedPaymentStatus, selectedMonthYear]);
 
 
-    const groupedActivities = useMemo(() => {
-        // Fixed: Changed 'Activity' to 'Milestone'
-        const projectMap: Map<string, Project & { activities: Milestone[], totalPayments: number }> = new Map();
+    const groupedMilestones = useMemo(() => {
+        const projectMap: Map<string, Project & { milestones: Milestone[], totalPayments: number }> = new Map();
 
-        filteredActivities.forEach(activity => {
-            const project = allProjects.find(p => p.id === activity.projectId);
+        filteredMilestones.forEach(milestone => {
+            const project = allProjects.find(p => p.id === milestone.projectId);
             if (project) {
                  if (!projectMap.has(project.id)) {
-                    projectMap.set(project.id, { ...project, activities: [], totalPayments: 0 });
+                    projectMap.set(project.id, { ...project, milestones: [], totalPayments: 0 });
                 }
-                projectMap.get(project.id)!.activities.push(activity);
+                projectMap.get(project.id)!.milestones.push(milestone);
             }
         });
 
         projectMap.forEach(project => {
-            project.totalPayments = project.activities.reduce((sum, activity) => {
-                return sum + (activity.hasPayment ? activity.paymentAmount : 0);
+            project.totalPayments = project.milestones.reduce((sum, milestone) => {
+                return sum + (milestone.hasPayment ? milestone.paymentAmount : 0);
             }, 0);
-            project.activities.sort((a, b) => new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime());
+            project.milestones.sort((a, b) => new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime());
         });
         
         return Array.from(projectMap.values());
-    }, [filteredActivities, allProjects]);
+    }, [filteredMilestones, allProjects]);
 
     const getProjectById = (id: string) => allProjects.find(p => p.id === id);
     const getTeamById = (id: string | null) => id ? lookups.teams.find(t => t.id === id) : undefined;
 
-    // Fixed: Changed 'Activity' to 'Milestone'
-    const handleAddActivity = async (newActivityData: Omit<Milestone, 'id'>) => {
-        await onAddActivities([newActivityData]);
+    const handleAddMilestone = async (newMilestonesData: Omit<Milestone, 'id'>[]) => {
+        await onAddMilestones(newMilestonesData);
         setShowAddModal(false);
     };
 
@@ -239,10 +229,9 @@ const Activities: React.FC<ActivitiesProps> = ({ allActivities, allProjects, lan
         setSelectedMonthYear('all');
     };
     
-    // Fixed: Changed 'Activity' to 'Milestone'
-    const handleExportGantt = (project: Project & { activities: Milestone[] }) => {
-        const activities = project.activities.filter(a => a.dueDate && !isNaN(new Date(a.dueDate).getTime()));
-        if (activities.length === 0) return;
+    const handleExportGantt = (project: Project & { milestones: Milestone[] }) => {
+        const milestones = project.milestones.filter(a => a.dueDate && !isNaN(new Date(a.dueDate).getTime()));
+        if (milestones.length === 0) return;
     
         const ROW_HEIGHT = 50;
         const HEADER_HEIGHT = 60;
@@ -265,7 +254,7 @@ const Activities: React.FC<ActivitiesProps> = ({ allActivities, allProjects, lan
             });
         };
     
-        const tasks = activities.map(act => {
+        const tasks = milestones.map(act => {
             const endDate = new Date(act.dueDate!);
             const startDate = new Date(endDate);
             startDate.setDate(endDate.getDate() - 7);
@@ -408,7 +397,7 @@ const Activities: React.FC<ActivitiesProps> = ({ allActivities, allProjects, lan
 
     return (
         <div className="space-y-8">
-            {showAddModal && <AddActivityModal teams={lookups.teams} projects={allProjects} onClose={() => setShowAddModal(false)} onAddActivity={handleAddActivity} language={language} />}
+            {showAddModal && <AddMilestoneModal teams={lookups.teams} projects={allProjects} onClose={() => setShowAddModal(false)} onAddMilestone={handleAddMilestone} language={language} />}
 
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
@@ -418,7 +407,7 @@ const Activities: React.FC<ActivitiesProps> = ({ allActivities, allProjects, lan
                 <div className="flex items-center gap-2">
                     <button onClick={() => setShowAddModal(true)} className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 text-white font-bold py-2 px-4 rounded-full flex items-center gap-2 transition-colors shadow-lg hover:shadow-violet-700/50">
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"></path></svg>
-                        <span>{t.newActivity}</span>
+                        <span>{t.newMilestone}</span>
                     </button>
                 </div>
             </div>
@@ -441,11 +430,11 @@ const Activities: React.FC<ActivitiesProps> = ({ allActivities, allProjects, lan
 
 
             <div className="space-y-10">
-                {groupedActivities.length === 0 && (
-                    <p className="text-slate-500 dark:text-slate-400 text-center py-10">{t.noActivitiesFound}</p>
+                {groupedMilestones.length === 0 && (
+                    <p className="text-slate-500 dark:text-slate-400 text-center py-10">{t.noMilestonesFound}</p>
                 )}
 
-                {groupedActivities.map(project => (
+                {groupedMilestones.map(project => (
                     <div key={project.id}>
                         <div className="flex flex-wrap gap-4 justify-between items-center mb-4 pb-2 border-b-2 border-violet-500/50">
                             <div className="flex items-center gap-4">
@@ -469,16 +458,16 @@ const Activities: React.FC<ActivitiesProps> = ({ allActivities, allProjects, lan
                             )}
                         </div>
                         <div className="space-y-2">
-                             {project.activities.map(activity => (
-                                <ActivityListItem
-                                    key={activity.id}
-                                    activity={activity}
-                                    project={getProjectById(activity.projectId)}
-                                    team={getTeamById(activity.teamId)}
+                             {project.milestones.map(milestone => (
+                                <MilestoneListItem
+                                    key={milestone.id}
+                                    milestone={milestone}
+                                    project={getProjectById(milestone.projectId)}
+                                    team={getTeamById(milestone.teamId)}
                                     language={language}
-                                    onOpenEditModal={() => onOpenEditModal(activity)}
-                                    onDoubleClick={() => onViewActivityDetails(activity)}
-                                    onUpdateActivity={onUpdateActivity}
+                                    onOpenEditModal={() => onOpenEditModal(milestone)}
+                                    onDoubleClick={() => onViewMilestoneDetails(milestone)}
+                                    onUpdateMilestone={onUpdateMilestone}
                                 />
                              ))}
                         </div>
@@ -489,4 +478,4 @@ const Activities: React.FC<ActivitiesProps> = ({ allActivities, allProjects, lan
     );
 };
 
-export default Activities;
+export default Milestones;

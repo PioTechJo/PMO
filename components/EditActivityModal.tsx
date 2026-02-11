@@ -1,25 +1,30 @@
 
-
 import React, { useState, useEffect } from 'react';
-import { Activity, Project, Lookup, ActivityStatus, Language, PaymentStatus, ActivityUpdate, User } from '../types';
+// Fixed: Changed 'Activity', 'ActivityStatus', and 'ActivityUpdate' to 'Milestone', 'MilestoneStatus', and 'MilestoneUpdate'
+import { Milestone, Project, Lookup, MilestoneStatus, Language, PaymentStatus, MilestoneUpdate, User } from '../types';
 
 interface EditActivityModalProps {
-  activityToEdit: Activity;
+  // Fixed: Changed 'Activity' to 'Milestone'
+  activityToEdit: Milestone;
   teams: Lookup[];
   projects: Project[];
-  allActivityUpdates: ActivityUpdate[];
+  // Fixed: Changed 'ActivityUpdate' to 'MilestoneUpdate'
+  allActivityUpdates: MilestoneUpdate[];
   allUsers: User[];
   currentUser?: User;
   onClose: () => void;
-  onUpdateActivity: (activityId: string, updatedData: Partial<Omit<Activity, 'id'>>) => Promise<void>;
-  onAddUpdate: (updateData: Omit<ActivityUpdate, 'id' | 'createdAt' | 'user'>) => Promise<void>;
+  // Fixed: Changed 'Activity' to 'Milestone'
+  onUpdateActivity: (activityId: string, updatedData: Partial<Omit<Milestone, 'id'>>) => Promise<void>;
+  // Fixed: Changed 'ActivityUpdate' to 'MilestoneUpdate'
+  onAddUpdate: (updateData: Omit<MilestoneUpdate, 'id' | 'createdAt' | 'user'>) => Promise<void>;
   language: Language;
 }
 
 const EditActivityModal: React.FC<EditActivityModalProps> = ({ activityToEdit, teams, projects, allActivityUpdates, allUsers, currentUser, onClose, onUpdateActivity, onAddUpdate, language }) => {
-    const [formData, setFormData] = useState<Omit<Activity, 'id'>>({
+    // Fixed: Changed 'Activity' to 'Milestone' and 'ActivityStatus' to 'MilestoneStatus'
+    const [formData, setFormData] = useState<Omit<Milestone, 'id'>>({
         title: '', description: '', projectId: '', teamId: '', dueDate: '',
-        status: ActivityStatus.Pending, hasPayment: false, paymentAmount: 0, paymentStatus: PaymentStatus.Pending,
+        status: MilestoneStatus.Pending, hasPayment: false, paymentAmount: 0, paymentStatus: PaymentStatus.Pending,
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -57,7 +62,8 @@ const EditActivityModal: React.FC<EditActivityModalProps> = ({ activityToEdit, t
   };
   const t = translations[language];
 
-  const activityUpdates = allActivityUpdates.filter(u => u.activityId === activityToEdit.id);
+  // Fixed: Changed 'activityId' to 'milestoneId' to match the property in MilestoneUpdate
+  const activityUpdates = allActivityUpdates.filter(u => u.milestoneId === activityToEdit.id);
   const getUserById = (id: string) => allUsers.find(u => u.id === id);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -73,7 +79,8 @@ const EditActivityModal: React.FC<EditActivityModalProps> = ({ activityToEdit, t
     e.preventDefault();
     if (!newUpdateText.trim() || !currentUser) return;
     onAddUpdate({
-        activityId: activityToEdit.id,
+        // Fixed: Changed 'activityId' to 'milestoneId'
+        milestoneId: activityToEdit.id,
         userId: currentUser.id,
         updateText: newUpdateText,
     });
@@ -92,7 +99,8 @@ const EditActivityModal: React.FC<EditActivityModalProps> = ({ activityToEdit, t
     }
 
     setIsSubmitting(true);
-    const updatedData: Partial<Omit<Activity, 'id'>> = {
+    // Fixed: Changed 'Activity' to 'Milestone'
+    const updatedData: Partial<Omit<Milestone, 'id'>> = {
       ...formData,
       dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : null,
       paymentAmount: formData.hasPayment ? formData.paymentAmount : 0,
@@ -157,7 +165,8 @@ const EditActivityModal: React.FC<EditActivityModalProps> = ({ activityToEdit, t
                  <div>
                     <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.status}</label>
                     <select name="status" value={formData.status} onChange={handleChange} required className={selectClasses}>
-                        {Object.values(ActivityStatus).sort().map(s => (<option key={s} value={s}>{s}</option>))}
+                        {/* Fixed: Changed 'ActivityStatus' to 'MilestoneStatus' */}
+                        {Object.values(MilestoneStatus).sort().map(s => (<option key={s} value={s}>{s}</option>))}
                     </select>
                 </div>
               </div>

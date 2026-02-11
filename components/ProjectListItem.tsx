@@ -1,7 +1,7 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Project, Language } from '../types';
-
-type ProjectColumn = 'status' | 'projectManager' | 'category' | 'team' | 'customer';
+import { ProjectColumn } from './Projects';
 
 interface ProjectListItemProps {
     project: Project;
@@ -26,8 +26,8 @@ const ProjectListItem: React.FC<ProjectListItemProps> = ({ project, onEdit, onDe
     }, []);
 
     const translations = {
-        ar: { edit: "تعديل", delete: "حذف", unassigned: "غير معين", noStatus: "لا توجد حالة", options: "خيارات المشروع", progress: "التقدم" },
-        en: { edit: "Edit", delete: "Delete", unassigned: "Unassigned", noStatus: "No Status", options: "Project options", progress: "Progress" }
+        ar: { edit: "تعديل", delete: "حذف", unassigned: "غير معين", noStatus: "لا توجد حالة", options: "خيارات المشروع", progress: "التقدم", score: "الأولوية" },
+        en: { edit: "Edit", delete: "Delete", unassigned: "Unassigned", noStatus: "No Status", options: "Project options", progress: "Progress", score: "Score" }
     };
     const t = translations[language];
 
@@ -41,6 +41,13 @@ const ProjectListItem: React.FC<ProjectListItemProps> = ({ project, onEdit, onDe
         'ملغي': 'bg-red-500/10 text-red-600 dark:text-red-400',
         'Cancelled': 'bg-red-500/10 text-red-600 dark:text-red-400',
     };
+
+    const priorityScore = (
+        (project.revenueImpact || 1) + 
+        (project.strategicValue || 1) + 
+        (project.deliveryRisk || 1) + 
+        (project.customerPressure || 1)
+    ) - (project.resourceLoad || 1);
 
     return (
         <div className="bg-white dark:bg-slate-900/30 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 p-3 rounded-lg flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-300 text-sm">
@@ -63,6 +70,14 @@ const ProjectListItem: React.FC<ProjectListItemProps> = ({ project, onEdit, onDe
                     <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${project.status?.name ? statusColors[project.status.name] : 'bg-slate-500/10 text-slate-600 dark:text-slate-400'}`}>
                         {project.status?.name || t.noStatus}
                     </span>
+                </div>
+            )}
+
+            {visibleColumns.score && (
+                <div className="w-40 text-center shrink-0">
+                     <div className="flex items-center justify-center gap-1 bg-violet-600 text-white px-3 py-1 rounded-full shadow-sm mx-auto w-max" title={t.score}>
+                        <span className="font-black text-[12px] leading-none">{priorityScore}</span>
+                    </div>
                 </div>
             )}
 

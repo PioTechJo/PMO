@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Project, Lookups, Language, User } from '../types';
 
@@ -24,6 +25,11 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({ projectToEdit, look
       actualStartDate: '',
       expectedClosureDate: '',
       progress: 0,
+      revenueImpact: 1,
+      strategicValue: 1,
+      deliveryRisk: 1,
+      customerPressure: 1,
+      resourceLoad: 1,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +51,11 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({ projectToEdit, look
             actualStartDate: projectToEdit.actualStartDate ? new Date(projectToEdit.actualStartDate).toISOString().split('T')[0] : '',
             expectedClosureDate: projectToEdit.expectedClosureDate ? new Date(projectToEdit.expectedClosureDate).toISOString().split('T')[0] : '',
             progress: projectToEdit.progress || 0,
+            revenueImpact: projectToEdit.revenueImpact || 1,
+            strategicValue: projectToEdit.strategicValue || 1,
+            deliveryRisk: projectToEdit.deliveryRisk || 1,
+            customerPressure: projectToEdit.customerPressure || 1,
+            resourceLoad: projectToEdit.resourceLoad || 1,
         });
     }
   }, [projectToEdit]);
@@ -66,6 +77,12 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({ projectToEdit, look
           actualStartDate: "تاريخ البدء الفعلي",
           expectedClosureDate: "تاريخ الإغلاق المتوقع",
           progress: "نسبة التقدم",
+          weightTitle: "أوزان المشروع (1-5)",
+          revenueImpact: "تأثير الإيرادات",
+          strategicValue: "القيمة الاستراتيجية",
+          deliveryRisk: "مخاطر التسليم",
+          customerPressure: "ضغط العميل",
+          resourceLoad: "حمل الموارد",
           update: "تحديث المشروع",
           cancel: "إلغاء",
           submitting: "جاري التحديث...",
@@ -88,6 +105,12 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({ projectToEdit, look
           actualStartDate: "Actual Start Date",
           expectedClosureDate: "Expected Closure Date",
           progress: "Progress",
+          weightTitle: "Project Weights (1–5)",
+          revenueImpact: "Revenue Impact",
+          strategicValue: "Strategic Value",
+          deliveryRisk: "Delivery Risk",
+          customerPressure: "Customer Pressure",
+          resourceLoad: "Resource Load",
           update: "Update Project",
           cancel: "Cancel",
           submitting: "Updating...",
@@ -116,6 +139,11 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({ projectToEdit, look
         actualStartDate: formData.actualStartDate || null,
         expectedClosureDate: formData.expectedClosureDate || null,
         progress: Number(formData.progress),
+        revenueImpact: Number(formData.revenueImpact),
+        strategicValue: Number(formData.strategicValue),
+        deliveryRisk: Number(formData.deliveryRisk),
+        customerPressure: Number(formData.customerPressure),
+        resourceLoad: Number(formData.resourceLoad),
     };
 
     try {
@@ -134,9 +162,18 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({ projectToEdit, look
   const inputClasses = "w-full p-3 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-white";
   const selectClasses = "w-full p-3 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-white";
 
+  const WeightSelect = ({ label, name, value }: { label: string, name: string, value: number }) => (
+      <div className="flex flex-col gap-1">
+          <label className="text-xs font-bold text-slate-500 dark:text-slate-400">{label}</label>
+          <select name={name} value={value} onChange={handleChange} className={selectClasses}>
+              {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v}</option>)}
+          </select>
+      </div>
+  );
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity">
-      <div className="bg-white dark:bg-slate-900/50 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 p-2 rounded-2xl shadow-2xl w-full max-w-2xl m-4" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+      <div className="bg-white dark:bg-slate-900/50 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 p-2 rounded-2xl shadow-2xl w-full max-w-3xl m-4" dir={language === 'ar' ? 'rtl' : 'ltr'}>
         <div className="p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-4 mb-6">
                 <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{t.title}</h2>
@@ -145,7 +182,7 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({ projectToEdit, look
                 </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.projectName}</label>
@@ -158,7 +195,7 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({ projectToEdit, look
               </div>
               <div>
                   <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.description}</label>
-                  <textarea name="description" value={formData.description} onChange={handleChange} rows={3} className={inputClasses}/>
+                  <textarea name="description" value={formData.description} onChange={handleChange} rows={2} className={inputClasses}/>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -183,33 +220,17 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({ projectToEdit, look
                           {lookups.projectStatuses.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
                       </select>
                   </div>
-                  <div>
-                      <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.country}</label>
-                      <select name="countryId" value={formData.countryId} onChange={handleChange} required className={selectClasses}>
-                          <option value="" disabled>{t.selectHere}</option>
-                          {lookups.countries.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
-                      </select>
-                  </div>
-                  <div>
-                      <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.category}</label>
-                      <select name="categoryId" value={formData.categoryId} onChange={handleChange} required className={selectClasses}>
-                          <option value="" disabled>{t.selectHere}</option>
-                          {lookups.categories.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
-                      </select>
-                  </div>
-                  <div>
-                      <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.team}</label>
-                      <select name="teamId" value={formData.teamId} onChange={handleChange} required className={selectClasses}>
-                          <option value="" disabled>{t.selectHere}</option>
-                          {lookups.teams.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
-                      </select>
-                  </div>
-                   <div>
-                      <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.product}</label>
-                      <select name="productId" value={formData.productId} onChange={handleChange} required className={selectClasses}>
-                          <option value="" disabled>{t.selectHere}</option>
-                          {lookups.products.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
-                      </select>
+              </div>
+
+              {/* Weighting Section */}
+              <div className="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <h3 className="text-sm font-bold text-violet-600 dark:text-violet-400 uppercase mb-4 tracking-wider">{t.weightTitle}</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      <WeightSelect label={t.revenueImpact} name="revenueImpact" value={formData.revenueImpact} />
+                      <WeightSelect label={t.strategicValue} name="strategicValue" value={formData.strategicValue} />
+                      <WeightSelect label={t.deliveryRisk} name="deliveryRisk" value={formData.deliveryRisk} />
+                      <WeightSelect label={t.customerPressure} name="customerPressure" value={formData.customerPressure} />
+                      <WeightSelect label={t.resourceLoad} name="resourceLoad" value={formData.resourceLoad} />
                   </div>
               </div>
               

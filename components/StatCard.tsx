@@ -4,6 +4,7 @@ interface StatCardProps {
   title: string;
   value: string;
   icon: 'projects' | 'completed' | 'inProgress' | 'hours';
+  trendColor?: string;
 }
 
 const Icon: React.FC<{ icon: StatCardProps['icon'] }> = ({ icon }) => {
@@ -23,15 +24,15 @@ const Icon: React.FC<{ icon: StatCardProps['icon'] }> = ({ icon }) => {
     return icons[icon];
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon }) => {
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon, trendColor = "text-gray-900 dark:text-white" }) => {
   return (
-    <div className="bg-white dark:bg-gray-800/50 p-6 rounded-2xl flex items-start space-x-4 rtl:space-x-reverse shadow-sm dark:shadow-none">
-      <div className="bg-violet-500/10 p-4 rounded-full">
+    <div className="bg-white dark:bg-gray-800/50 p-6 rounded-3xl flex items-start space-x-4 rtl:space-x-reverse shadow-sm border border-slate-100 dark:border-slate-800 transition-transform hover:scale-[1.02]">
+      <div className="bg-violet-500/10 p-4 rounded-2xl flex-shrink-0">
         <Icon icon={icon} />
       </div>
-      <div>
-        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{title}</p>
-        <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{value}</p>
+      <div className="min-w-0">
+        <p className="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest mb-1 truncate">{title}</p>
+        <p className={`text-xl font-black truncate ${trendColor}`}>{value}</p>
       </div>
     </div>
   );

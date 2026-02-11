@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Lookups, Language, Lookup, User } from '../types';
 import LookupEditor from './LookupEditor';
@@ -6,80 +7,58 @@ interface SystemManagementProps {
     lookups: Lookups;
     onUpdate: (lookupType: keyof Lookups, newLookups: Lookup[]) => void;
     language: Language;
-    onSaveConfig: (supabaseKey: string) => void;
+    onSaveConfig: (supabaseKey: string, supabaseUrl: string) => void;
     isSetupMode?: boolean;
 }
 
 const SystemManagement: React.FC<SystemManagementProps> = ({ lookups, onUpdate, language, onSaveConfig, isSetupMode = false }) => {
     const [supabaseKey, setSupabaseKey] = useState('');
+    const [supabaseUrl, setSupabaseUrl] = useState('https://dcamlinhazzmbaldsrdo.supabase.co');
 
     useEffect(() => {
         if (!isSetupMode) {
             setSupabaseKey(localStorage.getItem('supabaseAnonKey') || '');
+            setSupabaseUrl(localStorage.getItem('supabaseUrl') || 'https://dcamlinhazzmbaldsrdo.supabase.co');
         }
     }, [isSetupMode]);
 
     const translations = {
         ar: {
-            title: "إدارة النظام",
-            subtitle: "تكوين إعدادات التطبيق وجداول البحث.",
-            configTitle: "إعدادات الاتصال",
-            configSubtitle: "أدخل مفتاح Supabase Anon المطلوب للاتصال بقاعدة البيانات.",
-            supabaseLabel: "مفتاح Supabase Anon",
-            saveConfig: "حفظ الإعدادات",
-            setupTitle: "إعداد التطبيق",
-            setupSubtitle: "مرحبًا بك! يرجى إدخال مفتاح Supabase Anon اللازم لتشغيل التطبيق.",
-            lookupsTitle: "جداول البحث",
-            lookupsSubtitle: "إدارة القيم للاختيارات المنسدلة في التطبيق.",
-            countries: "الدول",
-            categories: "الفئات",
-            teams: "الفرق",
-            products: "المنتجات",
-            statuses: "حالات المشروع",
-            customers: "العملاء",
+            title: "إدارة النظام", subtitle: "تكوين إعدادات التطبيق وجداول البحث.", configTitle: "إعدادات الاتصال", configSubtitle: "أدخل مفتاح وبيانات Supabase للاتصال بقاعدة البيانات.",
+            supabaseLabel: "مفتاح Supabase Anon", supabaseUrlLabel: "رابط Supabase URL", saveConfig: "حفظ الإعدادات والبدء", setupTitle: "إعداد التطبيق لأول مرة",
+            setupSubtitle: "مرحبًا بك! يرجى إدخال بيانات الوصول اللازمة لتشغيل النظام الخاص بك.", lookupsTitle: "جداول البحث", lookupsSubtitle: "إدارة القيم للاختيارات المنسدلة في التطبيق.",
+            countries: "الدول", categories: "الفئات", teams: "الفرق", products: "المنتجات", statuses: "حالات المشروع", customers: "العملاء",
         },
         en: {
-            title: "System Management",
-            subtitle: "Configure application settings and lookup tables.",
-            configTitle: "Connection Settings",
-            configSubtitle: "Enter the required Supabase Anon Key to connect to the database.",
-            supabaseLabel: "Supabase Anon Key",
-            saveConfig: "Save Configuration",
-            setupTitle: "Application Setup",
-            setupSubtitle: "Welcome! Please enter the necessary Supabase Anon Key to run the application.",
-            lookupsTitle: "Lookup Tables",
-            lookupsSubtitle: "Manage values for dropdown selections in the application.",
-            countries: "Countries",
-            categories: "Categories",
-            teams: "Teams",
-            products: "Products",
-            statuses: "Project Statuses",
-            customers: "Customers",
+            title: "System Management", subtitle: "Configure application settings and lookup tables.", configTitle: "Connection Settings", configSubtitle: "Enter Supabase credentials to connect to your database.",
+            supabaseLabel: "Supabase Anon Key", supabaseUrlLabel: "Supabase Project URL", saveConfig: "Save and Initialize", setupTitle: "First Time Setup",
+            setupSubtitle: "Welcome! Please enter your database credentials to run the application.", lookupsTitle: "Lookup Tables", lookupsSubtitle: "Manage values for dropdown selections in the application.",
+            countries: "Countries", categories: "Categories", teams: "Teams", products: "Products", statuses: "Project Statuses", customers: "Customers",
         }
     };
     const t = translations[language];
 
-    const handleSave = () => {
-        onSaveConfig(supabaseKey);
-    };
-
     return (
-        <div className="space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-slate-800 dark:text-white">{isSetupMode ? t.setupTitle : t.title}</h1>
-                <p className="text-slate-500 dark:text-slate-400 mt-1">{isSetupMode ? t.setupSubtitle : t.subtitle}</p>
+        <div className="space-y-8 max-w-4xl mx-auto p-8">
+            <div className="text-center md:text-start">
+                <h1 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{isSetupMode ? t.setupTitle : t.title}</h1>
+                <p className="text-slate-400 font-bold text-xs mt-2 uppercase tracking-widest">{isSetupMode ? t.setupSubtitle : t.subtitle}</p>
             </div>
 
-            <div className="bg-white dark:bg-slate-900/30 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 p-6 rounded-2xl">
-                <h2 className="text-xl font-semibold text-slate-800 dark:text-white">{t.configTitle}</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">{t.configSubtitle}</p>
-                <div className="space-y-4 max-w-xl">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-3xl shadow-xl">
+                <h2 className="text-lg font-black text-slate-800 dark:text-white uppercase mb-1">{t.configTitle}</h2>
+                <p className="text-xs text-slate-400 mb-8">{t.configSubtitle}</p>
+                <div className="space-y-6">
                     <div>
-                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.supabaseLabel}</label>
-                        <input type="password" value={supabaseKey} onChange={(e) => setSupabaseKey(e.target.value)} className="w-full p-2 bg-slate-100 dark:bg-slate-900/50 rounded-lg border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-violet-500 text-slate-800 dark:text-white" />
+                        <label className="block text-[10px] font-black text-violet-600 uppercase mb-2">{t.supabaseUrlLabel}</label>
+                        <input type="text" value={supabaseUrl} onChange={(e) => setSupabaseUrl(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm" />
                     </div>
-                     <div className="text-end pt-2">
-                        <button onClick={handleSave} className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-indigo-600 rounded-lg hover:opacity-90 transition-opacity">
+                    <div>
+                        <label className="block text-[10px] font-black text-violet-600 uppercase mb-2">{t.supabaseLabel}</label>
+                        <input type="password" value={supabaseKey} onChange={(e) => setSupabaseKey(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm" />
+                    </div>
+                     <div className="text-end pt-4">
+                        <button onClick={() => onSaveConfig(supabaseKey, supabaseUrl)} className="px-10 py-3 text-xs font-black text-white bg-violet-600 rounded-xl hover:bg-violet-700 transition-all shadow-lg shadow-violet-500/20 uppercase tracking-widest">
                             {t.saveConfig}
                         </button>
                     </div>
@@ -87,17 +66,13 @@ const SystemManagement: React.FC<SystemManagementProps> = ({ lookups, onUpdate, 
             </div>
             
             {!isSetupMode && (
-                <div>
-                     <h2 className="text-xl font-semibold text-slate-800 dark:text-white">{t.lookupsTitle}</h2>
-                     <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">{t.lookupsSubtitle}</p>
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <LookupEditor title={t.countries} initialValues={lookups.countries} onSave={(v) => onUpdate('countries', v as Lookup[])} language={language} />
-                        <LookupEditor title={t.categories} initialValues={lookups.categories} onSave={(v) => onUpdate('categories', v as Lookup[])} language={language} />
-                        <LookupEditor title={t.teams} initialValues={lookups.teams} onSave={(v) => onUpdate('teams', v as Lookup[])} language={language} />
-                        <LookupEditor title={t.products} initialValues={lookups.products} onSave={(v) => onUpdate('products', v as Lookup[])} language={language} />
-                        <LookupEditor title={t.statuses} initialValues={lookups.projectStatuses} onSave={(v) => onUpdate('projectStatuses', v as Lookup[])} language={language} />
-                        <LookupEditor title={t.customers} initialValues={lookups.customers} onSave={(v) => onUpdate('customers', v as Lookup[])} language={language} />
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <LookupEditor title={t.countries} initialValues={lookups.countries} onSave={(v) => onUpdate('countries', v as Lookup[])} language={language} />
+                    <LookupEditor title={t.categories} initialValues={lookups.categories} onSave={(v) => onUpdate('categories', v as Lookup[])} language={language} />
+                    <LookupEditor title={t.teams} initialValues={lookups.teams} onSave={(v) => onUpdate('teams', v as Lookup[])} language={language} />
+                    <LookupEditor title={t.products} initialValues={lookups.products} onSave={(v) => onUpdate('products', v as Lookup[])} language={language} />
+                    <LookupEditor title={t.statuses} initialValues={lookups.projectStatuses} onSave={(v) => onUpdate('projectStatuses', v as Lookup[])} language={language} />
+                    <LookupEditor title={t.customers} initialValues={lookups.customers} onSave={(v) => onUpdate('customers', v as Lookup[])} language={language} />
                 </div>
             )}
         </div>

@@ -1,15 +1,15 @@
+
 import React, { useState } from 'react';
-import { Project, Lookups, Language, User } from '../types';
+import { Project, Lookups, Language } from '../types';
 
 interface AddProjectModalProps {
   lookups: Lookups;
   onClose: () => void;
-  onAddProject: (newProject: Omit<Project, 'id' | 'projectCode' | 'country' | 'category' | 'team' | 'product' | 'status' | 'projectManager' | 'customer'>) => void;
+  onAddProject: (newProject: Omit<Project, 'id' | 'projectCode' | 'country' | 'category' | 'team' | 'product' | 'status' | 'projectManager' | 'customer'>) => Promise<void>;
   language: Language;
 }
 
 const AddProjectModal: React.FC<AddProjectModalProps> = ({ lookups, onClose, onAddProject, language }) => {
-  
   const [formData, setFormData] = useState({
       name: '',
       description: '',
@@ -24,7 +24,16 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ lookups, onClose, onA
       actualStartDate: '',
       expectedClosureDate: '',
       progress: 0,
+      revenueImpact: 1,
+      strategicValue: 1,
+      deliveryRisk: 1,
+      customerPressure: 1,
+      resourceLoad: 1,
   });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
   
   const translations = {
       ar: {
@@ -44,9 +53,18 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ lookups, onClose, onA
           actualStartDate: "تاريخ البدء الفعلي",
           expectedClosureDate: "تاريخ الإغلاق المتوقع",
           progress: "نسبة التقدم",
+          weightTitle: "أوزان المشروع (1-5)",
+          revenueImpact: "تأثير الإيرادات",
+          strategicValue: "القيمة الاستراتيجية",
+          deliveryRisk: "مخاطر التسليم",
+          customerPressure: "ضغط العميل",
+          resourceLoad: "حمل الموارد",
           add: "إضافة مشروع",
           cancel: "إلغاء",
           selectHere: "اختر من هنا...",
+          submitting: "جاري الحفظ...",
+          successMsg: "تمت إضافة المشروع بنجاح!",
+          errorPrefix: "خطأ: "
       },
       en: {
           title: "Add New Project",
@@ -65,9 +83,18 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ lookups, onClose, onA
           actualStartDate: "Actual Start Date",
           expectedClosureDate: "Expected Closure Date",
           progress: "Progress",
+          weightTitle: "Project Weights (1–5)",
+          revenueImpact: "Revenue Impact",
+          strategicValue: "Strategic Value",
+          deliveryRisk: "Delivery Risk",
+          customerPressure: "Customer Pressure",
+          resourceLoad: "Resource Load",
           add: "Add Project",
           cancel: "Cancel",
           selectHere: "Select from here...",
+          submitting: "Saving...",
+          successMsg: "Project added successfully!",
+          errorPrefix: "Error: "
       },
   };
   const t = translations[language];
@@ -77,38 +104,80 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ lookups, onClose, onA
       setFormData(prev => ({...prev, [name]: value}));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) return;
-    const submissionData = {
-        ...formData,
-        launchDate: formData.launchDate || null,
-        actualStartDate: formData.actualStartDate || null,
-        expectedClosureDate: formData.expectedClosureDate || null,
-        progress: Number(formData.progress),
-    };
-    onAddProject(submissionData);
+    
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+        const submissionData = {
+            ...formData,
+            launchDate: formData.launchDate || null,
+            actualStartDate: formData.actualStartDate || null,
+            expectedClosureDate: formData.expectedClosureDate || null,
+            progress: Number(formData.progress),
+            revenueImpact: Number(formData.revenueImpact),
+            strategicValue: Number(formData.strategicValue),
+            deliveryRisk: Number(formData.deliveryRisk),
+            customerPressure: Number(formData.customerPressure),
+            resourceLoad: Number(formData.resourceLoad),
+        };
+
+        await onAddProject(submissionData);
+        setIsSuccess(true);
+        setTimeout(() => {
+            onClose();
+        }, 1500);
+    } catch (err: any) {
+        console.error("Project submission failed:", err);
+        setError(t.errorPrefix + (err.message || "Failed to connect to database"));
+    } finally {
+        setIsSubmitting(false);
+    }
   };
   
   const inputClasses = "w-full p-3 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-white";
   const selectClasses = "w-full p-3 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-white";
 
+  const WeightSelect = ({ label, name, value }: { label: string, name: string, value: number }) => (
+      <div className="flex flex-col gap-1">
+          <label className="text-xs font-bold text-slate-500 dark:text-slate-400">{label}</label>
+          <select name={name} value={value} onChange={handleChange} className={selectClasses} disabled={isSubmitting}>
+              {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v}</option>)}
+          </select>
+      </div>
+  );
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity">
-      <div className="bg-white dark:bg-slate-900/50 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 p-2 rounded-2xl shadow-2xl w-full max-w-2xl m-4" dir={language === 'ar' ? 'rtl' : 'ltr'}>
-        <div className="p-6 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900/50 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 p-2 rounded-2xl shadow-2xl w-full max-w-3xl m-4" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+        <div className="p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
             <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-4 mb-6">
                 <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{t.title}</h2>
-                <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                <button onClick={onClose} disabled={isSubmitting} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+                <div className="p-4 mb-6 text-sm font-bold text-red-600 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-900/20 rounded-xl animate-in slide-in-from-top-2">
+                    {error}
+                </div>
+            )}
+
+            {isSuccess && (
+                <div className="p-4 mb-6 text-sm font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-900/20 rounded-xl animate-in zoom-in-95">
+                    {t.successMsg}
+                </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.projectName}</label>
-                    <input type="text" name="name" value={formData.name} onChange={handleChange} required className={inputClasses}/>
+                    <input type="text" name="name" value={formData.name} onChange={handleChange} required disabled={isSubmitting} className={inputClasses}/>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.projectCode}</label>
@@ -117,88 +186,73 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ lookups, onClose, onA
               </div>
               <div>
                   <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.description}</label>
-                  <textarea name="description" value={formData.description} onChange={handleChange} rows={3} className={inputClasses}/>
+                  <textarea name="description" value={formData.description} onChange={handleChange} rows={2} disabled={isSubmitting} className={inputClasses}/>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                       <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.customer}</label>
-                      <select name="customerId" value={formData.customerId} onChange={handleChange} required className={selectClasses}>
+                      <select name="customerId" value={formData.customerId} onChange={handleChange} required disabled={isSubmitting} className={selectClasses}>
                           <option value="" disabled>{t.selectHere}</option>
                           {lookups.customers.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
                       </select>
                   </div>
                   <div>
                       <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.projectManager}</label>
-                      <select name="projectManagerId" value={formData.projectManagerId} onChange={handleChange} required className={selectClasses}>
+                      <select name="projectManagerId" value={formData.projectManagerId} onChange={handleChange} required disabled={isSubmitting} className={selectClasses}>
                           <option value="" disabled>{t.selectHere}</option>
                           {lookups.projectManagers.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
                       </select>
                   </div>
                    <div>
                       <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.status}</label>
-                      <select name="statusId" value={formData.statusId} onChange={handleChange} required className={selectClasses}>
+                      <select name="statusId" value={formData.statusId} onChange={handleChange} required disabled={isSubmitting} className={selectClasses}>
                           <option value="" disabled>{t.selectHere}</option>
                           {lookups.projectStatuses.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
                       </select>
                   </div>
-                  <div>
-                      <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.country}</label>
-                      <select name="countryId" value={formData.countryId} onChange={handleChange} required className={selectClasses}>
-                          <option value="" disabled>{t.selectHere}</option>
-                          {lookups.countries.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
-                      </select>
-                  </div>
-                  <div>
-                      <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.category}</label>
-                      <select name="categoryId" value={formData.categoryId} onChange={handleChange} required className={selectClasses}>
-                          <option value="" disabled>{t.selectHere}</option>
-                          {lookups.categories.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
-                      </select>
-                  </div>
-                  <div>
-                      <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.team}</label>
-                      <select name="teamId" value={formData.teamId} onChange={handleChange} required className={selectClasses}>
-                          <option value="" disabled>{t.selectHere}</option>
-                          {lookups.teams.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
-                      </select>
-                  </div>
-                   <div>
-                      <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.product}</label>
-                      <select name="productId" value={formData.productId} onChange={handleChange} required className={selectClasses}>
-                          <option value="" disabled>{t.selectHere}</option>
-                          {lookups.products.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
-                      </select>
+              </div>
+
+              {/* Weighting Section */}
+              <div className="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <h3 className="text-sm font-bold text-violet-600 dark:text-violet-400 uppercase mb-4 tracking-wider">{t.weightTitle}</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      <WeightSelect label={t.revenueImpact} name="revenueImpact" value={formData.revenueImpact} />
+                      <WeightSelect label={t.strategicValue} name="strategicValue" value={formData.strategicValue} />
+                      <WeightSelect label={t.deliveryRisk} name="deliveryRisk" value={formData.deliveryRisk} />
+                      <WeightSelect label={t.customerPressure} name="customerPressure" value={formData.customerPressure} />
+                      <WeightSelect label={t.resourceLoad} name="resourceLoad" value={formData.resourceLoad} />
                   </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-200 dark:border-slate-700 pt-4">
                   <div>
                       <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.launchDate}</label>
-                      <input type="date" name="launchDate" value={formData.launchDate} onChange={handleChange} className={inputClasses}/>
+                      <input type="date" name="launchDate" value={formData.launchDate} onChange={handleChange} disabled={isSubmitting} className={inputClasses}/>
                   </div>
                   <div>
                       <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.actualStartDate}</label>
-                      <input type="date" name="actualStartDate" value={formData.actualStartDate} onChange={handleChange} className={inputClasses}/>
+                      <input type="date" name="actualStartDate" value={formData.actualStartDate} onChange={handleChange} disabled={isSubmitting} className={inputClasses}/>
                   </div>
                   <div>
                       <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.expectedClosureDate}</label>
-                      <input type="date" name="expectedClosureDate" value={formData.expectedClosureDate} onChange={handleChange} className={inputClasses}/>
+                      <input type="date" name="expectedClosureDate" value={formData.expectedClosureDate} onChange={handleChange} disabled={isSubmitting} className={inputClasses}/>
                   </div>
               </div>
 
               <div>
                   <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.progress} ({formData.progress}%)</label>
-                  <input type="range" name="progress" min="0" max="100" value={formData.progress} onChange={handleChange} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-700 accent-violet-600"/>
+                  <input type="range" name="progress" min="0" max="100" value={formData.progress} onChange={handleChange} disabled={isSubmitting} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-700 accent-violet-600"/>
               </div>
 
 
               <div className="flex justify-end space-x-4 rtl:space-x-reverse pt-6 border-t border-slate-200 dark:border-slate-700 mt-6">
-                  <button type="button" onClick={onClose} className="px-5 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-slate-800/80 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-700/80 transition-colors">
-                  {t.cancel}
+                  <button type="button" onClick={onClose} disabled={isSubmitting} className="px-8 py-3 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-slate-800/80 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-700/80 transition-colors">
+                    {t.cancel}
                   </button>
-                  <button type="submit" className="px-5 py-3 text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-indigo-600 rounded-lg hover:opacity-90 transition-opacity">
-                  {t.add}
+                  <button type="submit" disabled={isSubmitting || isSuccess} className="px-10 py-3 text-sm font-bold text-white bg-violet-600 rounded-xl hover:bg-violet-700 transition-all flex items-center gap-3 shadow-xl shadow-violet-500/20">
+                    {isSubmitting && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>}
+                    {isSuccess ? t.successMsg : (isSubmitting ? t.submitting : t.add)}
                   </button>
               </div>
             </form>

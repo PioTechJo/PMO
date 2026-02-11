@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Project, Language } from '../types';
 
@@ -32,7 +33,8 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete, la
             customer: "العميل",
             noCustomer: "لا يوجد عميل",
             options: "خيارات المشروع",
-            progress: "التقدم"
+            progress: "التقدم",
+            score: "الأولوية"
         },
         en: {
             manager: "Project Manager",
@@ -43,7 +45,8 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete, la
             customer: "Customer",
             noCustomer: "No Customer",
             options: "Project options",
-            progress: "Progress"
+            progress: "Progress",
+            score: "Score"
         }
     };
     const t = translations[language];
@@ -58,14 +61,27 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete, la
         'ملغي': 'bg-red-500/10 text-red-600 dark:text-red-400',
         'Cancelled': 'bg-red-500/10 text-red-600 dark:text-red-400',
     };
+
+    // Requested Formula: (Impacts Sum) - Resource Load
+    const priorityScore = (
+        (project.revenueImpact || 1) + 
+        (project.strategicValue || 1) + 
+        (project.deliveryRisk || 1) + 
+        (project.customerPressure || 1)
+    ) - (project.resourceLoad || 1);
     
     return (
         <div className="bg-white dark:bg-slate-900/30 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 p-6 rounded-2xl shadow-sm dark:shadow-none flex flex-col justify-between h-full transition-all duration-300 hover:scale-[1.02] hover:shadow-lg dark:hover:shadow-violet-900/30">
             <div>
                 <div className="flex justify-between items-start mb-2">
-                     <span className={`px-2 py-1 rounded-full font-semibold text-xs ${project.status?.name ? statusColors[project.status.name] : 'bg-slate-500/10 text-slate-600 dark:text-slate-400'}`}>
-                        {project.status?.name || t.noStatus}
-                    </span>
+                     <div className="flex gap-2 items-center">
+                        <span className={`px-2 py-1 rounded-full font-semibold text-xs ${project.status?.name ? statusColors[project.status.name] : 'bg-slate-500/10 text-slate-600 dark:text-slate-400'}`}>
+                            {project.status?.name || t.noStatus}
+                        </span>
+                        <div className="flex items-center gap-1 bg-violet-600 text-white px-2 py-1 rounded-full shadow-sm" title={t.score}>
+                            <span className="font-black text-[11px] leading-none">{priorityScore}</span>
+                        </div>
+                     </div>
                      <div className="relative" ref={menuRef}>
                         <button 
                             onClick={(e) => {e.stopPropagation(); setMenuOpen(!menuOpen);}}

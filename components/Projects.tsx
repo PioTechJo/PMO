@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import type { Project, User, Language, Lookups, ProjectImportRow } from '../types';
@@ -151,7 +152,7 @@ const ImportProjectsModal: React.FC<ImportProjectsModalProps> = ({ isOpen, onClo
 
 // --- Main Projects Component ---
 
-type ProjectColumn = 'status' | 'projectManager' | 'category' | 'team' | 'customer';
+export type ProjectColumn = 'status' | 'projectManager' | 'category' | 'team' | 'customer' | 'score';
 
 interface ProjectsProps {
     allProjects: Project[];
@@ -180,6 +181,7 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allUsers, language, on
         category: true,
         team: false,
         customer: true,
+        score: true,
     });
     
     const [searchTerm, setSearchTerm] = useState('');
@@ -213,6 +215,7 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allUsers, language, on
 
     const columnOptions: { key: ProjectColumn, label: string }[] = [
         { key: 'status', label: t.status },
+        { key: 'score', label: t.score },
         { key: 'projectManager', label: t.projectManager },
         { key: 'customer', label: t.customer },
         { key: 'category', label: t.category },
@@ -400,6 +403,7 @@ const translations = {
         listView: "عرض قائمة",
         columns: "الأعمدة",
         status: "الحالة",
+        score: "الأولوية",
         projectManager: "مدير المشروع",
         category: "الفئة",
         team: "الفريق",
@@ -445,6 +449,7 @@ const translations = {
         listView: "List View",
         columns: "Columns",
         status: "Status",
+        score: "Priority Score",
         projectManager: "Project Manager",
         category: "Category",
         team: "Team",

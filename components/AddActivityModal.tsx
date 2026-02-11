@@ -1,13 +1,15 @@
 
 import React, { useState, useMemo } from 'react';
-import { Activity, Project, Lookup, ActivityStatus, Language, PaymentStatus } from '../types';
+// Fixed: Changed 'Activity' and 'ActivityStatus' to 'Milestone' and 'MilestoneStatus'
+import { Milestone, Project, Lookup, MilestoneStatus, Language, PaymentStatus } from '../types';
 import SearchableSelect from './SearchableSelect';
 
 interface AddActivityModalProps {
   teams: Lookup[];
   projects: Project[];
   onClose: () => void;
-  onAddActivity: (newActivity: Omit<Activity, 'id'>) => void;
+  // Fixed: Changed 'Activity' to 'Milestone'
+  onAddActivity: (newActivity: Omit<Milestone, 'id'>) => void;
   language: Language;
 }
 
@@ -18,7 +20,8 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({ teams, projects, on
       projectId: '',
       teamId: '',
       dueDate: '',
-      status: ActivityStatus.Pending,
+      // Fixed: Changed 'ActivityStatus' to 'MilestoneStatus'
+      status: MilestoneStatus.Pending,
       hasPayment: false,
       paymentAmount: 0,
   });
@@ -96,7 +99,8 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({ teams, projects, on
         return;
     }
 
-    const newActivityData: Omit<Activity, 'id'> = {
+    // Fixed: Changed 'Activity' to 'Milestone'
+    const newActivityData: Omit<Milestone, 'id'> = {
       ...formData,
       dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : null,
       paymentAmount: formData.hasPayment ? formData.paymentAmount : 0,
@@ -161,7 +165,8 @@ const AddActivityModal: React.FC<AddActivityModalProps> = ({ teams, projects, on
                      <div>
                         <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.status}</label>
                         <select name="status" value={formData.status} onChange={handleChange} required className={selectClasses}>
-                            {Object.values(ActivityStatus).sort().map(s => (<option key={s} value={s}>{s}</option>))}
+                            {/* Fixed: Changed 'ActivityStatus' to 'MilestoneStatus' */}
+                            {Object.values(MilestoneStatus).sort().map(s => (<option key={s} value={s}>{s}</option>))}
                         </select>
                     </div>
                   </div>

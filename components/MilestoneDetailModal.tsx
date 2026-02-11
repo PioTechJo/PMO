@@ -1,13 +1,10 @@
 import React, { useState, useMemo } from 'react';
-// Fixed: Changed 'Activity', 'ActivityStatus', and 'ActivityUpdate' to 'Milestone', 'MilestoneStatus', and 'MilestoneUpdate'
 import { Milestone, Project, Lookup, Language, PaymentStatus, MilestoneStatus, MilestoneUpdate, User, Lookups } from '../types';
 
-interface ActivityDetailModalProps {
-    // Fixed: Changed 'Activity' to 'Milestone'
-    activity: Milestone;
+interface MilestoneDetailModalProps {
+    milestone: Milestone;
     projects: Project[];
-    // Fixed: Changed 'ActivityUpdate' to 'MilestoneUpdate'
-    allActivityUpdates: MilestoneUpdate[];
+    allMilestoneUpdates: MilestoneUpdate[];
     allUsers: User[];
     lookups: Lookups;
     onClose: () => void;
@@ -23,10 +20,10 @@ const InfoItem: React.FC<{ label: string; value?: string | null; children?: Reac
     </div>
 );
 
-const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({ activity, projects, allActivityUpdates, allUsers, lookups, onClose, language }) => {
+const MilestoneDetailModal: React.FC<MilestoneDetailModalProps> = ({ milestone, projects, allMilestoneUpdates, allUsers, lookups, onClose, language }) => {
     const t = translations[language];
-    const project = projects.find(p => p.id === activity.projectId);
-    const team = lookups.teams.find(t => t.id === activity.teamId);
+    const project = projects.find(p => p.id === milestone.projectId);
+    const team = lookups.teams.find(t => t.id === milestone.teamId);
     
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -52,10 +49,9 @@ const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({ activity, pro
     const getUserById = (id: string) => allUsers.find(u => u.id === id);
 
     const filteredUpdates = useMemo(() => {
-        return allActivityUpdates
+        return allMilestoneUpdates
             .filter(update => {
-                // Fixed: Changed 'activityId' to 'milestoneId'
-                if (update.milestoneId !== activity.id) return false;
+                if (update.milestoneId !== milestone.id) return false;
                 const updateDate = new Date(update.createdAt);
                 if (startDate && updateDate < new Date(startDate)) return false;
                 if (endDate) {
@@ -65,13 +61,13 @@ const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({ activity, pro
                 }
                 return true;
             });
-    }, [startDate, endDate, allActivityUpdates, activity.id]);
+    }, [startDate, endDate, allMilestoneUpdates, milestone.id]);
     
     const handleExport = () => {
         const printContent = `
             <html dir="${language === 'ar' ? 'rtl' : 'ltr'}">
             <head>
-                <title>${t.activityReport}: ${activity.title}</title>
+                <title>${t.milestoneReport}: ${milestone.title}</title>
                 <style>
                     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
                     h1, h2 { color: #1e1b4b; border-bottom: 2px solid #c4b5fd; padding-bottom: 5px; }
@@ -86,13 +82,13 @@ const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({ activity, pro
                 </style>
             </head>
             <body>
-                <h1>${t.activityReport}: ${activity.title}</h1>
+                <h1>${t.milestoneReport}: ${milestone.title}</h1>
                 <div class="details">
                     <h2>${t.details}</h2>
                     <dl class="details-grid">
                         <dt>${t.project}</dt><dd>${project?.name || t.unassigned}</dd>
-                        <dt>${t.status}</dt><dd>${activity.status}</dd>
-                        <dt>${t.dueDate}</dt><dd>${formatDate(activity.dueDate)}</dd>
+                        <dt>${t.status}</dt><dd>${milestone.status}</dd>
+                        <dt>${t.dueDate}</dt><dd>${formatDate(milestone.dueDate)}</dd>
                         <dt>${t.team}</dt><dd>${team?.name || t.unassigned}</dd>
                     </dl>
                 </div>
@@ -150,7 +146,7 @@ const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({ activity, pro
         const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
-        const safeFilename = activity.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const safeFilename = milestone.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         link.setAttribute('href', url);
         link.setAttribute('download', `${safeFilename}_updates.csv`);
         link.style.visibility = 'hidden';
@@ -167,7 +163,7 @@ const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({ activity, pro
                     <div className="flex justify-between items-start border-b border-slate-200 dark:border-slate-700 pb-4 mb-6">
                         <div>
                             <p className="text-sm font-semibold text-violet-600 dark:text-violet-400">{t.inProject}: {project?.name}</p>
-                            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{activity.title}</h2>
+                            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{milestone.title}</h2>
                         </div>
                         <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -175,22 +171,22 @@ const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({ activity, pro
                     </div>
 
                     <div className="space-y-6">
-                        <p className="text-sm text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/50 p-4 rounded-lg">{activity.description || t.noDescription}</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/50 p-4 rounded-lg">{milestone.description || t.noDescription}</p>
                         
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <InfoItem label={t.status}>
-                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColors[activity.status]}`}>{activity.status}</span>
+                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColors[milestone.status]}`}>{milestone.status}</span>
                             </InfoItem>
                             <InfoItem label={t.team} value={team?.name} />
-                            <InfoItem label={t.dueDate} value={formatDate(activity.dueDate)} />
+                            <InfoItem label={t.dueDate} value={formatDate(milestone.dueDate)} />
                             <InfoItem label={t.payment}>
-                                {activity.hasPayment ? (
+                                {milestone.hasPayment ? (
                                     <div className="flex items-center gap-2">
-                                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${paymentStatusColors[activity.paymentStatus || PaymentStatus.Pending]}`}>
-                                            {t[activity.paymentStatus || PaymentStatus.Pending]}
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${paymentStatusColors[milestone.paymentStatus || PaymentStatus.Pending]}`}>
+                                            {t[milestone.paymentStatus || PaymentStatus.Pending]}
                                         </span>
                                         <span className="font-mono font-bold text-green-600 dark:text-green-400 text-xs">
-                                            {activity.paymentAmount.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US')}
+                                            {milestone.paymentAmount.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US')}
                                         </span>
                                     </div>
                                 ) : (<span>--</span>)}
@@ -251,13 +247,13 @@ const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({ activity, pro
 
 const translations = {
     ar: {
-        inProject: "في مشروع", noDescription: "لا يوجد وصف.", status: "الحالة", team: "الفريق", dueDate: "تاريخ الاستحقاق", payment: "الدفعة", updatesTitle: "تحديثات النشاط", noUpdates: "لا توجد تحديثات في هذه الفترة.", unassigned: "غير معين",
-        from: "من", to: "إلى", exportPdf: "تصدير PDF", exportExcel: "تصدير Excel", activityReport: "تقرير النشاط", details: "التفاصيل", project: "المشروع",
+        inProject: "في مشروع", noDescription: "لا يوجد وصف.", status: "الحالة", team: "الفريق", dueDate: "تاريخ الاستحقاق", payment: "الدفعة", updatesTitle: "تحديثات المعلم", noUpdates: "لا توجد تحديثات في هذه الفترة.", unassigned: "غير معين",
+        from: "من", to: "إلى", exportPdf: "تصدير PDF", exportExcel: "تصدير Excel", milestoneReport: "تقرير المعلم", details: "التفاصيل", project: "المشروع",
         Pending: "معلقة", Sent: "مرسلة", Paid: "مدفوعة",
     },
     en: {
-        inProject: "In project", noDescription: "No description provided.", status: "Status", team: "Team", dueDate: "Due Date", payment: "Payment", updatesTitle: "Activity Updates", noUpdates: "No updates found for this period.", unassigned: "Unassigned",
-        from: "From", to: "To", exportPdf: "Export to PDF", exportExcel: "Export to Excel", activityReport: "Activity Report", details: "Details", project: "Project",
+        inProject: "In project", noDescription: "No description provided.", status: "Status", team: "Team", dueDate: "Due Date", payment: "Payment", updatesTitle: "Milestone Updates", noUpdates: "No updates found for this period.", unassigned: "Unassigned",
+        from: "From", to: "To", exportPdf: "Export to PDF", exportExcel: "Export to Excel", milestoneReport: "Milestone Report", details: "Details", project: "Project",
         Pending: "Pending", Sent: "Sent", Paid: "Paid",
     },
 };
@@ -275,4 +271,4 @@ const csvTranslations = {
     },
 };
 
-export default ActivityDetailModal;
+export default MilestoneDetailModal;
