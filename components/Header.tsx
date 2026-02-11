@@ -12,9 +12,10 @@ interface HeaderProps {
     theme: Theme;
     setTheme: (theme: Theme) => void;
     isDbConnected: boolean;
+    onToggleSidebar: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, language, setLanguage, onSearch, onLogout, theme, setTheme, isDbConnected }) => {
+const Header: React.FC<HeaderProps> = ({ user, language, setLanguage, onSearch, onLogout, theme, setTheme, isDbConnected, onToggleSidebar }) => {
   const [query, setQuery] = useState('');
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -67,29 +68,29 @@ const Header: React.FC<HeaderProps> = ({ user, language, setLanguage, onSearch, 
   }, []);
 
   const placeholderText = language === 'ar' 
-    ? "اسأل مساعد الذكاء الاصطناعي..."
-    : "Ask the AI assistant...";
+    ? "اسأل المساعد..."
+    : "Ask AI...";
     
   const translations = {
       ar: { 
         فاتح: 'فاتح', 
         داكن: 'داكن', 
         النظام: 'النظام', 
-        dbConnected: 'متصل بالبيانات الحية', 
+        dbConnected: 'بيانات حية', 
         dbMock: 'وضع تجريبي', 
         welcome: 'مرحباً',
         fullScreen: 'ملء الشاشة',
-        exitFullScreen: 'خروج من ملء الشاشة'
+        exitFullScreen: 'خروج'
       },
       en: { 
         فاتح: 'Light', 
         داكن: 'Dark', 
         النظام: 'System', 
-        dbConnected: 'Live Database Connected', 
-        dbMock: 'Demo Mode', 
-        welcome: 'Welcome',
+        dbConnected: 'Live Data', 
+        dbMock: 'Demo', 
+        welcome: 'Hi',
         fullScreen: 'Full Screen',
-        exitFullScreen: 'Exit Full Screen'
+        exitFullScreen: 'Exit'
       },
   };
   const t = translations[language];
@@ -101,25 +102,32 @@ const Header: React.FC<HeaderProps> = ({ user, language, setLanguage, onSearch, 
   ];
 
   return (
-    <header className="flex-shrink-0 bg-white/30 dark:bg-slate-900/30 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700/50 px-8 py-4 flex items-center justify-between">
-      <div className="flex items-center gap-4">
+    <header className="flex-shrink-0 bg-white/30 dark:bg-slate-900/30 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700/50 px-4 lg:px-8 py-3 lg:py-4 flex items-center justify-between gap-4">
+      <div className="flex items-center gap-3">
+        <button 
+          onClick={onToggleSidebar}
+          className="p-2 -ml-2 lg:hidden rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+        >
+          <svg className="w-6 h-6 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
         {user && (
-            <div className="flex items-center gap-3">
-                <img src={user.avatarUrl || `https://ui-avatars.com/api/?name=${user.name}&background=8b5cf6&color=f5f3ff`} alt={user.name} className="w-10 h-10 rounded-full" />
-                <div>
-                    <p className="text-sm font-bold text-slate-800 dark:text-white">{t.welcome},</p>
-                    <p className="text-xs text-slate-600 dark:text-slate-300">{user.name}</p>
+            <div className="flex items-center gap-2 lg:gap-3">
+                <img src={user.avatarUrl || `https://ui-avatars.com/api/?name=${user.name}&background=8b5cf6&color=f5f3ff`} alt={user.name} className="w-8 h-8 lg:w-10 lg:h-10 rounded-full" />
+                <div className="hidden sm:block">
+                    <p className="text-[10px] lg:text-sm font-bold text-slate-800 dark:text-white leading-tight">{t.welcome},</p>
+                    <p className="text-[9px] lg:text-xs text-slate-600 dark:text-slate-300 truncate max-w-[80px] lg:max-w-none">{user.name}</p>
                 </div>
             </div>
         )}
       </div>
 
-      <div className="flex-1 flex justify-center px-8">
-         <div className="relative w-full max-w-xl">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-4 rtl:pl-0 rtl:pr-4">
-                 <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-slate-400 dark:text-slate-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10 3.5a1.5 1.5 0 011.5 1.5v.065a4.23 4.23 0 010 6.87V15a1.5 1.5 0 01-3 0v-3.065a4.23 4.23 0 010-6.87V5A1.5 1.5 0 0110 3.5zM8.5 7v6.065a2.73 2.73 0 000-4.13V7h3v1.935a2.73 2.73 0 000 4.13V13h-3V7z" />
-                    <path d="M5 5.5A1.5 1.5 0 016.5 4h.065a4.23 4.23 0 016.87 0H13.5A1.5 1.5 0 0115 5.5v.065a4.23 4.23 0 010 6.87V12.5A1.5 1.5 0 0113.5 14h-.065a4.23 4.23 0 01-6.87 0H6.5A1.5 1.5 0 015 12.5v-.065a4.23 4.23 0 010-6.87V5.5zm6.065 1.5h-4.13a2.73 2.73 0 000 4.13h4.13a2.73 2.73 0 000-4.13z" />
+      <div className="flex-1 flex justify-center max-w-lg">
+         <div className="relative w-full">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3 lg:pl-4 rtl:pl-0 rtl:pr-3 lg:rtl:pr-4 pointer-events-none">
+                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 lg:w-5 lg:h-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
                 </svg>
             </span>
             <input
@@ -128,48 +136,38 @@ const Header: React.FC<HeaderProps> = ({ user, language, setLanguage, onSearch, 
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={placeholderText}
-                className="w-full bg-slate-200 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 rounded-full py-2.5 pl-11 pr-4 rtl:pr-11 rtl:pl-4 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 transition-all"
+                className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-full py-1.5 lg:py-2.5 pl-9 lg:pl-11 pr-4 rtl:pr-9 lg:rtl:pr-11 rtl:pl-4 focus:outline-none focus:ring-2 focus:ring-violet-500 text-xs lg:text-sm text-slate-800 dark:text-white placeholder-slate-400 transition-all"
             />
         </div>
       </div>
 
 
-      <div className="flex items-center space-x-2 rtl:space-x-reverse">
-        
-        <div title={isDbConnected ? t.dbConnected : t.dbMock} className="p-2.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors">
-            <div className="relative">
-                <div className={`w-3 h-3 rounded-full ${isDbConnected ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                <div className={`absolute top-0 left-0 w-3 h-3 rounded-full ${isDbConnected ? 'bg-green-500' : 'bg-yellow-500'} animate-ping`}></div>
-            </div>
-        </div>
-
+      <div className="flex items-center gap-1 lg:gap-2">
         <button 
           onClick={toggleFullscreen}
           title={isFullscreen ? t.exitFullScreen : t.fullScreen}
-          className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors text-slate-600 dark:text-slate-300"
+          className="hidden sm:flex p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors text-slate-600 dark:text-slate-300"
         >
           {isFullscreen ? (
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 9L4 4m0 0v5m0-5h5m7 5l5-5m0 0h-5m5 0v5M9 15l-5 5m0 0v-5m0 5h5m7-5l5 5m0 0h-5m5 0v-5" />
-            </svg>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-            </svg>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
           )}
         </button>
 
-        <LanguageSwitcher language={language} setLanguage={setLanguage} />
+        <div className="hidden md:block">
+            <LanguageSwitcher language={language} setLanguage={setLanguage} />
+        </div>
         
         <div className="relative" ref={themeMenuRef}>
             <button onClick={() => setIsThemeMenuOpen(!isThemeMenuOpen)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors">
-                 <svg className="w-6 h-6 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                 <svg className="w-5 h-5 lg:w-6 lg:h-6 text-slate-600 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
             </button>
             {isThemeMenuOpen && (
-                <div className="absolute top-full right-0 rtl:right-auto rtl:left-0 mt-2 w-40 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 z-10">
+                <div className="absolute top-full right-0 rtl:right-auto rtl:left-0 mt-2 w-32 lg:w-40 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 z-[100]">
                     {themeOptions.map(option => (
                         <button key={option.key} onClick={() => { setTheme(option.key); setIsThemeMenuOpen(false); }}
-                            className={`w-full text-start px-4 py-2 text-sm flex items-center gap-3 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ${theme === option.key ? 'text-violet-500 dark:text-violet-400 font-bold' : 'text-slate-700 dark:text-slate-200'}`}>
+                            className={`w-full text-start px-4 py-2 text-xs lg:text-sm flex items-center gap-3 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ${theme === option.key ? 'text-violet-500 dark:text-violet-400 font-bold' : 'text-slate-700 dark:text-slate-200'}`}>
                             <span>{option.icon}</span>
                             <span>{option.label}</span>
                         </button>
@@ -178,8 +176,9 @@ const Header: React.FC<HeaderProps> = ({ user, language, setLanguage, onSearch, 
             )}
         </div>
         
-        <button onClick={onLogout} className="bg-red-600/80 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-full text-sm transition-colors">
-            {language === 'ar' ? 'الخروج' : 'Logout'}
+        <button onClick={onLogout} className="bg-red-600 hover:bg-red-700 text-white font-black py-1.5 lg:py-2 px-3 lg:px-4 rounded-full text-[10px] lg:text-xs transition-colors uppercase tracking-widest">
+            <span className="hidden sm:inline">{language === 'ar' ? 'الخروج' : 'Logout'}</span>
+            <svg className="sm:hidden w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
         </button>
       </div>
     </header>

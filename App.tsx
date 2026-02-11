@@ -28,6 +28,7 @@ const App: React.FC = () => {
     const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'light');
     const [isLoading, setIsLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const [projects, setProjects] = useState<Project[]>([]);
     const [milestones, setMilestones] = useState<Milestone[]>([]);
@@ -53,6 +54,11 @@ const App: React.FC = () => {
         localStorage.setItem('theme', theme);
         document.documentElement.classList.toggle('dark', theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches));
     }, [theme]);
+
+    // Close sidebar on view change (mobile)
+    useEffect(() => {
+        setIsSidebarOpen(false);
+    }, [view]);
     
     const setupClient = useCallback((key: string, url: string) => {
         try {
@@ -126,16 +132,37 @@ const App: React.FC = () => {
 
     return (
         <div className="flex h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300 overflow-hidden" dir={language === 'ar' ? 'rtl' : 'ltr'}>
-            <Sidebar currentView={view} setCurrentView={setView} language={language} />
+            {/* Mobile Sidebar Overlay */}
+            {isSidebarOpen && (
+                <div 
+                    className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
+            
+            <div className={`fixed inset-y-0 z-50 lg:relative lg:z-auto transition-transform duration-300 transform ${isSidebarOpen ? 'translate-x-0' : (language === 'ar' ? 'translate-x-full' : '-translate-x-full')} lg:translate-x-0`}>
+                <Sidebar currentView={view} setCurrentView={setView} language={language} />
+            </div>
+
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <Header user={users.find(u => u.id === session.user.id)} language={language} setLanguage={setLanguage} onSearch={() => {}} onLogout={() => supabaseClient?.auth.signOut()} theme={theme} setTheme={setTheme} isDbConnected={!!session} />
+                <Header 
+                    user={users.find(u => u.id === session.user.id)} 
+                    language={language} 
+                    setLanguage={setLanguage} 
+                    onSearch={() => {}} 
+                    onLogout={() => supabaseClient?.auth.signOut()} 
+                    theme={theme} 
+                    setTheme={setTheme} 
+                    isDbConnected={!!session}
+                    onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                />
                 {errorMsg && (
-                    <div className="mx-8 mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-xl flex justify-between items-center animate-in slide-in-from-top-1">
+                    <div className="mx-4 lg:mx-8 mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-xl flex justify-between items-center animate-in slide-in-from-top-1">
                         <p className="text-[10px] font-black uppercase text-red-600">{errorMsg}</p>
                         <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="text-[9px] font-black bg-red-600 text-white px-3 py-1 rounded-lg">RESET</button>
                     </div>
                 )}
-                <main className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                <main className="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar">
                     {view === 'dashboard' && <AnalyticsDashboard projects={projects} milestones={milestones} projectManagers={lookups.projectManagers} language={language} />}
                     {view === 'projects' && <Projects allProjects={projects} allUsers={users} language={language} onAddProject={async (d) => { await apiAddProject(d); loadData(); }} onOpenEditModal={setEditingProject} onOpenDeleteModal={setDeletingProject} lookups={lookups} isImportModalOpen={isImportModalOpen} onOpenImportModal={() => setIsImportModalOpen(true)} onCloseImportModal={() => setIsImportModalOpen(false)} onImportProjects={async () => {}} />}
                     {view === 'milestones' && <Milestones allMilestones={milestones} allProjects={projects} language={language} onAddMilestones={async (d) => { await apiAddMilestones(d); loadData(); }} onOpenEditModal={setEditingMilestone} onViewMilestoneDetails={setViewingMilestone} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} lookups={lookups} />}
@@ -150,7 +177,7 @@ const App: React.FC = () => {
             {editingMilestone && <EditMilestoneModal milestoneToEdit={editingMilestone} allMilestones={milestones} teams={lookups.teams} projects={projects} allMilestoneUpdates={[]} allUsers={users} currentUser={users.find(u => u.id === session.user.id)} onClose={() => setEditingMilestone(null)} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} onAddMilestones={async (d) => { await apiAddMilestones(d); loadData(); }} onAddUpdate={async () => {}} language={language} />}
             {viewingMilestone && <MilestoneDetailModal milestone={viewingMilestone} projects={projects} allMilestoneUpdates={[]} allUsers={users} lookups={lookups} onClose={() => setViewingMilestone(null)} language={language} />}
             {deletingProject && <ConfirmDeleteModal project={deletingProject} onClose={() => setDeletingProject(null)} onConfirm={async () => { await apiDeleteProject(deletingProject.id); setDeletingProject(null); loadData(); }} language={language} />}
-            <button onClick={() => setIsChatbotOpen(true)} className="fixed bottom-8 right-8 rtl:left-8 rtl:right-auto bg-slate-900 text-white p-4 rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all z-50"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" /></svg></button>
+            <button onClick={() => setIsChatbotOpen(true)} className="fixed bottom-6 right-6 lg:bottom-8 lg:right-8 rtl:left-6 rtl:right-auto lg:rtl:left-8 lg:rtl:right-auto bg-slate-900 text-white p-4 rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all z-40"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" /></svg></button>
             <Chatbot isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} language={language} projects={projects} milestones={milestones} users={users} lookups={lookups} />
         </div>
     );
