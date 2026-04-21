@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { MaintenanceContract, Lookup, Language } from '../types';
 import SearchableSelect from './SearchableSelect';
+import * as XLSX from 'xlsx';
 
 // --- Editable Row Sub-Component ---
 interface EditableRowProps {
@@ -190,16 +191,44 @@ const MaintenanceContracts: React.FC<MaintenanceContractsProps> = ({ contracts, 
             handleCancel();
         } catch (error) {
             console.error("Failed to save:", error);
+            alert(language === 'ar' ? "فشل في حفظ التعديلات" : "Failed to save changes");
         }
     };
     
+    const exportToExcel = () => {
+        const dataToExport = filteredContracts.map(c => ({
+            [t.type]: c.type || '',
+            [t.customer]: c.customer?.name || '',
+            [t.projectCode]: c.projectCode || '',
+            [t.month]: c.month ?? t.notApplicable,
+            [t.year]: c.year,
+            [t.totalAmount]: c.totalAmount || 0,
+            [t.collectedAmount]: c.collectedAmount || 0,
+            [t.lostAmount]: c.lostAmount || 0,
+            [t.remainingAmount]: (c.totalAmount || 0) - (c.collectedAmount || 0) - (c.lostAmount || 0),
+            [t.startDate]: c.startDate || '',
+            [t.endDate]: c.endDate || '',
+            [t.notes]: c.notes || ''
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Maintenance Contracts");
+        XLSX.writeFile(wb, `Maintenance_Contracts_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+    
     const handleAddNew = async () => {
-        if (!newContractData.customerId || !newContractData.year) return;
+        if (!newContractData.customerId) {
+            alert(language === 'ar' ? "يرجى اختيار العميل أولاً" : "Please select a customer first");
+            return;
+        }
+        if (!newContractData.year) return;
         try {
             await onAddContract(newContractData);
             setNewContractData(getInitialNewContract());
         } catch (error) {
             console.error("Failed to add:", error);
+            alert(language === 'ar' ? "فشل في إضافة العقد" : "Failed to add contract");
         }
     };
     
@@ -247,6 +276,15 @@ const MaintenanceContracts: React.FC<MaintenanceContractsProps> = ({ contracts, 
                     <h1 className="text-3xl font-bold text-slate-800 dark:text-white">{t.title}</h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">{t.subtitle}</p>
                 </div>
+                <button 
+                    onClick={exportToExcel}
+                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-600/20 transition-all font-bold text-sm"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                    <span>{t.exportExcel}</span>
+                </button>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
@@ -317,6 +355,7 @@ const translations = {
         startDate: 'تاريخ البداية', endDate: 'تاريخ النهاية', allCustomers: 'كل العملاء', allYears: 'كل السنوات',
         allMonths: 'كل الشهور', clearFilters: 'مسح الفلاتر', searchByProject: 'ابحث بالكود...', searchCustomers: 'ابحث عن عميل...', noData: 'لا توجد عقود تطابق معايير البحث.',
         allTypes: 'كل الأنواع', notes: 'ملاحظات', notApplicable: 'غير متاح',
+        exportExcel: 'تصدير إلى Excel',
         inline: { add: "إضافة", save: "حفظ", cancel: "إلغاء", actions: "إجراءات" },
         addModal: { selectHere: 'اختر...' },
     },
@@ -326,6 +365,7 @@ const translations = {
         startDate: 'Start Date', endDate: 'End Date', allCustomers: 'All Customers', allYears: 'All Years',
         allMonths: 'All Months', clearFilters: 'Clear Filters', searchByProject: 'Search by code...', searchCustomers: 'Search customers...', noData: 'No contracts match the search criteria.',
         allTypes: 'All Types', notes: 'Notes', notApplicable: 'N/A',
+        exportExcel: 'Export to Excel',
         inline: { add: "Add", save: "Save", cancel: "Cancel", actions: "Actions" },
         addModal: { selectHere: 'Select...' },
     }

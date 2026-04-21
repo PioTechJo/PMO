@@ -1,412 +1,251 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Project, Milestone, Language, PaymentStatus, User, MilestoneStatus } from '../types';
+import React, { useMemo } from 'react';
+import { Project, Milestone, Language, Issue, User } from '../types';
 import StatCard from './StatCard';
-import CustomizeDashboardModal from './CustomizeDashboardModal';
-import SearchableSelect from './SearchableSelect';
 
-const getCurrentMonthYearLabel = (lang: Language) => {
-    const now = new Date();
-    const month = now.toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US', { month: 'long' });
-    return `${month} ${now.getFullYear()}`;
-};
+interface AnalyticsDashboardProps {
+    projects: Project[];
+    milestones: Milestone[];
+    issues: Issue[];
+    users: User[];
+    language: Language;
+}
 
-const WidgetWrapper: React.FC<{ title: string, children: React.ReactNode, maxHeight?: string }> = ({ title, children, maxHeight = 'none' }) => (
-    <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] flex flex-col overflow-hidden h-full shadow-sm">
-        <div className="flex justify-between items-center py-5 px-8 border-b border-slate-50 dark:border-slate-800/50">
-            <h2 className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em]">{title}</h2>
-        </div>
-        <div className="flex-grow overflow-y-auto custom-scrollbar px-8 py-6" style={{ maxHeight }}>{children}</div>
-    </div>
-);
+export const WIDGETS_CONFIG = [
+    { id: 'stats', name: 'Statistics Summary' },
+    { id: 'project_status', name: 'Project Status Distribution' },
+    { id: 'task_completion', name: 'Milestone Completion' },
+    { id: 'recent_issues', name: 'Recent Tasks' },
+    { id: 'system_alert', name: 'System Performance' },
+    { id: 'activity_stream', name: 'Team Activity' },
+];
 
-const StatsOverviewWidget: React.FC<{ filteredProjects: Project[], filteredMilestones: Milestone[], language: Language }> = ({ filteredProjects = [], filteredMilestones = [], language }) => {
+const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ 
+    projects = [], 
+    milestones = [], 
+    issues = [], 
+    users = [], 
+    language 
+}) => {
     const t = translations[language];
+
+    // حساب الإحصائيات الفعلية من البيانات
     const stats = useMemo(() => {
-        let pendingVal = 0; let sentVal = 0; let paidVal = 0;
-        filteredMilestones.forEach(m => {
-            if (!m || !m.hasPayment) return;
-            const amount = m.paymentAmount || 0;
-            const status = m.paymentStatus || PaymentStatus.Pending;
-            if (status === PaymentStatus.Pending) pendingVal += amount;
-            else if (status === PaymentStatus.Sent) sentVal += amount;
-            else if (status === PaymentStatus.Paid) paidVal += amount;
+        const activeCount = projects.filter(p => p.status?.name === 'Active' || p.status?.name === 'نشط').length;
+        const completedMilestones = milestones.filter(m => m.status === 'Completed').length;
+        const openIssues = issues.filter(i => i.status !== 'Closed' && i.status !== 'Resolved').length;
+        
+        // حساب إجمالي الدفعات المحصلة
+        const totalCollected = milestones
+            .filter(m => m.hasPayment && m.paymentStatus === 'Paid')
+            .reduce((sum, m) => sum + (m.paymentAmount || 0), 0);
+
+        return {
+            activeProjects: activeCount,
+            milestoneProgress: milestones.length > 0 ? Math.round((completedMilestones / milestones.length) * 100) : 0,
+            openIssues: openIssues,
+            revenue: totalCollected.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD' })
+        };
+    }, [projects, milestones, issues, language]);
+
+    // بيانات توزيع حالة المشاريع للرسم البياني
+    const projectStatusData = useMemo(() => {
+        const counts: Record<string, number> = {};
+        projects.forEach(p => {
+            const status = p.status?.name || (language === 'ar' ? 'غير محدد' : 'Undefined');
+            counts[status] = (counts[status] || 0) + 1;
         });
-        return { projectsCount: filteredProjects.length, pendingVal, sentVal, paidVal };
-    }, [filteredProjects, filteredMilestones]);
-    const formatVal = (val: number) => val.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+        return Object.entries(counts).map(([label, value]) => ({ label, value }));
+    }, [projects, language]);
+
+    const maxStatusValue = Math.max(...projectStatusData.map(d => d.value), 1);
+
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard title={t.totalProjects} value={stats.projectsCount.toString()} icon="projects" />
-            <StatCard title={t.filteredPending} value={formatVal(stats.pendingVal)} icon="inProgress" trendColor="text-orange-500" />
-            <StatCard title={t.filteredSent} value={formatVal(stats.sentVal)} icon="completed" trendColor="text-blue-500" />
-            <StatCard title={t.filteredPaid} value={formatVal(stats.paidVal)} icon="hours" trendColor="text-emerald-500" />
-        </div>
-    );
-};
+        <div className="space-y-8 animate-in fade-in duration-700">
+            {/* صف البطاقات العلوية - بيانات حقيقية */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StatCard 
+                    title={t.activeProjects} 
+                    value={stats.activeProjects.toString()} 
+                    icon="projects" 
+                    progress={Math.round((stats.activeProjects / (projects.length || 1)) * 100)} 
+                />
+                <StatCard 
+                    title={t.milestoneCompletion} 
+                    value={`${stats.milestoneProgress}%`} 
+                    icon="completed" 
+                    progress={stats.milestoneProgress} 
+                />
+                <StatCard 
+                    title={t.openIssues} 
+                    value={stats.openIssues.toString()} 
+                    icon="inProgress" 
+                    trendColor="text-red-500"
+                />
+                <StatCard 
+                    title={t.collectedRevenue} 
+                    value={stats.revenue} 
+                    icon="hours" 
+                />
+            </div>
 
-const ExecutionPerformanceChartWidget: React.FC<{ filteredMilestones: Milestone[], language: Language }> = ({ filteredMilestones = [], language }) => {
-    const t = translations[language];
-    
-    const graphData = useMemo(() => {
-        const groups = new Map<string, { totalAmount: number; sortKey: number }>();
-        filteredMilestones.forEach(m => {
-            if (!m || !m.dueDate || !m.hasPayment) return;
-            const date = new Date(m.dueDate);
-            if (isNaN(date.getTime())) return;
-            const monthName = date.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { month: 'short' });
-            const year = date.getFullYear();
-            const labelKey = `${monthName} ${year}`;
-            const sortKey = year * 100 + date.getMonth();
-            if (!groups.has(labelKey)) groups.set(labelKey, { totalAmount: 0, sortKey });
-            groups.get(labelKey)!.totalAmount += (m.paymentAmount || 0);
-        });
-        return Array.from(groups.entries())
-            .map(([monthYear, data]) => ({ monthYear, ...data }))
-            .sort((a, b) => a.sortKey - b.sortKey)
-            .slice(-12); // Show last 12 months
-    }, [filteredMilestones, language]);
-
-    const maxAmount = Math.max(...graphData.map(d => d.totalAmount), 1000);
-    const yAxisSteps = 5;
-    const stepValue = Math.ceil(maxAmount / yAxisSteps / 100) * 100;
-    const adjustedMax = stepValue * yAxisSteps;
-
-    const formatCurrencyShort = (val: number) => {
-        if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
-        if (val >= 1000) return `${(val / 1000).toFixed(1)}K`;
-        return val.toString();
-    };
-
-    if (graphData.length === 0) {
-        return (
-            <WidgetWrapper title={t.executionChartTitle}>
-                <div className="h-64 flex flex-col items-center justify-center text-slate-300">
-                    <svg className="w-12 h-12 mb-3 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-                    <span className="text-[10px] font-black uppercase tracking-widest">{t.noData}</span>
+            {/* القسم الأوسط: الرسوم البيانية */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* توزيع حالات المشاريع (Bar Chart Style) */}
+                <div className="lg:col-span-8 bg-white dark:bg-[#1e293b] p-8 rounded-[2.5rem] shadow-sm border border-slate-50 dark:border-slate-800">
+                    <div className="flex justify-between items-center mb-10">
+                        <div>
+                            <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">{t.projectStatusDistribution}</h3>
+                            <p className="text-xs text-slate-400 font-bold uppercase mt-1">{t.realTimeOverview}</p>
+                        </div>
+                    </div>
+                    <div className="h-64 flex items-end justify-between gap-4 px-2">
+                        {projectStatusData.length > 0 ? projectStatusData.map((data, i) => (
+                            <div key={i} className="flex-1 flex flex-col items-center gap-3 group">
+                                <div className="w-full bg-slate-50 dark:bg-slate-800/50 rounded-2xl relative h-48 overflow-hidden">
+                                    <div 
+                                        className="absolute bottom-0 w-full bg-gradient-to-t from-indigo-600 to-violet-400 rounded-t-2xl transition-all duration-1000 group-hover:from-indigo-500" 
+                                        style={{ height: `${(data.value / maxStatusValue) * 100}%` }}
+                                    >
+                                        <div className="absolute top-2 left-0 right-0 text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <span className="text-[10px] font-black text-white">{data.value}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <span className="text-[10px] font-black text-slate-400 uppercase truncate w-full text-center">{data.label}</span>
+                            </div>
+                        )) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-300 italic uppercase tracking-widest text-xs">
+                                {t.noDataAvailable}
+                            </div>
+                        )}
+                    </div>
                 </div>
-            </WidgetWrapper>
-        );
-    }
 
-    return (
-        <WidgetWrapper title={t.executionChartTitle}>
-            <div className="relative pt-10 pb-2">
-                <div className="flex h-64">
-                    {/* Y-Axis Labels */}
-                    <div className="flex flex-col justify-between items-end pr-4 text-[9px] font-bold text-slate-400 w-12 pb-6">
-                        {Array.from({ length: yAxisSteps + 1 }).map((_, i) => (
-                            <span key={i}>${formatCurrencyShort(stepValue * (yAxisSteps - i))}</span>
+                {/* مؤشر الإنجاز (Circle Chart) */}
+                <div className="lg:col-span-4 bg-white dark:bg-[#1e293b] p-8 rounded-[2.5rem] shadow-sm border border-slate-50 dark:border-slate-800 flex flex-col justify-center">
+                    <div className="flex justify-between items-center mb-8">
+                        <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase">{t.overallProgress}</h3>
+                    </div>
+                    <div className="relative w-48 h-48 mx-auto mb-8">
+                        <svg className="w-full h-full transform -rotate-90">
+                            <circle cx="50%" cy="50%" r="40%" fill="transparent" stroke="currentColor" strokeWidth="16" className="text-slate-100 dark:text-slate-800" />
+                            <circle 
+                                cx="50%" cy="50%" r="40%" 
+                                fill="transparent" 
+                                stroke="currentColor" 
+                                strokeWidth="16" 
+                                className="text-indigo-500 transition-all duration-1000" 
+                                strokeDasharray="251" 
+                                strokeDashoffset={251 - (251 * stats.milestoneProgress) / 100} 
+                                strokeLinecap="round" 
+                            />
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <span className="text-4xl font-black text-slate-800 dark:text-white">{stats.milestoneProgress}%</span>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t.completed}</span>
+                        </div>
+                    </div>
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-indigo-500"></div><span className="text-slate-500">{t.totalMilestones}</span></div>
+                            <span className="text-slate-800 dark:text-white">{milestones.length}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs font-bold">
+                            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-emerald-400"></div><span className="text-slate-500">{t.done}</span></div>
+                            <span className="text-slate-800 dark:text-white">{milestones.filter(m => m.status === 'Completed').length}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* القسم السفلي: المهام والنشاطات */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* قائمة المهام الأخيرة */}
+                <div className="lg:col-span-7 bg-white dark:bg-[#1e293b] p-8 rounded-[2.5rem] shadow-sm border border-slate-50 dark:border-slate-800">
+                    <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase mb-8">{t.recentIssues}</h3>
+                    <div className="space-y-4">
+                        {issues.slice(0, 4).map((issue, i) => (
+                            <div key={i} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 group hover:border-indigo-300 dark:hover:border-indigo-700 transition-all cursor-pointer">
+                                <div className="flex items-center gap-4 min-w-0">
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm shrink-0 ${issue.priority === 'Critical' ? 'bg-red-50 text-red-500' : 'bg-white dark:bg-slate-700 text-indigo-500'}`}>
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                    </div>
+                                    <div className="truncate">
+                                        <p className="text-sm font-black text-slate-800 dark:text-white truncate">{issue.title}</p>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase">{issue.project?.name || t.unknownProject}</p>
+                                    </div>
+                                </div>
+                                <span className={`shrink-0 px-4 py-1.5 rounded-full text-[9px] font-black text-white uppercase ${issue.priority === 'Critical' ? 'bg-red-500' : 'bg-indigo-500'}`}>{issue.status}</span>
+                            </div>
                         ))}
+                        {issues.length === 0 && <p className="text-center py-10 text-slate-400 text-xs font-bold uppercase tracking-widest">{t.noIssuesFound}</p>}
+                    </div>
+                </div>
+
+                {/* تنبيهات النظام وسير العمل */}
+                <div className="lg:col-span-5 space-y-6">
+                    <div className="bg-gradient-to-br from-indigo-600 to-violet-700 p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden group">
+                        <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform"></div>
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                </div>
+                                <h4 className="text-white font-black uppercase text-sm">{t.systemHealth}</h4>
+                            </div>
+                            <p className="text-indigo-50 text-sm leading-relaxed mb-6">{t.systemHealthMsg}</p>
+                            <div className="flex items-center justify-between text-white/80 text-[10px] font-black uppercase mb-4">
+                                <span>DB Connectivity</span>
+                                <span className="text-emerald-300">Operational</span>
+                            </div>
+                            <button className="w-full py-4 bg-white text-indigo-600 rounded-2xl font-black uppercase text-xs shadow-lg hover:bg-indigo-50 transition-all">{t.viewReports}</button>
+                        </div>
                     </div>
 
-                    {/* Chart Area */}
-                    <div className="flex-1 relative border-l border-b border-slate-100 dark:border-slate-800 flex items-end px-2">
-                        {/* Horizontal Grid Lines */}
-                        <div className="absolute inset-0 flex flex-col justify-between pb-6 pointer-events-none">
-                            {Array.from({ length: yAxisSteps + 1 }).map((_, i) => (
-                                <div key={i} className="w-full border-t border-slate-50 dark:border-slate-800/50" />
+                    {/* النشاطات الأخيرة للفريق */}
+                    <div className="bg-white dark:bg-[#1e293b] p-8 rounded-[2.5rem] shadow-sm border border-slate-50 dark:border-slate-800">
+                        <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-6">{t.teamActivity}</h3>
+                        <div className="space-y-6">
+                            {users.slice(0, 3).map((user, i) => (
+                                <div key={i} className="flex gap-4">
+                                    <img 
+                                        src={user.avatarUrl || `https://ui-avatars.com/api/?name=${user.name}&background=6366f1&color=fff`} 
+                                        className="w-10 h-10 rounded-2xl shadow-sm shrink-0" 
+                                        alt={user.name}
+                                    />
+                                    <div>
+                                        <p className="text-sm font-black text-slate-800 dark:text-white leading-tight">{user.name}</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{user.type || 'Staff'}</p>
+                                        <p className="text-[9px] text-slate-300 dark:text-slate-600 font-bold uppercase mt-1">Active Now</p>
+                                    </div>
+                                </div>
                             ))}
                         </div>
-
-                        {/* Bars */}
-                        <div className="flex-1 h-full flex items-end justify-around gap-2 z-10">
-                            {graphData.map((d, i) => {
-                                const heightPercentage = (d.totalAmount / adjustedMax) * 100;
-                                return (
-                                    <div key={i} className="flex-1 flex flex-col items-center justify-end h-full group relative max-w-[50px]">
-                                        {/* Value Label */}
-                                        <div className="absolute bottom-full mb-2 bg-slate-900 text-white text-[8px] font-black px-1.5 py-0.5 rounded transition-all opacity-100 group-hover:scale-110 z-20">
-                                            {formatCurrencyShort(d.totalAmount)}
-                                        </div>
-                                        
-                                        {/* Bar */}
-                                        <div 
-                                            style={{ height: `${heightPercentage}%` }} 
-                                            className="w-full bg-gradient-to-t from-violet-600 to-indigo-400 rounded-t-lg transition-all duration-700 shadow-lg shadow-violet-500/10 group-hover:shadow-violet-500/30 group-hover:from-violet-500 group-hover:to-indigo-300" 
-                                        />
-                                        
-                                        {/* X-Axis Label */}
-                                        <div className="absolute top-full pt-3 w-full text-center">
-                                            <span className="text-[8px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-tighter block truncate">
-                                                {d.monthYear}
-                                            </span>
-                                        </div>
-
-                                        {/* Pro Tooltip on Hover */}
-                                        <div className="absolute hidden group-hover:flex flex-col items-center bottom-[110%] left-1/2 -translate-x-1/2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-2xl p-2 rounded-xl z-50 pointer-events-none animate-in zoom-in-90 min-w-[100px]">
-                                            <p className="text-[7px] font-black text-slate-400 uppercase mb-1">{d.monthYear}</p>
-                                            <p className="text-[11px] font-black text-violet-600">{d.totalAmount.toLocaleString()} USD</p>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
                     </div>
                 </div>
-                {/* Spacer for X-axis labels */}
-                <div className="h-6" />
             </div>
-        </WidgetWrapper>
-    );
-};
-
-const AggregatedSummaryWidget: React.FC<{ projectsWithMilestones: any[], projectManagers: User[], language: Language }> = ({ projectsWithMilestones = [], projectManagers = [], language }) => {
-    const t = translations[language];
-    const [expandedPeriods, setExpandedPeriods] = useState<Record<string, boolean>>({});
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedManagerId, setSelectedManagerId] = useState('all');
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-
-    const aggregatedByDate = useMemo(() => {
-        const dateGroups = new Map<string, { monthYear: string; sortKey: number; projects: any[] }>();
-        projectsWithMilestones.forEach(p => {
-            if (!p) return;
-            
-            const matchesSearch = !searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesManager = selectedManagerId === 'all' || p.projectManagerId === selectedManagerId;
-            
-            if (!matchesSearch || !matchesManager) return;
-
-            (p.milestones || []).forEach((m: any) => {
-                if (!m || !m.dueDate) return;
-                const date = new Date(m.dueDate);
-                if (isNaN(date.getTime())) return;
-                const label = `${date.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { month: 'long' })} ${date.getFullYear()}`;
-                const sortKey = date.getFullYear() * 100 + date.getMonth();
-                if (!dateGroups.has(label)) dateGroups.set(label, { monthYear: label, sortKey, projects: [] });
-                const group = dateGroups.get(label)!;
-                let projInGroup = group.projects.find(pj => pj.id === p.id);
-                if (!projInGroup) {
-                    projInGroup = { ...p, milestonesInGroup: [], groupTotal: 0, statusCounts: { Paid: 0, Sent: 0, Pending: 0 } };
-                    group.projects.push(projInGroup);
-                }
-                projInGroup.milestonesInGroup.push(m);
-                if (m.hasPayment) {
-                    projInGroup.groupTotal += (m.paymentAmount || 0);
-                    projInGroup.statusCounts[m.paymentStatus || 'Pending']++;
-                }
-            });
-        });
-        return Array.from(dateGroups.values()).sort((a, b) => a.sortKey - b.sortKey);
-    }, [projectsWithMilestones, language, searchTerm, selectedManagerId]);
-
-    const formatCurrency = (val: number) => val.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
-
-    const managerOptions = useMemo(() => [
-        { value: 'all', label: t.allManagers },
-        ...projectManagers.map(m => ({ value: m.id, label: m.name }))
-    ], [projectManagers, t.allManagers]);
-
-    const getPaymentStatusBadge = (status: PaymentStatus | null) => {
-        const colors = {
-            [PaymentStatus.Paid]: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-            [PaymentStatus.Sent]: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-            [PaymentStatus.Pending]: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-        };
-        const s = status || PaymentStatus.Pending;
-        return <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${colors[s]}`}>{t[s]}</span>;
-    };
-
-    return (
-        <WidgetWrapper title={t.executionAggregation} maxHeight="900px">
-            <div className="flex flex-col sm:flex-row items-center gap-4 mb-6">
-                <div className="flex-1 w-full relative">
-                    <input 
-                        type="text" 
-                        value={searchTerm} 
-                        onChange={e => setSearchTerm(e.target.value)} 
-                        placeholder={t.quickSearch} 
-                        className="w-full pl-9 pr-4 py-2 text-[10px] font-black uppercase bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 rounded-xl outline-none focus:ring-1 focus:ring-violet-500" 
-                    />
-                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                </div>
-                <div className="flex-1 w-full">
-                    <SearchableSelect 
-                        options={managerOptions} 
-                        value={selectedManagerId} 
-                        onChange={setSelectedManagerId} 
-                        placeholder={t.allManagers} 
-                        language={language} 
-                    />
-                </div>
-                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0">
-                    <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 shadow-sm text-violet-600' : 'text-slate-400 hover:text-slate-600'}`}>
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-                    </button>
-                    <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm text-violet-600' : 'text-slate-400 hover:text-slate-600'}`}>
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" /></svg>
-                    </button>
-                </div>
-            </div>
-            
-            <div className="space-y-4">
-                {aggregatedByDate.length > 0 ? aggregatedByDate.map((period, pIdx) => {
-                    const isOpen = !!expandedPeriods[period.monthYear];
-                    const totalPeriodValue = period.projects.reduce((s, p) => s + p.groupTotal, 0);
-                    return (
-                        <div key={pIdx} className="rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-950/20">
-                            <button onClick={() => setExpandedPeriods(prev => ({ ...prev, [period.monthYear]: !isOpen }))} className={`w-full flex items-center justify-between p-5 transition-all ${isOpen ? 'bg-slate-100/50 dark:bg-slate-800' : 'hover:bg-slate-50/50'}`}>
-                                <div className="flex items-center gap-4">
-                                    <div className={`w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center transition-transform ${isOpen ? 'rotate-180' : ''}`}><svg className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7" /></svg></div>
-                                    <div>
-                                        <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 text-start">{period.monthYear}</h3>
-                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-                                            {period.projects.length} {t.totalProjects}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="text-end">
-                                    <p className="text-xs font-black text-slate-900 dark:text-white">{formatCurrency(totalPeriodValue)}</p>
-                                    <p className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">{t.totalPayments}</p>
-                                </div>
-                            </button>
-                            {isOpen && (
-                                <div className="p-5 bg-slate-50/30 dark:bg-slate-900/40 border-t border-slate-100 dark:border-slate-800">
-                                    {viewMode === 'grid' ? (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            {period.projects.map((proj, prIdx) => (
-                                                <div key={prIdx} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700/50 rounded-2xl shadow-sm overflow-hidden group hover:border-violet-300 transition-all">
-                                                    <div className="p-4 border-b border-slate-50 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/50 flex justify-between items-center">
-                                                        <div className="min-w-0 flex-1">
-                                                            <h4 className="text-[11px] font-black text-slate-800 dark:text-white truncate group-hover:text-violet-600 transition-colors">{proj.name}</h4>
-                                                            <p className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">{proj.projectManager?.name || t.allManagers}</p>
-                                                        </div>
-                                                        <div className="text-end">
-                                                            <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 block">{formatCurrency(proj.groupTotal)}</span>
-                                                            <span className="text-[8px] font-bold text-slate-400 uppercase">{t.milestoneUnit} ({proj.milestonesInGroup.length})</span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="divide-y divide-slate-50 dark:divide-slate-800">
-                                                        {proj.milestonesInGroup.map((m: any, mIdx: number) => (
-                                                            <div key={mIdx} className="p-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                                                                <div className="min-w-0 flex-1 pe-4">
-                                                                    <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate">{m.title}</p>
-                                                                    <p className="text-[8px] text-slate-400 uppercase mt-0.5">{new Date(m.dueDate).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US')}</p>
-                                                                </div>
-                                                                <div className="flex items-center gap-4 shrink-0">
-                                                                    <span className="text-[10px] font-black text-slate-900 dark:text-white font-mono">{m.hasPayment ? formatCurrency(m.paymentAmount) : '--'}</span>
-                                                                    {m.hasPayment ? getPaymentStatusBadge(m.paymentStatus) : <span className="text-[8px] font-bold text-slate-300 uppercase">NO PAY</span>}
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="overflow-x-auto rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-                                            <table className="w-full text-left rtl:text-right border-collapse">
-                                                <thead>
-                                                    <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
-                                                        <th className="px-4 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest">{t.projectName}</th>
-                                                        <th className="px-4 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest">{t.projectManager}</th>
-                                                        <th className="px-4 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest">{t.milestoneTitle}</th>
-                                                        <th className="px-4 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest">{t.amount}</th>
-                                                        <th className="px-4 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest">{t.status}</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-                                                    {period.projects.flatMap((proj: any) => 
-                                                        proj.milestonesInGroup.map((m: any, mIdx: number) => (
-                                                            <tr key={`${proj.id}-${mIdx}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                                                                <td className="px-4 py-3 text-[10px] font-black text-slate-800 dark:text-slate-200">{proj.name}</td>
-                                                                <td className="px-4 py-3 text-[9px] font-bold text-slate-500 uppercase">{proj.projectManager?.name || t.allManagers}</td>
-                                                                <td className="px-4 py-3 text-[10px] font-medium text-slate-600 dark:text-slate-400">{m.title}</td>
-                                                                <td className="px-4 py-3 text-[10px] font-black text-slate-900 dark:text-white font-mono">{m.hasPayment ? formatCurrency(m.paymentAmount) : '--'}</td>
-                                                                <td className="px-4 py-3">{m.hasPayment ? getPaymentStatusBadge(m.paymentStatus) : '-'}</td>
-                                                            </tr>
-                                                        ))
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    );
-                }) : <div className="py-20 text-center opacity-30 text-[10px] font-black uppercase tracking-[0.3em] flex flex-col items-center gap-3">
-                    <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                    {t.noData}
-                </div>}
-            </div>
-        </WidgetWrapper>
+        </div>
     );
 };
 
 const translations = {
-    ar: { dashboard: "لوحة التحكم", overview: "نظرة عامة على التدفقات المالية.", totalProjects: "المشاريع", filteredPending: "معلقة", filteredSent: "مرسلة", filteredPaid: "مدفوعة", executionChartTitle: "نمو الدفعات الشهري", executionAggregation: "تجميع التدفقات", noData: "لا توجد بيانات.", quickSearch: "بحث بالمشروع...", customize: "تخصيص", allProjects: "كل المشاريع", allMonths: "كل الشهور", allManagers: "كل المدراء", clearFilters: "مسح", milestoneUnit: "معالم", totalPayments: "إجمالي الدفعات", Paid: "مدفوعة", Sent: "مرسلة", Pending: "معلقة", projectName: "المشروع", projectManager: "مدير المشروع", milestoneTitle: "عنوان المعلم", amount: "المبلغ", status: "الحالة" },
-    en: { dashboard: "Dashboard", overview: "Financial cashflow overview.", totalProjects: "Projects", filteredPending: "Pending", filteredSent: "Invoiced", filteredPaid: "Collected", executionChartTitle: "Monthly Revenue Growth", executionAggregation: "Flow Aggregation", noData: "No data found.", quickSearch: "Search Project...", customize: "Customize", allProjects: "All Projects", allMonths: "All Months", allManagers: "All Managers", clearFilters: "Clear", milestoneUnit: "Milestones", totalPayments: "Total Payments", Paid: "Paid", Sent: "Sent", Pending: "Pending", projectName: "Project", projectManager: "Project Manager", milestoneTitle: "Milestone", amount: "Amount", status: "Status" }
-};
-
-export const WIDGETS_CONFIG = [
-    { id: 'stats', name: 'KPIs', component: StatsOverviewWidget, default: true, colSpan: 4 },
-    { id: 'aggregated_execution', name: 'Aggregation', component: AggregatedSummaryWidget, default: true, colSpan: 4 },
-    { id: 'execution_chart', name: 'Growth', component: ExecutionPerformanceChartWidget, default: true, colSpan: 4 },
-];
-
-const AnalyticsDashboard: React.FC<any> = ({ projects = [], milestones = [], projectManagers = [], language }) => {
-    const t = translations[language];
-    const [globalProjectId, setGlobalProjectId] = useState('all');
-    const [globalManagerId, setGlobalManagerId] = useState('all');
-    const [globalMonthYear, setGlobalMonthYear] = useState<string[]>([]);
-    const [layout, setLayout] = useState<string[]>(() => {
-        const saved = localStorage.getItem('dashboardLayout');
-        return saved ? JSON.parse(saved) : WIDGETS_CONFIG.filter(w => w.default).map(w => w.id);
-    });
-    const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState(false);
-
-    useEffect(() => {
-        setGlobalMonthYear([getCurrentMonthYearLabel(language)]);
-    }, [language]);
-
-    const monthYearOptions = useMemo(() => {
-        const unique = new Set<string>();
-        milestones.forEach(m => { if (m && m.dueDate) { const d = new Date(m.dueDate); if(!isNaN(d.getTime())) unique.add(`${d.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { month: 'long' })} ${d.getFullYear()}`); } });
-        unique.add(getCurrentMonthYearLabel(language));
-        return Array.from(unique).map(v => ({ value: v, label: v }));
-    }, [milestones, language]);
-
-    const { filteredProjects, filteredMilestones } = useMemo(() => {
-        const fps = projects.filter((p: any) => p && (globalProjectId === 'all' || p.id === globalProjectId) && (globalManagerId === 'all' || p.projectManagerId === globalManagerId));
-        const pIds = new Set(fps.map((p: any) => p.id));
-        const fms = milestones.filter((m: any) => {
-            if (!m || !pIds.has(m.projectId)) return false;
-            if (globalMonthYear.length > 0) {
-                if (!m.dueDate) return false;
-                const d = new Date(m.dueDate);
-                if (isNaN(d.getTime())) return false;
-                const l = `${d.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { month: 'long' })} ${d.getFullYear()}`;
-                if (!globalMonthYear.includes(l)) return false;
-            }
-            return true;
-        });
-        return { filteredProjects: fps, filteredMilestones: fms };
-    }, [projects, milestones, globalProjectId, globalManagerId, globalMonthYear, language]);
-
-    const projectsWithMilestones = useMemo(() => {
-        return filteredProjects.map((p: any) => ({ ...p, milestones: filteredMilestones.filter((m: any) => m.projectId === p.id) })).filter((p: any) => p.milestones.length > 0);
-    }, [filteredProjects, filteredMilestones]);
-
-    return (
-        <div className="space-y-8 max-w-[1400px] mx-auto pb-20">
-            {isCustomizeModalOpen && <CustomizeDashboardModal isOpen={isCustomizeModalOpen} onClose={() => setIsCustomizeModalOpen(false)} currentLayout={layout} onSaveLayout={(l) => { setLayout(l); localStorage.setItem('dashboardLayout', JSON.stringify(l)); setIsCustomizeModalOpen(false); }} language={language} />}
-            <div className="flex justify-between items-center">
-                <div><h1 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight uppercase">{t.dashboard}</h1><p className="text-slate-400 font-bold text-[10px] mt-1 uppercase tracking-widest">{t.overview}</p></div>
-                <button onClick={() => setIsCustomizeModalOpen(true)} className="bg-white dark:bg-slate-800 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 border border-slate-100 dark:border-slate-800 shadow-sm">{t.customize}</button>
-            </div>
-            <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-[2rem] border border-slate-100 dark:border-slate-800 flex flex-wrap gap-4">
-                <div className="flex-1 min-w-[180px]"><SearchableSelect options={[{value:'all', label:t.allProjects}, ...projects.map((p: any) => ({value:p.id, label:p.name}))]} value={globalProjectId} onChange={setGlobalProjectId} placeholder={t.allProjects} language={language} /></div>
-                <div className="flex-1 min-w-[180px]"><SearchableSelect options={[{value:'all', label:t.allManagers}, ...projectManagers.map((m: any) => ({value:m.id, label:m.name}))]} value={globalManagerId} onChange={setGlobalManagerId} placeholder={t.allManagers} language={language} /></div>
-                <div className="flex-1 min-w-[180px]"><SearchableSelect isMulti options={monthYearOptions} value={globalMonthYear} onChange={setGlobalMonthYear} placeholder={t.allMonths} language={language} /></div>
-                <button onClick={() => { setGlobalProjectId('all'); setGlobalManagerId('all'); setGlobalMonthYear([getCurrentMonthYearLabel(language)]); }} className="px-5 py-2 bg-slate-800 text-white text-[10px] font-black rounded-xl hover:bg-black transition-all uppercase tracking-widest">{t.clearFilters}</button>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                {layout.map(id => { const c = WIDGETS_CONFIG.find(w => w.id === id); if(!c) return null; const Comp = c.component as any; return <div key={id} className={`lg:col-span-${c.colSpan}`}><Comp filteredProjects={filteredProjects} filteredMilestones={filteredMilestones} projectsWithMilestones={projectsWithMilestones} projectManagers={projectManagers} language={language} /></div>; })}
-            </div>
-        </div>
-    );
+    ar: { 
+        activeProjects: 'المشاريع النشطة', milestoneCompletion: 'إنجاز المعالم', openIssues: 'المهام المفتوحة', teamEfficiency: 'كفاءة الفريق',
+        projectStatusDistribution: 'توزيع حالة المشاريع', realTimeOverview: 'نظرة عامة فورية', overallProgress: 'التقدم الإجمالي', 
+        completed: 'مكتمل', done: 'تم إنجازه', totalMilestones: 'إجمالي المعالم', recentIssues: 'المهام الأخيرة', 
+        noIssuesFound: 'لا توجد مهام حالية.', systemHealth: 'حالة النظام', systemHealthMsg: 'جميع الخدمات تعمل بشكل طبيعي. تم تأمين قاعدة البيانات بنجاح.',
+        viewReports: 'عرض التقارير التفصيلية', teamActivity: 'نشاط الفريق', unknownProject: 'مشروع غير معروف', noDataAvailable: 'لا توجد بيانات كافية',
+        collectedRevenue: 'الدفعات المحصلة'
+    },
+    en: { 
+        activeProjects: 'Active Projects', milestoneCompletion: 'Milestone Completion', openIssues: 'Open Tasks', teamEfficiency: 'Team Efficiency',
+        projectStatusDistribution: 'Project Status Distribution', realTimeOverview: 'Real-time overview', overallProgress: 'Overall Progress', 
+        completed: 'Completed', done: 'Done', totalMilestones: 'Total Milestones', recentIssues: 'Recent Tasks', 
+        noIssuesFound: 'No tasks found.', systemHealth: 'System Health', systemHealthMsg: 'All services are operational. Database connection is secure.',
+        viewReports: 'View Detailed Reports', teamActivity: 'Team Activity', unknownProject: 'Unknown Project', noDataAvailable: 'No data available',
+        collectedRevenue: 'Collected Revenue'
+    }
 };
 
 export default AnalyticsDashboard;

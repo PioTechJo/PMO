@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { Project, Milestone, Language, PaymentStatus } from '../types';
+import { Project, Milestone, Language, PaymentStatus, Issue } from '../types';
 
-type ProjectWithMilestones = Project & { milestones: Milestone[] };
+type ProjectWithMilestones = Project & { milestones: Milestone[], issues: Issue[] };
 
 interface ProjectDetailModalProps {
     projectWithMilestones: ProjectWithMilestones;
@@ -50,6 +50,8 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ projectWithMile
     const resourceLoad = (project.resourceLoad || 1);
     const priorityScore = impactsSum - resourceLoad;
 
+    const totalMilestoneValue = milestones.reduce((sum, m) => sum + (m.hasPayment ? m.paymentAmount : 0), 0);
+
     const getScoreColor = (score: number) => {
         if (score >= 12) return 'text-green-600 dark:text-green-400';
         if (score >= 7) return 'text-yellow-600 dark:text-yellow-400';
@@ -81,25 +83,141 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ projectWithMile
                     </div>
 
                     <div className="space-y-6">
-                        {/* Project Overview */}
-                        <div className="space-y-4">
-                            <div className="flex justify-between items-center">
-                                <span className={`px-3 py-1 rounded-full font-semibold text-sm ${project.status?.name ? statusColors[project.status.name] : 'bg-slate-500/10 text-slate-600 dark:text-slate-400'}`}>
-                                    {project.status?.name || t.noStatus}
-                                </span>
-                            </div>
+                        {/* Key Details Grid */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <InfoItem label={t.customer} value={project.customer?.name} />
+                            <InfoItem label={t.manager}>
+                                {project.projectManager && (
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-full bg-violet-200 dark:bg-violet-900 flex items-center justify-center text-[10px] font-bold text-violet-700 dark:text-violet-200">
+                                            {project.projectManager.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                        </div>
+                                        <span>{project.projectManager.name}</span>
+                                    </div>
+                                )}
+                            </InfoItem>
+                            <InfoItem label={t.category} value={project.category?.name} />
+                            <InfoItem label={t.country} value={project.country?.name} />
+                            <InfoItem label={t.launchDate} value={formatDate(project.launchDate)} />
+                            <InfoItem label={t.actualStartDate} value={formatDate(project.actualStartDate)} />
+                            <InfoItem label={t.expectedClosureDate} value={formatDate(project.expectedClosureDate)} />
+                            <InfoItem label={t.team} value={project.team?.name} />
+                        </div>
 
-                            <div>
-                                <div className="flex justify-between items-center mb-1">
-                                    <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">{t.progress}</span>
-                                    <span className="text-sm font-bold text-violet-600 dark:text-violet-400">{project.progress || 0}%</span>
+                        {/* Milestones List */}
+                        <div className="pt-4">
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-3 tracking-tight">{t.milestones} ({milestones.length})</h3>
+                            <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+                                <table className="w-full text-sm text-left rtl:text-right">
+                                    <thead className="bg-slate-50 dark:bg-slate-800/50">
+                                        <tr>
+                                            <th className="p-3 font-semibold text-slate-600 dark:text-slate-300">{t.milestoneTitle}</th>
+                                            <th className="p-3 font-semibold text-slate-600 dark:text-slate-300 text-center">{t.status}</th>
+                                            <th className="p-3 font-semibold text-slate-600 dark:text-slate-300 text-center">{t.dueDate}</th>
+                                            <th className="p-3 font-semibold text-slate-600 dark:text-slate-300 text-center">{t.payment}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                                        {milestones.length > 0 ? milestones.map(milestone => (
+                                            <tr key={milestone.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                                <td className="p-3 font-medium text-slate-700 dark:text-slate-200">{milestone.title}</td>
+                                                <td className="p-3 text-center text-slate-600 dark:text-slate-400">{milestone.status}</td>
+                                                <td className="p-3 text-center text-slate-600 dark:text-slate-400">{formatDate(milestone.dueDate)}</td>
+                                                <td className="p-3 text-center">
+                                                    {milestone.hasPayment ? (
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${paymentStatusColors[milestone.paymentStatus || PaymentStatus.Pending]}`}>
+                                                                {milestone.paymentStatus || 'Pending'}
+                                                            </span>
+                                                            <span className="font-mono font-bold text-green-600 dark:text-green-400 text-xs">
+                                                                {milestone.paymentAmount.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD' })}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-slate-300 dark:text-slate-600">--</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        )) : (
+                                            <tr><td colSpan={4} className="p-8 text-center text-slate-500 italic">{t.noMilestones}</td></tr>
+                                        )}
+                                    </tbody>
+                                    {milestones.length > 0 && (
+                                        <tfoot className="bg-slate-50/50 dark:bg-slate-800/30 border-t border-slate-200 dark:border-slate-700">
+                                            <tr>
+                                                <td colSpan={3} className="p-3 text-sm font-bold text-slate-500 dark:text-slate-400 text-right rtl:text-left uppercase tracking-wider">{t.total}</td>
+                                                <td className="p-3 text-center border-l border-slate-100 dark:border-slate-800">
+                                                    <span className="font-mono font-bold text-green-600 dark:text-green-400 text-sm">
+                                                        {totalMilestoneValue.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD' })}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    )}
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Tasks Section */}
+                        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-3 tracking-tight">{t.tasks} ({projectWithMilestones.issues.length})</h3>
+                            <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+                                <table className="w-full text-sm text-left rtl:text-right">
+                                    <thead className="bg-slate-50 dark:bg-slate-800/50 text-[11px] uppercase tracking-wider">
+                                        <tr>
+                                            <th className="p-3 font-semibold text-slate-600 dark:text-slate-300">{t.taskTitle}</th>
+                                            <th className="p-3 font-semibold text-slate-600 dark:text-slate-300">{t.assignee}</th>
+                                            <th className="p-3 font-semibold text-slate-600 dark:text-slate-300 text-center">{t.status}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                                        {projectWithMilestones.issues.length > 0 ? projectWithMilestones.issues.map(issue => (
+                                            <tr key={issue.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                                <td className="p-3">
+                                                    <p className="font-medium text-slate-700 dark:text-slate-200">{issue.title}</p>
+                                                    {issue.description && <p className="text-[10px] text-slate-500 truncate max-w-[300px]">{issue.description}</p>}
+                                                </td>
+                                                <td className="p-3">
+                                                    <div className="flex items-center gap-2">
+                                                        {issue.assignee ? (
+                                                            <>
+                                                                <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-300 text-[10px] font-bold">
+                                                                    {issue.assignee.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                                                </div>
+                                                                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{issue.assignee.name}</span>
+                                                            </>
+                                                        ) : (
+                                                            <span className="text-xs italic text-slate-400">{t.unassigned}</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="p-3 text-center">
+                                                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 whitespace-nowrap">
+                                                        {issue.status}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        )) : (
+                                            <tr><td colSpan={3} className="p-8 text-center text-slate-500 italic">{t.noTasks}</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Project Footer (Progress) */}
+                        <div className="pt-8 border-t border-slate-100 dark:border-slate-800 space-y-4 pb-2">
+                            <p className="text-sm font-bold text-slate-800 dark:text-white">{project.status?.name || t.noStatus}</p>
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                                    <span className="text-slate-400">{t.progress}</span>
+                                    <span className="text-violet-600 dark:text-violet-400">{project.progress || 0}%</span>
                                 </div>
-                                <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5">
-                                    <div className="bg-gradient-to-r from-violet-500 to-indigo-500 h-2.5 rounded-full" style={{ width: `${project.progress || 0}%` }}></div>
+                                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                                    <div className="bg-gradient-to-r from-violet-500 to-indigo-500 h-full rounded-full transition-all duration-500" style={{ width: `${project.progress || 0}%` }}></div>
                                 </div>
                             </div>
-                            
-                            <p className="text-sm text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/50 p-4 rounded-lg">{project.description}</p>
+                            <div className="h-4 w-full bg-slate-100 dark:bg-slate-800/30 rounded-lg"></div>
                         </div>
 
                         {/* Weights Display */}
@@ -117,67 +235,6 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ projectWithMile
                                     <p className="text-xs text-orange-600 dark:text-orange-400 mb-0.5">{t.resourceLoad}</p>
                                     <p className="text-sm font-bold text-orange-700 dark:text-orange-300">{project.resourceLoad || 1}</p>
                                 </div>
-                            </div>
-                        </div>
-
-                        {/* Key Details Grid */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <InfoItem label={t.customer} value={project.customer?.name} />
-                            <InfoItem label={t.manager}>
-                                {project.projectManager && (
-                                    <div className="flex items-center gap-2">
-                                        <img src={project.projectManager.avatarUrl || `https://ui-avatars.com/api/?name=${project.projectManager.name}&background=c4b5fd&color=2e1065`} alt={project.projectManager.name} className="w-6 h-6 rounded-full" />
-                                        <span>{project.projectManager.name}</span>
-                                    </div>
-                                )}
-                            </InfoItem>
-                            <InfoItem label={t.category} value={project.category?.name} />
-                            <InfoItem label={t.country} value={project.country?.name} />
-                            <InfoItem label={t.launchDate} value={formatDate(project.launchDate)} />
-                            <InfoItem label={t.actualStartDate} value={formatDate(project.actualStartDate)} />
-                            <InfoItem label={t.expectedClosureDate} value={formatDate(project.expectedClosureDate)} />
-                            <InfoItem label={t.team} value={project.team?.name} />
-                        </div>
-
-                        {/* Milestones List */}
-                        <div>
-                            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-3">{t.milestones} ({milestones.length})</h3>
-                            <div className="border border-slate-200 dark:border-slate-700 rounded-lg max-h-64 overflow-y-auto">
-                                <table className="w-full text-sm text-left rtl:text-right">
-                                    <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800">
-                                        <tr>
-                                            <th className="p-3 font-semibold text-slate-600 dark:text-slate-300">{t.milestoneTitle}</th>
-                                            <th className="p-3 font-semibold text-slate-600 dark:text-slate-300 text-center">{t.status}</th>
-                                            <th className="p-3 font-semibold text-slate-600 dark:text-slate-300 text-center">{t.dueDate}</th>
-                                            <th className="p-3 font-semibold text-slate-600 dark:text-slate-300 text-center">{t.payment}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                                        {milestones.length > 0 ? milestones.map(milestone => (
-                                            <tr key={milestone.id}>
-                                                <td className="p-3 font-medium text-slate-700 dark:text-slate-200">{milestone.title}</td>
-                                                <td className="p-3 text-center">{milestone.status}</td>
-                                                <td className="p-3 text-center">{formatDate(milestone.dueDate)}</td>
-                                                <td className="p-3 text-center">
-                                                    {milestone.hasPayment ? (
-                                                        <div className="flex items-center justify-center gap-2">
-                                                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${paymentStatusColors[milestone.paymentStatus || PaymentStatus.Pending]}`}>
-                                                                {t[milestone.paymentStatus || PaymentStatus.Pending]}
-                                                            </span>
-                                                            <span className="font-mono font-bold text-green-600 dark:text-green-400 text-xs">
-                                                                {milestone.paymentAmount.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD' })}
-                                                            </span>
-                                                        </div>
-                                                    ) : (
-                                                        <span>--</span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        )) : (
-                                            <tr><td colSpan={4} className="p-4 text-center text-slate-500">{t.noMilestones}</td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
                             </div>
                         </div>
                     </div>
@@ -217,6 +274,12 @@ const translations = {
         impacts: "نقاط التأثير",
         load: "حمل الموارد",
         scaleNote: "(1: الأقل، 5: الأعلى)",
+        tasks: "المهام",
+        taskTitle: "اسم المهمة",
+        assignee: "المسؤول",
+        noTasks: "لا توجد مهام لهذا المشروع.",
+        Open: "مفتوحة", Resolved: "تم الحل", Closed: "مغلقة",
+        total: "المجموع",
     },
     en: {
         progress: "Progress",
@@ -235,7 +298,7 @@ const translations = {
         payment: "Payment",
         noStatus: "No Status",
         noMilestones: "No milestones for this project.",
-        Pending: "Pending", Sent: "Sent", Paid: "Paid",
+        Pending: "Pending", Sent: "Sent", Paid: "Paid", "In Progress": "In Progress",
         weights: "Project Weights",
         revenueImpact: "Revenue Impact",
         strategicValue: "Strategic Value",
@@ -247,6 +310,12 @@ const translations = {
         impacts: "Impact pts",
         load: "Resource Load",
         scaleNote: "(1: Low, 5: High)",
+        tasks: "Tasks",
+        taskTitle: "Task Title",
+        assignee: "Assignee",
+        noTasks: "No tasks for this project.",
+        Open: "Open", Resolved: "Resolved", Closed: "Closed",
+        total: "Total",
     },
 };
 

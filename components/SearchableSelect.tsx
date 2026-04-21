@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Language } from '../types';
 
@@ -80,7 +81,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
         return selectedOptions[0]?.label || placeholder;
     }, [selectedOptions, value, isMulti, placeholder, t.selected]);
 
-    const buttonClasses = "w-full p-2 bg-slate-200 dark:bg-slate-700/50 rounded-md border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 text-slate-800 dark:text-white text-sm";
+    const buttonClasses = "w-full p-2 bg-slate-200 dark:bg-slate-700/50 rounded-md border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 text-slate-800 dark:text-white text-sm min-h-[40px]";
     
     return (
         <div className="relative w-full" ref={wrapperRef}>
@@ -89,12 +90,12 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
                 onClick={toggleOpen}
                 className={`${buttonClasses} flex justify-between items-center text-left rtl:text-right`}
             >
-                <span className="truncate">{displayLabel}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                <span className="truncate pr-4 rtl:pr-0 rtl:pl-4 font-bold">{displayLabel}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
             </button>
 
             {isOpen && (
-                <div className="absolute top-full mt-1 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-lg z-50">
+                <div className="absolute top-full mt-1 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-2xl z-[100]">
                     <div className="p-2 border-b border-slate-100 dark:border-slate-700">
                         <input
                             type="text"
@@ -117,7 +118,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
                                         <button
                                             type="button"
                                             onClick={() => handleSelect(option.value)}
-                                            className={`w-full text-left rtl:text-right p-2 text-sm rounded-md transition-colors flex items-center gap-2 ${isSelected ? 'bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300 font-bold' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                                            className={`w-full text-left rtl:text-right p-2.5 text-sm rounded-md transition-colors flex items-center gap-2 ${isSelected ? 'bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300 font-bold' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
                                         >
                                             {isMulti && (
                                                 <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'bg-violet-600 border-violet-600 text-white' : 'bg-transparent border-slate-300 dark:border-slate-600'}`}>

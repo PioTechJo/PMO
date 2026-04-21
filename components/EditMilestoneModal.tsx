@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Milestone, Project, Lookup, MilestoneStatus, Language, PaymentStatus, MilestoneUpdate, User } from '../types';
+import { Milestone, Project, Lookup, MilestoneStatus, Language, PaymentStatus, PaymentType, MilestoneUpdate, User } from '../types';
 
 interface EditMilestoneModalProps {
   milestoneToEdit: Milestone;
@@ -41,6 +41,7 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
         hasPayment: true, 
         paymentAmount: 0, 
         paymentStatus: PaymentStatus.Pending,
+        paymentType: PaymentType.Progress,
     });
     
     // Tracking edits and additions in session
@@ -72,6 +73,7 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
                 hasPayment: merged.hasPayment ?? false,
                 paymentAmount: merged.paymentAmount || 0,
                 paymentStatus: merged.paymentStatus || PaymentStatus.Pending,
+                paymentType: merged.paymentType || PaymentType.Progress,
             });
         }
     }, [editingTargetId, allMilestones, milestoneToEdit.projectId, modifiedExisting]);
@@ -90,6 +92,7 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
           hasPayment: "مرتبط بدفعة",
           paymentAmount: "المبلغ",
           paymentStatus: "حالة الدفعة",
+          paymentType: "نوع الدفعة",
           saveAll: "حفظ كافة التغييرات",
           cancel: "إلغاء",
           applyToList: "تحديث المعلم في القائمة",
@@ -109,6 +112,7 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
           addingMode: "إضافة معلم جديد",
           doubleClickTip: "انقر نقراً مزدوجاً على معلم لتحميله للتعديل",
           Pending: "معلق", "In Progress": "قيد التنفيذ", Completed: "مكتمل", Sent: "مرسلة", Paid: "مدفوعة",
+          Downpayment: "دفعة مقدمة", Progress: "دفعة إنجاز", Final: "دفعة نهائية", Retention: "محجوزات", Other: "أخرى"
       },
       en: {
           title: "Manage Project Milestones",
@@ -123,6 +127,7 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
           hasPayment: "Payment Included",
           paymentAmount: "Amount",
           paymentStatus: "Payment Status",
+          paymentType: "Payment Type",
           saveAll: "Save All Changes",
           cancel: "Cancel",
           applyToList: "Apply Changes to Item",
@@ -142,6 +147,7 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
           addingMode: "Adding New Milestone",
           doubleClickTip: "Double-click an item to edit it",
           Pending: "Pending", "In Progress": "In Progress", Completed: "Completed", Sent: "Sent", Paid: "Paid",
+          Downpayment: "Downpayment", Progress: "Progress Payment", Final: "Final Payment", Retention: "Retention", Other: "Other"
       },
   };
   const t = translations[language];
@@ -181,6 +187,7 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
           dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : null,
           paymentAmount: formData.hasPayment ? Number(formData.paymentAmount) : 0,
           paymentStatus: formData.hasPayment ? formData.paymentStatus : null,
+          paymentType: formData.hasPayment ? formData.paymentType : null,
       };
 
       if (editingTargetId) {
@@ -196,7 +203,7 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
       setEditingTargetId(null);
       setFormData({
           title: '', description: '', projectId: milestoneToEdit.projectId, teamId: '', dueDate: '',
-          status: MilestoneStatus.Pending, hasPayment: true, paymentAmount: 0, paymentStatus: PaymentStatus.Pending,
+          status: MilestoneStatus.Pending, hasPayment: true, paymentAmount: 0, paymentStatus: PaymentStatus.Pending, paymentType: PaymentType.Progress,
       });
   };
 
@@ -294,6 +301,12 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
                                         <select name="paymentStatus" value={formData.paymentStatus || ''} onChange={handleInputChange} className={selectClasses}>
                                             {Object.values(PaymentStatus).map(s => (<option key={s} value={s}>{t[s] || s}</option>))}
                                         </select>
+                                        <div className="col-span-2">
+                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{t.paymentType}</label>
+                                            <select name="paymentType" value={formData.paymentType || ''} onChange={handleInputChange} className={selectClasses}>
+                                                {Object.values(PaymentType).map(s => (<option key={s} value={s}>{t[s] || s}</option>))}
+                                            </select>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -367,7 +380,10 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
                                         </div>
                                         <div className="text-right shrink-0">
                                             {currentData.hasPayment && <p className="text-xs font-black text-green-600 dark:text-green-400">${currentData.paymentAmount?.toLocaleString()}</p>}
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase">{t[currentData.paymentStatus || 'Pending']}</p>
+                                            <div className="flex flex-col items-end">
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase">{t[currentData.paymentStatus || 'Pending']}</p>
+                                                {currentData.hasPayment && <p className="text-[8px] font-black text-violet-500 uppercase">{t[currentData.paymentType || 'Progress']}</p>}
+                                            </div>
                                         </div>
                                     </div>
                                 );

@@ -4,12 +4,25 @@ import { Project, Language } from '../types';
 
 interface ProjectCardProps {
     project: Project;
+    milestoneCount: number;
+    milestoneValue: number;
+    milestoneTypes: string[];
     onEdit: () => void;
     onDelete: () => void;
+    onClick: () => void;
     language: Language;
 }
 
-const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete, language }) => {
+const ProjectCard: React.FC<ProjectCardProps> = ({ 
+    project, 
+    milestoneCount, 
+    milestoneValue,
+    milestoneTypes,
+    onEdit, 
+    onDelete, 
+    onClick,
+    language 
+}) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -34,7 +47,10 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete, la
             noCustomer: "لا يوجد عميل",
             options: "خيارات المشروع",
             progress: "التقدم",
-            score: "الأولوية"
+            score: "الأولوية",
+            milestones: "المعالم",
+            milestoneValue: "قيمة المعالم",
+            Downpayment: "دفعة مقدمة", Progress: "دفعة إنجاز", Final: "دفعة نهائية", Retention: "محجوزات", Other: "أخرى"
         },
         en: {
             manager: "Project Manager",
@@ -46,7 +62,10 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete, la
             noCustomer: "No Customer",
             options: "Project options",
             progress: "Progress",
-            score: "Score"
+            score: "Score",
+            milestones: "Milestones",
+            milestoneValue: "Milestone Value",
+            Downpayment: "Downpayment", Progress: "Progress Payment", Final: "Final Payment", Retention: "Retention", Other: "Other"
         }
     };
     const t = translations[language];
@@ -71,7 +90,10 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete, la
     ) - (project.resourceLoad || 1);
     
     return (
-        <div className="bg-white dark:bg-slate-900/30 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 p-6 rounded-2xl shadow-sm dark:shadow-none flex flex-col justify-between h-full transition-all duration-300 hover:scale-[1.02] hover:shadow-lg dark:hover:shadow-violet-900/30">
+        <div 
+            onClick={onClick}
+            className="bg-white dark:bg-slate-900/30 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 p-6 rounded-2xl shadow-sm dark:shadow-none flex flex-col justify-between h-full transition-all duration-300 hover:scale-[1.02] hover:shadow-lg dark:hover:shadow-violet-900/30 cursor-pointer"
+        >
             <div>
                 <div className="flex justify-between items-start mb-2">
                      <div className="flex gap-2 items-center">
@@ -80,6 +102,9 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete, la
                         </span>
                         <div className="flex items-center gap-1 bg-violet-600 text-white px-2 py-1 rounded-full shadow-sm" title={t.score}>
                             <span className="font-black text-[11px] leading-none">{priorityScore}</span>
+                        </div>
+                        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded-full border border-slate-200 dark:border-slate-700 font-bold text-[10px]" title={t.milestones}>
+                            <span>🚩 {milestoneCount}</span>
                         </div>
                      </div>
                      <div className="relative" ref={menuRef}>
@@ -93,13 +118,13 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete, la
                         {menuOpen && (
                             <div className="absolute top-full right-0 rtl:left-0 rtl:right-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-10 w-32 mt-1 py-1">
                                 <button 
-                                    onClick={() => { onEdit(); setMenuOpen(false); }} 
+                                    onClick={(e) => { e.stopPropagation(); onEdit(); setMenuOpen(false); }} 
                                     className="block w-full text-start px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                                 >
                                     {t.edit}
                                 </button>
                                 <button 
-                                    onClick={() => { onDelete(); setMenuOpen(false); }} 
+                                    onClick={(e) => { e.stopPropagation(); onDelete(); setMenuOpen(false); }} 
                                     className="block w-full text-start px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                                 >
                                     {t.delete}
@@ -124,15 +149,31 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onEdit, onDelete, la
             </div>
 
             <div className="space-y-4">
-                 {project.customer && (
+                 <div className="grid grid-cols-2 gap-4">
+                    {project.customer && (
+                        <div className="flex items-center gap-2">
+                             <span className="text-sm">🏢</span>
+                             <div>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">{t.customer}</p>
+                                <p className="font-semibold text-sm text-slate-800 dark:text-white truncate max-w-[120px]">{project.customer.name}</p>
+                             </div>
+                        </div>
+                    )}
                     <div className="flex items-center gap-2">
-                        <span className="text-sm">🏢</span>
-                         <div>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">{t.customer}</p>
-                            <p className="font-semibold text-sm text-slate-800 dark:text-white">{project.customer.name}</p>
-                         </div>
+                        <span className="text-sm">💰</span>
+                        <div className="min-w-0">
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{t.milestoneValue}</p>
+                            <p className="font-semibold text-sm text-emerald-600 dark:text-emerald-400 truncate">
+                                {milestoneValue.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })}
+                            </p>
+                            {milestoneTypes.length > 0 && (
+                                <p className="text-[8px] font-black text-violet-500 uppercase truncate" title={milestoneTypes.map(mt => t[mt] || mt).join(', ')}>
+                                    {milestoneTypes.map(mt => t[mt] || mt).join(', ')}
+                                </p>
+                            )}
+                        </div>
                     </div>
-                )}
+                 </div>
                 <div className="pt-4 border-t border-slate-200 dark:border-slate-700/50">
                      <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{t.manager}</p>
                      <div className="flex items-center gap-2">

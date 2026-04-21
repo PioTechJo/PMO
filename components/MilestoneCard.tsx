@@ -20,8 +20,8 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({ milestone, project, team,
     };
     
     const translations = {
-        ar: { dueDate: "تاريخ الاستحقاق", inProject: "في مشروع", noProject: "لا يوجد مشروع", unassigned: "غير مسند", noDueDate: "لا يوجد تاريخ استحقاق" },
-        en: { dueDate: "Due", inProject: "in", noProject: "No project", unassigned: "Unassigned", noDueDate: "No due date" },
+        ar: { dueDate: "تاريخ الاستحقاق", inProject: "في مشروع", noProject: "لا يوجد مشروع", unassigned: "غير مسند", noDueDate: "لا يوجد تاريخ استحقاق", Downpayment: "دفعة مقدمة", Progress: "دفعة إنجاز", Final: "دفعة نهائية", Retention: "محجوزات", Other: "أخرى" },
+        en: { dueDate: "Due", inProject: "in", noProject: "No project", unassigned: "Unassigned", noDueDate: "No due date", Downpayment: "Downpayment", Progress: "Progress Payment", Final: "Final Payment", Retention: "Retention", Other: "Other" },
     };
     const t = translations[language];
 
@@ -38,6 +38,18 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({ milestone, project, team,
                     {team && <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{team.name}</span>}
                 </div>
             </div>
+            {milestone.hasPayment && (
+                <div className="mb-2 flex items-center justify-between">
+                    <span className="font-mono text-[10px] font-black text-emerald-600 dark:text-emerald-400">
+                        {milestone.paymentAmount.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD' })}
+                    </span>
+                    {milestone.paymentType && (
+                        <span className="text-[8px] font-black text-violet-500 uppercase px-1.5 py-0.5 bg-violet-100 dark:bg-violet-900/30 rounded-md">
+                            {t[milestone.paymentType] || milestone.paymentType}
+                        </span>
+                    )}
+                </div>
+            )}
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">{milestone.description}</p>
             
             <div className="flex justify-between items-center text-xs">

@@ -5,13 +5,27 @@ import { ProjectColumn } from './Projects';
 
 interface ProjectListItemProps {
     project: Project;
+    milestoneCount: number;
+    milestoneValue: number;
+    milestoneTypes: string[];
     onEdit: () => void;
     onDelete: () => void;
+    onClick: () => void;
     language: Language;
     visibleColumns: Record<ProjectColumn, boolean>;
 }
 
-const ProjectListItem: React.FC<ProjectListItemProps> = ({ project, onEdit, onDelete, language, visibleColumns }) => {
+const ProjectListItem: React.FC<ProjectListItemProps> = ({ 
+    project, 
+    milestoneCount, 
+    milestoneValue,
+    milestoneTypes,
+    onEdit, 
+    onDelete, 
+    onClick,
+    language, 
+    visibleColumns 
+}) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -26,8 +40,8 @@ const ProjectListItem: React.FC<ProjectListItemProps> = ({ project, onEdit, onDe
     }, []);
 
     const translations = {
-        ar: { edit: "تعديل", delete: "حذف", unassigned: "غير معين", noStatus: "لا توجد حالة", options: "خيارات المشروع", progress: "التقدم", score: "الأولوية" },
-        en: { edit: "Edit", delete: "Delete", unassigned: "Unassigned", noStatus: "No Status", options: "Project options", progress: "Progress", score: "Score" }
+        ar: { edit: "تعديل", delete: "حذف", unassigned: "غير معين", noStatus: "لا توجد حالة", options: "خيارات المشروع", progress: "التقدم", score: "الأولوية", milestones: "المعالم", Downpayment: "دفعة مقدمة", Progress: "دفعة إنجاز", Final: "دفعة نهائية", Retention: "محجوزات", Other: "أخرى" },
+        en: { edit: "Edit", delete: "Delete", unassigned: "Unassigned", noStatus: "No Status", options: "Project options", progress: "Progress", score: "Score", milestones: "Milestones", Downpayment: "Downpayment", Progress: "Progress Payment", Final: "Final Payment", Retention: "Retention", Other: "Other" }
     };
     const t = translations[language];
 
@@ -50,7 +64,10 @@ const ProjectListItem: React.FC<ProjectListItemProps> = ({ project, onEdit, onDe
     ) - (project.resourceLoad || 1);
 
     return (
-        <div className="bg-white dark:bg-slate-900/30 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 p-3 rounded-lg flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-300 text-sm">
+        <div 
+            onClick={onClick}
+            className="bg-white dark:bg-slate-900/30 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 p-3 rounded-lg flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-300 text-sm cursor-pointer shadow-sm hover:shadow-md"
+        >
             <div className="flex-1 min-w-0">
                 <p className="font-bold text-slate-800 dark:text-white truncate">{project.name}</p>
                 <p className="text-xs font-mono text-violet-500 dark:text-violet-400">{project.projectCode}</p>
@@ -63,6 +80,19 @@ const ProjectListItem: React.FC<ProjectListItemProps> = ({ project, onEdit, onDe
                         <div className="bg-gradient-to-r from-violet-500 to-indigo-500 h-1.5 rounded-full" style={{ width: `${project.progress || 0}%` }}></div>
                     </div>
                 </div>
+            </div>
+            
+            <div className="w-24 text-center shrink-0">
+                <div className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full border border-slate-200 dark:border-slate-700 inline-flex items-center gap-1 font-bold text-[10px] text-slate-600 dark:text-slate-300" title={t.milestones}>
+                    <span>🚩 {milestoneCount}</span>
+                </div>
+            </div>
+
+            <div className="w-32 text-center shrink-0">
+                <p className="font-bold text-emerald-600 dark:text-emerald-400 font-mono text-sm">
+                    {milestoneValue.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })}
+                </p>
+                {milestoneTypes.length > 0 && <p className="text-[7px] text-slate-400 uppercase truncate px-1" title={milestoneTypes.map(mt => t[mt] || mt).join(', ')}>{milestoneTypes.map(mt => t[mt] || mt).join(', ')}</p>}
             </div>
             
             {visibleColumns.status && (
@@ -112,13 +142,13 @@ const ProjectListItem: React.FC<ProjectListItemProps> = ({ project, onEdit, onDe
                     {menuOpen && (
                         <div className="absolute top-full right-0 rtl:left-0 rtl:right-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-10 w-32 mt-1 py-1">
                             <button 
-                                onClick={() => { onEdit(); setMenuOpen(false); }} 
+                                onClick={(e) => { e.stopPropagation(); onEdit(); setMenuOpen(false); }} 
                                 className="block w-full text-start px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                             >
                                 {t.edit}
                             </button>
                              <button 
-                                onClick={() => { onDelete(); setMenuOpen(false); }} 
+                                onClick={(e) => { e.stopPropagation(); onDelete(); setMenuOpen(false); }} 
                                 className="block w-full text-start px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                             >
                                 {t.delete}

@@ -28,10 +28,7 @@ const resultSchema = {
     required: ['resultType'],
 };
 
-// وظيفة لجلب المفتاح بمرونة من بيئة Vite أو Node
-const getApiKey = () => {
-    return (import.meta as any).env?.VITE_API_KEY || process.env.API_KEY || (process.env as any).VITE_API_KEY;
-};
+// API Key is obtained exclusively from process.env.API_KEY as per guidelines.
 
 const formatDataForPrompt = (projects: Project[], milestones: Milestone[]): string => {
     const context = {
@@ -55,17 +52,18 @@ const formatDataForPrompt = (projects: Project[], milestones: Milestone[]): stri
 };
 
 export const analyzeQuery = async (query: string, projects: Project[], milestones: Milestone[], users: User[], teams: Lookup[]): Promise<AnalysisResult> => {
-    const apiKey = getApiKey();
+    const apiKey = process.env.API_KEY;
     
     if (!apiKey) {
         return { 
             resultType: 'ERROR', 
-            error: "مفتاح VITE_API_KEY غير موجود في بيئة التشغيل. يرجى التأكد من عمل Trigger Deploy في Netlify بعد إضافة المتغير." 
+            error: "API Key is not configured in process.env.API_KEY." 
         };
     }
 
     try {
-        const ai = new GoogleGenAI({ apiKey });
+        // Initialize GoogleGenAI right before making the API call as per guidelines.
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const dataContext = formatDataForPrompt(projects, milestones);
         
         const prompt = `
@@ -81,7 +79,8 @@ export const analyzeQuery = async (query: string, projects: Project[], milestone
         `;
 
         const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
+            // Complex analysis tasks use gemini-3-pro-preview.
+            model: "gemini-3-pro-preview",
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
@@ -90,24 +89,29 @@ export const analyzeQuery = async (query: string, projects: Project[], milestone
             },
         });
 
-        const result = JSON.parse(response.text.trim());
+        // Use the .text property directly.
+        const resultText = response.text;
+        if (!resultText) throw new Error("Empty response from AI.");
+        
+        const result = JSON.parse(resultText.trim());
         return result as AnalysisResult;
 
     } catch (error: any) {
         console.error("AI Error:", error);
         return { 
             resultType: 'ERROR', 
-            error: "فشل الاتصال بمحرك الذكاء الاصطناعي. يرجى التحقق من صحة المفتاح في Netlify." 
+            error: "AI service connection error." 
         };
     }
 };
 
 export const getChatResponse = async (query: string, projects: Project[], milestones: Milestone[], users: User[], teams: Lookup[]): Promise<string> => {
-    const apiKey = getApiKey();
-    if (!apiKey) return "المساعد غير متاح بسبب نقص في إعدادات VITE_API_KEY.";
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) return "AI Assistant config error.";
 
     try {
-        const ai = new GoogleGenAI({ apiKey });
+        // Initialize GoogleGenAI right before making the API call.
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const dataContext = formatDataForPrompt(projects, milestones);
         
         const response = await ai.models.generateContent({
@@ -116,8 +120,8 @@ export const getChatResponse = async (query: string, projects: Project[], milest
             config: { thinkingConfig: { thinkingBudget: 0 } }
         });
 
-        return response.text.trim();
+        return response.text?.trim() || "No response received from Assistant.";
     } catch (error) {
-        return "حدث خطأ أثناء المحادثة، يرجى المحاولة لاحقاً.";
+        return "Chat assistant encountered an error.";
     }
 };

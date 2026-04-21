@@ -1,7 +1,9 @@
 
 export type Language = 'ar' | 'en';
 export type Theme = 'light' | 'dark' | 'system';
-export type View = 'dashboard' | 'projects' | 'milestones' | 'team' | 'payments' | 'system' | 'maintenanceContracts' | 'filter' | 'reports';
+export type View = 'dashboard' | 'projects' | 'milestones' | 'team' | 'payments' | 'system' | 'maintenanceContracts' | 'filter' | 'reports' | 'issues';
+export type GroupingType = 'project' | 'assignee';
+export type TaskViewMode = 'byProject' | 'byAssignee';
 
 export interface Lookup {
     id: string;
@@ -12,6 +14,12 @@ export interface User {
     id:string;
     name: string;
     avatarUrl?: string;
+    type?: string; // Roles: 'PM', 'PS', 'Staff', 'Client'
+}
+
+export interface RolePermissions {
+    role: string;
+    allowedViews: View[];
 }
 
 export interface ChatMessage {
@@ -20,11 +28,31 @@ export interface ChatMessage {
   sender: 'user' | 'ai';
 }
 
+export interface Notification {
+    id: string;
+    userId: string;
+    title: string;
+    message: string;
+    type: 'issue_assigned' | 'status_change' | 'milestone_alert';
+    isRead: boolean;
+    createdAt: string;
+    linkId?: string;
+}
+
 export interface MilestoneUpdate {
     id: string;
     milestoneId: string;
     userId: string;
     updateText: string;
+    createdAt: string;
+    user?: User;
+}
+
+export interface IssueComment {
+    id: string;
+    issueId: string;
+    userId: string;
+    content: string;
     createdAt: string;
     user?: User;
 }
@@ -51,17 +79,58 @@ export enum PaymentStatus {
     Paid = 'Paid',
 }
 
+export enum PaymentType {
+    Downpayment = 'Downpayment',
+    Progress = 'Progress',
+    Final = 'Final',
+    Retention = 'Retention',
+    Other = 'Other'
+}
+
+export enum IssueStatus {
+    Open = 'Open',
+    InProgress = 'In Progress',
+    Resolved = 'Resolved',
+    Closed = 'Closed'
+}
+
+export enum IssuePriority {
+    Low = 'Low',
+    Medium = 'Medium',
+    High = 'High',
+    Critical = 'Critical'
+}
+
 export interface Milestone {
     id: string;
     title: string;
-    description: string;
+    description: string | null;
     projectId: string;
     teamId: string | null;
-    dueDate: string | null; // ISO string
+    dueDate: string | null;
     status: MilestoneStatus;
     hasPayment: boolean;
     paymentAmount: number;
     paymentStatus: PaymentStatus | null;
+    paymentType: PaymentType | null;
+}
+
+export interface Issue {
+    id: string;
+    title: string;
+    description: string;
+    status: IssueStatus;
+    priority: IssuePriority;
+    projectId: string;
+    milestoneId: string | null;
+    assigneeId: string | null;
+    reporterId: string;
+    createdAt: string;
+    project?: Project;
+    milestone?: Milestone;
+    assignee?: User;
+    reporter?: User;
+    comments?: IssueComment[];
 }
 
 export interface Project {
@@ -80,13 +149,11 @@ export interface Project {
     actualStartDate: string | null;
     expectedClosureDate: string | null;
     progress: number;
-    // Weight Fields
     revenueImpact: number;
     strategicValue: number;
     deliveryRisk: number;
     customerPressure: number;
     resourceLoad: number;
-    // Expanded properties from lookups
     country?: Lookup;
     category?: Lookup;
     team?: Lookup;
@@ -110,10 +177,8 @@ export interface MaintenanceContract {
     startDate: string | null;
     endDate: string | null;
     notes: string | null;
-    // Expanded properties for display
     customer?: Lookup;
 }
-
 
 export interface AnalysisResult {
     resultType: 'PROJECTS' | 'MILESTONES' | 'SUMMARY' | 'KPIS' | 'ERROR';
@@ -125,7 +190,6 @@ export interface AnalysisResult {
 }
 
 export interface ProjectImportRow {
-    [key: string]: string | undefined;
     name: string;
     description?: string;
     customerName: string;
@@ -135,23 +199,8 @@ export interface ProjectImportRow {
     categoryName?: string;
     teamName?: string;
     productName?: string;
-    launchDate?: string; // YYYY-MM-DD
-    actualStartDate?: string; // YYYY-MM-DD
-    expectedClosureDate?: string; // YYYY-MM-DD
-    progress?: string; // number as string
-}
-
-export interface MaintenanceContractImportRow {
-    [key: string]: string | undefined;
-    type?: string;
-    month: string; // number as string
-    year: string; // number as string
-    customerName: string;
-    projectCode: string;
-    totalAmount: string; // number as string
-    collectedAmount?: string; // number as string
-    lostAmount?: string; // number as string
-    startDate?: string; // YYYY-MM-DD
-    endDate?: string; // YYYY-MM-DD
-    notes?: string;
+    launchDate?: string;
+    actualStartDate?: string;
+    expectedClosureDate?: string;
+    progress?: string;
 }

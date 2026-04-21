@@ -36,8 +36,8 @@ const MilestoneListItem: React.FC<MilestoneListItemProps> = ({ milestone, projec
     };
 
     const translations = {
-        ar: { edit: "تعديل", options: "خيارات", Pending: "معلق", "In Progress": "قيد التنفيذ", Completed: "مكتمل", Sent: "مرسلة", Paid: "مدفوعة", noDueDate: "لا يوجد تاريخ", unassigned: "غير معين" },
-        en: { edit: "Edit", options: "Options", Pending: "Pending", "In Progress": "In Progress", Completed: "Completed", Sent: "Sent", Paid: "Paid", noDueDate: "No date", unassigned: "Unassigned" },
+        ar: { edit: "تعديل", options: "خيارات", Pending: "معلق", "In Progress": "قيد التنفيذ", Completed: "مكتمل", Sent: "مرسلة", Paid: "مدفوعة", noDueDate: "لا يوجد تاريخ", unassigned: "غير معين", Downpayment: "دفعة مقدمة", Progress: "دفعة إنجاز", Final: "دفعة نهائية", Retention: "محجوزات", Other: "أخرى" },
+        en: { edit: "Edit", options: "Options", Pending: "Pending", "In Progress": "In Progress", Completed: "Completed", Sent: "Sent", Paid: "Paid", noDueDate: "No date", unassigned: "Unassigned", Downpayment: "Downpayment", Progress: "Progress Payment", Final: "Final Payment", Retention: "Retention", Other: "Other" },
     };
     const t = translations[language];
     
@@ -78,6 +78,9 @@ const MilestoneListItem: React.FC<MilestoneListItemProps> = ({ milestone, projec
                                 </div>
                             )}
                         </div>
+                        {milestone.paymentType && (
+                            <span className="text-[8px] font-black text-violet-500 uppercase mt-0.5">{t[milestone.paymentType] || milestone.paymentType}</span>
+                        )}
                     </div>
                 )}
             </div>

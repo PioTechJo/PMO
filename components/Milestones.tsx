@@ -395,6 +395,10 @@ const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, lan
         URL.revokeObjectURL(url);
     };
 
+    const grandTotalPayments = useMemo(() => {
+        return filteredMilestones.reduce((sum, m) => sum + (m.hasPayment ? m.paymentAmount : 0), 0);
+    }, [filteredMilestones]);
+
     return (
         <div className="space-y-8">
             {showAddModal && <AddMilestoneModal teams={lookups.teams} projects={allProjects} onClose={() => setShowAddModal(false)} onAddMilestone={handleAddMilestone} language={language} />}
@@ -404,8 +408,14 @@ const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, lan
                     <h1 className="text-3xl font-bold text-slate-800 dark:text-white">{t.title}</h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">{t.subtitle}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={() => setShowAddModal(true)} className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 text-white font-bold py-2 px-4 rounded-full flex items-center gap-2 transition-colors shadow-lg hover:shadow-violet-700/50">
+                <div className="flex items-center gap-4">
+                    {grandTotalPayments > 0 && (
+                        <div className="flex flex-col items-end">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{t.totalPayments}</span>
+                            <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{grandTotalPayments.toLocaleString()}</span>
+                        </div>
+                    )}
+                    <button onClick={() => setShowAddModal(true)} className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 text-white font-bold py-2 px-6 rounded-full flex items-center gap-2 transition-colors shadow-lg hover:shadow-violet-700/50">
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"></path></svg>
                         <span>{t.newMilestone}</span>
                     </button>

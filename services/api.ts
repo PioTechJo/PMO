@@ -1,84 +1,23 @@
 
 import { getSupabase } from './supabaseClient';
-import { Project, Milestone, User, Lookups, MilestoneStatus, PaymentStatus } from '../types';
+import { Project, Milestone, User, Lookups, MilestoneStatus, PaymentStatus, MaintenanceContract, Issue, IssueStatus, IssuePriority, Notification, Lookup, IssueComment } from '../types';
 
-const mapMilestoneToDb = (milestoneData: Partial<Omit<Milestone, 'id'>>) => {
-    const { projectId, teamId, dueDate, hasPayment, paymentAmount, paymentStatus, title, description, status } = milestoneData;
-    const dbData: any = {};
-    if (title !== undefined) dbData.title = title;
-    if (description !== undefined) dbData.description = description;
-    if (status !== undefined) dbData.status = status;
-    if (projectId !== undefined) dbData.project_id = projectId || null;
-    if (teamId !== undefined) dbData.team_id = teamId || null;
-    if (dueDate !== undefined) dbData.due_date = dueDate;
-    if (hasPayment !== undefined) dbData.has_payment = hasPayment;
-    if (paymentAmount !== undefined) dbData.payment_amount = paymentAmount;
-    if (paymentStatus !== undefined) dbData.payment_status = paymentStatus;
-    return dbData;
-};
-
-const mapDbToMilestone = (dbMilestone: any): Milestone => ({
-    id: dbMilestone.id,
-    title: dbMilestone.title || '',
-    description: dbMilestone.description || '',
-    projectId: dbMilestone.project_id,
-    teamId: dbMilestone.team_id,
-    dueDate: dbMilestone.due_date,
-    status: (dbMilestone.status || MilestoneStatus.Pending) as MilestoneStatus,
-    hasPayment: !!dbMilestone.has_payment,
-    paymentAmount: dbMilestone.payment_amount || 0,
-    paymentStatus: dbMilestone.payment_status as PaymentStatus,
-});
-
-const mapProjectToDb = (projectData: Partial<Omit<Project, 'id'>>) => {
-    const { projectCode, countryId, categoryId, teamId, productId, statusId, projectManagerId, customerId, launchDate, actualStartDate, expectedClosureDate, progress, revenueImpact, strategicValue, deliveryRisk, customerPressure, resourceLoad, ...rest } = projectData;
-    const dbData: any = { ...rest };
-    if (projectCode !== undefined) dbData.project_code = projectCode;
-    if (countryId !== undefined) dbData.country_id = countryId || null;
-    if (categoryId !== undefined) dbData.category_id = categoryId || null;
-    if (teamId !== undefined) dbData.team_id = teamId || null;
-    if (productId !== undefined) dbData.product_id = productId || null;
-    if (statusId !== undefined) dbData.status_id = statusId || null;
-    if (projectManagerId !== undefined) dbData.project_manager_id = projectManagerId || null;
-    if (customerId !== undefined) dbData.customer_id = customerId || null;
-    if (launchDate !== undefined) dbData.launch_date = launchDate;
-    if (actualStartDate !== undefined) dbData.actual_start_date = actualStartDate;
-    if (expectedClosureDate !== undefined) dbData.expected_closure_date = expectedClosureDate;
-    if (progress !== undefined) dbData.progress = progress;
-    if (revenueImpact !== undefined) dbData.revenue_impact = revenueImpact;
-    if (strategicValue !== undefined) dbData.strategic_value = strategicValue;
-    if (deliveryRisk !== undefined) dbData.delivery_risk = deliveryRisk;
-    if (customerPressure !== undefined) dbData.customer_pressure = customerPressure;
-    if (resourceLoad !== undefined) dbData.resource_load = resourceLoad;
-    return dbData;
-};
-
-const mapDbToProject = (dbProject: any): Project => ({
-    id: dbProject.id,
-    name: dbProject.name || 'Untitled',
-    description: dbProject.description || '',
-    projectCode: dbProject.project_code || 'N/A',
-    countryId: dbProject.country_id,
-    categoryId: dbProject.category_id,
-    teamId: dbProject.team_id,
-    productId: dbProject.product_id,
-    statusId: dbProject.status_id,
-    projectManagerId: dbProject.project_manager_id,
-    customerId: dbProject.customer_id,
-    launchDate: dbProject.launch_date,
-    actualStartDate: dbProject.actual_start_date,
-    expectedClosureDate: dbProject.expected_closure_date,
-    progress: dbProject.progress || 0,
-    revenueImpact: dbProject.revenue_impact || 1,
-    strategicValue: dbProject.strategic_value || 1,
-    deliveryRisk: dbProject.delivery_risk || 1,
-    customerPressure: dbProject.customer_pressure || 1,
-    resourceLoad: dbProject.resource_load || 1,
+const mapDbToNotification = (db: any): Notification => ({
+    id: db.id,
+    userId: db.user_id,
+    title: db.title,
+    message: db.message,
+    type: db.type,
+    isRead: db.is_read,
+    createdAt: db.created_at,
+    linkId: db.link_id
 });
 
 export const fetchAllData = async () => {
     const supabase = getSupabase();
-    if (!supabase) return { projects: [], milestones: [], users: [], lookups: null };
+    if (!supabase) return { projects: [], milestones: [], users: [], lookups: null, maintenanceContracts: [], issues: [], notifications: [] };
+
+    const { data: { session } } = await supabase.auth.getSession();
 
     const fetchRes = await Promise.all([
         supabase.from('projects').select('*'),
@@ -89,23 +28,60 @@ export const fetchAllData = async () => {
         supabase.from('teams').select('*'),
         supabase.from('products').select('*'),
         supabase.from('project_statuses').select('*'),
-        supabase.from('customers').select('*')
+        supabase.from('customers').select('*'),
+        supabase.from('maintenance_contracts').select('*'),
+        supabase.from('issues').select('*'),
+        supabase.from('issue_comments').select('*').order('created_at', { ascending: true }),
+        session ? supabase.from('notifications').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false }).limit(10) : Promise.resolve({ data: [] })
     ]);
 
     const results = fetchRes.map(r => r.data || []);
-    const [prj, mls, usr, cnt, cat, tm, prd, st, cst] = results;
+    const [prj, mls, usr, cnt, cat, tm, prd, st, cst, mnt, iss, cmts, ntf] = results;
+
+    const mappedUsers: User[] = (usr as any[] || []).map(u => ({
+        id: u.id,
+        name: u.name || 'Anonymous User',
+        avatarUrl: u.avatar_url,
+        type: u.type || 'Staff'
+    }));
 
     const lookups: Lookups = {
-        countries: cnt, categories: cat, teams: tm, products: prd, projectStatuses: st,
-        projectManagers: (usr as User[]) || [], customers: cst,
+        countries: cnt, 
+        categories: cat, 
+        teams: tm, 
+        products: prd, 
+        projectStatuses: st,
+        projectManagers: mappedUsers.filter(u => u.type === 'PM'),
+        customers: cst,
     };
 
     const projects: Project[] = prj.map(db => {
-        const p = mapDbToProject(db);
+        const p = {
+            id: db.id,
+            name: db.name || 'Untitled',
+            description: db.description || '',
+            projectCode: db.project_code || 'N/A',
+            countryId: db.country_id,
+            categoryId: db.category_id,
+            teamId: db.team_id,
+            productId: db.product_id,
+            statusId: db.status_id,
+            projectManagerId: db.project_manager_id,
+            customerId: db.customer_id,
+            launchDate: db.launch_date,
+            actualStartDate: db.actual_start_date,
+            expectedClosureDate: db.expected_closure_date,
+            progress: db.progress || 0,
+            revenueImpact: db.revenue_impact || 1,
+            strategicValue: db.strategic_value || 1,
+            deliveryRisk: db.delivery_risk || 1,
+            customerPressure: db.customer_pressure || 1,
+            resourceLoad: db.resource_load || 1,
+        } as Project;
         return {
             ...p,
             status: lookups.projectStatuses.find(l => l.id === p.statusId),
-            projectManager: lookups.projectManagers.find(l => l.id === p.projectManagerId),
+            projectManager: mappedUsers.find(l => l.id === p.projectManagerId),
             customer: lookups.customers.find(l => l.id === p.customerId),
             country: lookups.countries.find(l => l.id === p.countryId),
             category: lookups.categories.find(l => l.id === p.categoryId),
@@ -114,55 +90,247 @@ export const fetchAllData = async () => {
         };
     });
 
-    return { projects, milestones: mls.map(mapDbToMilestone), users: (usr as User[]), lookups };
+    const mappedComments: IssueComment[] = cmts.map((c: any) => ({
+        id: c.id,
+        issueId: c.issue_id,
+        userId: c.user_id,
+        content: c.content,
+        createdAt: c.created_at,
+        user: mappedUsers.find(u => u.id === c.user_id)
+    }));
+
+    return { 
+        projects, 
+        milestones: mls.map(db => ({
+            id: db.id, title: db.title || '', description: db.description || '', projectId: db.project_id, teamId: db.team_id, dueDate: db.due_date, status: (db.status || MilestoneStatus.Pending) as MilestoneStatus, hasPayment: !!db.has_payment, paymentAmount: db.payment_amount || 0, paymentStatus: db.payment_status as PaymentStatus,
+        })), 
+        users: mappedUsers, 
+        lookups,
+        maintenanceContracts: mnt.map(db => ({
+            id: db.id, createdAt: db.created_at, type: db.type, month: db.month, year: db.year, customerId: db.customer_id, projectCode: db.project_code, totalAmount: db.total_amount || 0, collectedAmount: db.collected_amount || 0, lostAmount: db.lost_amount || 0, startDate: db.start_date, endDate: db.end_date, notes: db.notes, customer: lookups.customers.find(l => l.id === db.customer_id)
+        })),
+        issues: iss.map(db => ({
+            id: db.id, title: db.title, description: db.description || '', status: (db.status || IssueStatus.Open) as IssueStatus, priority: (db.priority || IssuePriority.Medium) as IssuePriority, projectId: db.project_id, milestoneId: db.milestone_id, assigneeId: db.assignee_id, reporterId: db.reporter_id, createdAt: db.created_at,
+            project: projects.find(p => p.id === db.project_id), 
+            assignee: mappedUsers.find(u => u.id === db.assignee_id), 
+            reporter: mappedUsers.find(u => u.id === db.reporter_id),
+            comments: mappedComments.filter(c => c.issueId === db.id)
+        })),
+        notifications: ntf.map(mapDbToNotification)
+    };
 };
 
-export const addMilestones = async (milestonesData: Omit<Milestone, 'id'>[]) => {
+export const addIssueComment = async (issueId: string, userId: string, content: string) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized");
-    const toInsert = milestonesData.map(mapMilestoneToDb);
-    const { data, error } = await supabase.from('activities').insert(toInsert).select();
+    const { data, error } = await supabase.from('issue_comments').insert([{
+        issue_id: issueId,
+        user_id: userId,
+        content: content
+    }]).select();
     if (error) throw error;
-    return (data || []).map(mapDbToMilestone);
+    return data[0];
 };
 
-export const updateMilestone = async (id: string, milestoneData: Partial<Omit<Milestone, 'id'>>) => {
+export const markNotificationRead = async (id: string) => {
     const supabase = getSupabase();
-    if (!supabase) throw new Error("Supabase client not initialized");
-    const dbData = mapMilestoneToDb(milestoneData);
-    const { data, error } = await supabase.from('activities').update(dbData).eq('id', id).select();
-    if (error) throw error;
-    return data && data[0] ? mapDbToMilestone(data[0]) : null;
+    if (!supabase) return;
+    await supabase.from('notifications').update({ is_read: true }).eq('id', id);
 };
 
-export const addProject = async (projectData: any) => {
+export const addIssue = async (issueData: Omit<Issue, 'id' | 'createdAt'>) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized");
     
-    // Auto-generate project code if missing
-    if (!projectData.projectCode) {
-        projectData.projectCode = `PRJ-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-    }
+    const insertData = {
+        title: issueData.title,
+        description: issueData.description || null,
+        status: issueData.status,
+        priority: issueData.priority,
+        project_id: issueData.projectId,
+        milestone_id: issueData.milestoneId || null,
+        assignee_id: issueData.assigneeId || null,
+        reporter_id: issueData.reporterId
+    };
 
-    const { data, error } = await supabase.from('projects').insert([mapProjectToDb(projectData)]).select();
+    const { data, error } = await supabase.from('issues').insert([insertData]).select();
     if (error) throw error;
-    return mapDbToProject(data[0]);
+    
+    if (insertData.assignee_id) {
+        await supabase.from('notifications').insert([{
+            user_id: insertData.assignee_id,
+            title: 'New Issue Assigned',
+            message: `You have been assigned to: ${insertData.title}`,
+            type: 'issue_assigned',
+            link_id: data[0].id
+        }]);
+    }
+    return data[0];
 };
 
-export const updateProject = async (id: string, projectData: any) => {
+export const updateIssue = async (id: string, issueData: Partial<Issue>) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized");
-    const { data, error } = await supabase.from('projects').update(mapProjectToDb(projectData)).eq('id', id).select();
+    const updateData: any = {};
+    if (issueData.status) updateData.status = issueData.status;
+    if (issueData.priority) updateData.priority = issueData.priority;
+    if (issueData.assigneeId !== undefined) updateData.assignee_id = issueData.assigneeId || null;
+    const { data, error } = await supabase.from('issues').update(updateData).eq('id', id).select();
     if (error) throw error;
-    return mapDbToProject(data[0]);
+    return data[0];
+};
+
+export const addProject = async (p: any) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    
+    const generatedCode = 'PIO-' + Math.floor(1000 + Math.random() * 9000);
+
+    const { error } = await supabase.from('projects').insert([{
+        name: p.name, 
+        description: p.description, 
+        project_code: generatedCode,
+        country_id: p.countryId || null, 
+        category_id: p.categoryId || null, 
+        team_id: p.teamId || null, 
+        product_id: p.productId || null, 
+        status_id: p.statusId || null, 
+        project_manager_id: p.projectManagerId || null, 
+        customer_id: p.customerId || null, 
+        launch_date: p.launchDate || null, 
+        actual_start_date: p.actualStartDate || null, 
+        expected_closure_date: p.expectedClosureDate || null, 
+        progress: p.progress, 
+        revenue_impact: p.revenueImpact, 
+        strategic_value: p.strategicValue, 
+        delivery_risk: p.deliveryRisk, 
+        customer_pressure: p.customerPressure, 
+        resource_load: p.resourceLoad
+    }]);
+    if (error) throw error;
+};
+
+export const updateProject = async (id: string, p: any) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const { error } = await supabase.from('projects').update({
+        name: p.name, 
+        description: p.description, 
+        country_id: p.countryId || null, 
+        category_id: p.categoryId || null, 
+        team_id: p.teamId || null, 
+        product_id: p.productId || null, 
+        status_id: p.statusId || null, 
+        project_manager_id: p.projectManagerId || null, 
+        customer_id: p.customerId || null, 
+        launch_date: p.launchDate || null, 
+        actual_start_date: p.actualStartDate || null, 
+        expected_closure_date: p.expectedClosureDate || null, 
+        progress: p.progress, 
+        revenue_impact: p.revenueImpact, 
+        strategic_value: p.strategicValue, 
+        delivery_risk: p.deliveryRisk, 
+        customer_pressure: p.customerPressure, 
+        resource_load: p.resourceLoad
+    }).eq('id', id);
+    if (error) throw error;
 };
 
 export const deleteProject = async (id: string) => {
     const supabase = getSupabase();
-    if (!supabase) throw new Error("Supabase client not initialized");
+    if (!supabase) return;
     const { error } = await supabase.from('projects').delete().eq('id', id);
     if (error) throw error;
 };
 
-export const updateLookups = async (type: keyof Lookups, items: any[]) => {};
-export const addMilestoneUpdate = async (data: any) => {};
+export const addMilestones = async (ms: any[]) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    
+    // Fix: Map the camelCase frontend properties to snake_case backend columns
+    const { error } = await supabase.from('activities').insert(ms.map(m => ({
+        title: m.title, 
+        description: m.description, 
+        project_id: m.projectId, 
+        team_id: m.teamId, 
+        due_date: m.dueDate, 
+        status: m.status, 
+        has_payment: m.hasPayment, // FIXED from m.has_payment
+        payment_amount: m.paymentAmount, // FIXED from m.payment_amount
+        payment_status: m.paymentStatus // FIXED from m.payment_status
+    })));
+    if (error) throw error;
+};
+
+export const updateMilestone = async (id: string, m: any) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const updateData: any = {};
+    if (m.title !== undefined) updateData.title = m.title;
+    if (m.status !== undefined) updateData.status = m.status;
+    if (m.paymentStatus !== undefined) updateData.payment_status = m.paymentStatus;
+    if (m.paymentAmount !== undefined) updateData.payment_amount = m.paymentAmount;
+    if (m.dueDate !== undefined) updateData.due_date = m.dueDate;
+    if (m.teamId !== undefined) updateData.team_id = m.teamId;
+    const { error } = await supabase.from('activities').update(updateData).eq('id', id);
+    if (error) throw error;
+};
+
+export const addMaintenanceContract = async (c: any) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const { error } = await supabase.from('maintenance_contracts').insert([{
+        type: c.type, 
+        month: c.month, 
+        year: c.year, 
+        customer_id: c.customerId, 
+        project_code: c.projectCode, 
+        total_amount: c.totalAmount, 
+        collected_amount: c.collectedAmount, 
+        lost_amount: c.lostAmount, 
+        start_date: c.startDate, 
+        end_date: c.endDate, 
+        notes: c.notes
+    }]);
+    if (error) throw error;
+};
+
+export const updateMaintenanceContract = async (id: string, c: any) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const { error } = await supabase.from('maintenance_contracts').update({
+        type: c.type, 
+        month: c.month, 
+        year: c.year, 
+        customer_id: c.customerId, 
+        project_code: c.projectCode, 
+        total_amount: c.totalAmount, 
+        collected_amount: c.collectedAmount, 
+        lost_amount: c.lostAmount, 
+        start_date: c.startDate, 
+        end_date: c.endDate, 
+        notes: c.notes
+    }).eq('id', id);
+    if (error) throw error;
+};
+
+export const updateLookups = async (type: keyof Lookups, items: Lookup[]) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const tableMap: Record<string, string> = {
+        countries: 'countries', categories: 'categories', teams: 'teams', products: 'products', projectStatuses: 'project_statuses', customers: 'customers'
+    };
+    const tableName = tableMap[type];
+    if (!tableName) return;
+    await supabase.from(tableName).delete().not('id', 'in', items.map(i => i.id));
+    await supabase.from(tableName).upsert(items.map(i => ({ id: i.id, name: i.name })));
+};
+
+export const addMilestoneUpdate = async (u: any) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const { error } = await supabase.from('milestone_updates').insert([{
+        milestone_id: u.milestoneId, user_id: u.userId, update_text: u.updateText
+    }]);
+    if (error) throw error;
+};

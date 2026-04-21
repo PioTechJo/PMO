@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Language } from '../types';
 import LanguageSwitcher from './LanguageSwitcher';
@@ -15,6 +16,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [fullName, setFullName] = useState('');
+    const [userType, setUserType] = useState('Staff'); // Default type
     const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     const [message, setMessage] = useState('');
@@ -35,6 +37,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
             forgotTitle: 'إعادة تعيين كلمة المرور',
             forgotSubtitle: "أدخل بريدك الإلكتروني وسنرسل لك رابطًا لاستعادة حسابك.",
             nameLabel: 'الاسم الكامل',
+            typeLabel: 'نوع المستخدم',
             emailLabel: 'البريد الإلكتروني',
             passwordLabel: 'كلمة المرور',
             loginButton: 'تسجيل الدخول',
@@ -52,7 +55,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
             rememberMe: 'ذكرني',
             forgotPassword: 'هل نسيت كلمة المرور؟',
             welcomeTo: 'مرحباً بك في',
-            appName: 'محفظة مشاريع بايو-تك'
+            appName: 'محفظة مشاريع بايو-تك',
+            typeStaff: 'موظف (Staff)',
+            typePS: 'خدمات احترافية (PS)',
+            typeClient: 'عميل (Client)'
         },
         en: {
             loginTitle: 'Login',
@@ -60,6 +66,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
             forgotTitle: 'Reset Password',
             forgotSubtitle: "Enter your email and we'll send you a link to get back into your account.",
             nameLabel: 'Full Name',
+            typeLabel: 'User Type',
             emailLabel: 'Email Address',
             passwordLabel: 'Password',
             loginButton: 'Login',
@@ -77,7 +84,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
             rememberMe: 'Remember me',
             forgotPassword: 'Forgot Password?',
             welcomeTo: 'Welcome to',
-            appName: 'Pio-Tech Project Portfolio'
+            appName: 'Pio-Tech Project Portfolio',
+            typeStaff: 'Staff Member',
+            typePS: 'Professional Services (PS)',
+            typeClient: 'Client'
         }
     };
     const t = translations[language];
@@ -90,7 +100,14 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
 
         if (mode === 'signup') {
             const { error } = await supabaseClient.auth.signUp({
-                email, password, options: { data: { name: fullName } },
+                email, 
+                password, 
+                options: { 
+                    data: { 
+                        name: fullName,
+                        type: userType // Passing type to auth metadata
+                    } 
+                },
             });
             if (error) setError(error.message);
             else setMessage(t.signupSuccess);
@@ -142,6 +159,8 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
         setLoading(false);
     };
     
+    const inputClasses = "w-full p-3 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-white transition-all";
+
     return (
         <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-slate-100 dark:bg-slate-900" dir={language === 'ar' ? 'rtl' : 'ltr'}>
             <div className="text-center mb-8">
@@ -167,11 +186,11 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
                         <form onSubmit={handleAuthSubmit} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.emailLabel}</label>
-                                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full p-3 bg-slate-100 dark:bg-slate-900/50 rounded-lg border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-white"/>
+                                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={inputClasses}/>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.passwordLabel}</label>
-                                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full p-3 bg-slate-100 dark:bg-slate-900/50 rounded-lg border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-white"/>
+                                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className={inputClasses}/>
                             </div>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center">
@@ -199,15 +218,23 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
                          <form onSubmit={handleAuthSubmit} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.nameLabel}</label>
-                                <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full p-3 bg-slate-100 dark:bg-slate-900/50 rounded-lg border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-white"/>
+                                <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className={inputClasses}/>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.typeLabel}</label>
+                                <select value={userType} onChange={(e) => setUserType(e.target.value)} className={inputClasses}>
+                                    <option value="Staff">{t.typeStaff}</option>
+                                    <option value="PS">{t.typePS}</option>
+                                    <option value="Client">{t.typeClient}</option>
+                                </select>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.emailLabel}</label>
-                                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full p-3 bg-slate-100 dark:bg-slate-900/50 rounded-lg border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-white"/>
+                                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={inputClasses}/>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.passwordLabel}</label>
-                                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full p-3 bg-slate-100 dark:bg-slate-900/50 rounded-lg border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-white"/>
+                                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className={inputClasses}/>
                             </div>
                             <button type="submit" disabled={loading} className="w-full px-5 py-3 text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-indigo-600 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
                                 {loading ? '...' : t.signupButton}
@@ -228,7 +255,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
                         <form onSubmit={handlePasswordReset} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.emailLabel}</label>
-                                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full p-3 bg-slate-100 dark:bg-slate-900/50 rounded-lg border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-white"/>
+                                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={inputClasses}/>
                             </div>
                             <button type="submit" disabled={loading} className="w-full px-5 py-3 text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-indigo-600 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
                                 {loading ? '...' : t.sendResetLink}

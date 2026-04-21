@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Milestone, Project, Lookup, MilestoneStatus, Language, PaymentStatus } from '../types';
+import { Milestone, Project, Lookup, MilestoneStatus, Language, PaymentStatus, PaymentType } from '../types';
 import SearchableSelect from './SearchableSelect';
 
 interface AddMilestoneModalProps {
@@ -27,6 +27,7 @@ const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, 
       hasPayment: true, 
       paymentAmount: 0, 
       paymentStatus: PaymentStatus.Pending,
+      paymentType: PaymentType.Progress,
   });
 
   const t = translations[language];
@@ -51,6 +52,7 @@ const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, 
       dueDate: currentMilestone.dueDate ? new Date(currentMilestone.dueDate).toISOString() : null,
       paymentAmount: currentMilestone.hasPayment ? Number(currentMilestone.paymentAmount) : 0,
       paymentStatus: currentMilestone.hasPayment ? currentMilestone.paymentStatus : null,
+      paymentType: currentMilestone.hasPayment ? currentMilestone.paymentType : null,
     };
     
     setMilestonesList(prev => [...prev, newItem]);
@@ -62,7 +64,8 @@ const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, 
         status: MilestoneStatus.Pending, 
         hasPayment: true, 
         paymentAmount: 0, 
-        paymentStatus: PaymentStatus.Pending 
+        paymentStatus: PaymentStatus.Pending,
+        paymentType: PaymentType.Progress
     });
     setError(null);
   };
@@ -151,6 +154,12 @@ const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, 
                                         {Object.values(PaymentStatus).map(s => <option key={s} value={s}>{t[s] || s}</option>)}
                                     </select>
                                 </div>
+                                <div className="col-span-2">
+                                    <label className={labelClasses}>{t.paymentType}</label>
+                                    <select name="paymentType" value={currentMilestone.paymentType} onChange={handleInputChange} className={inputClasses}>
+                                        {Object.values(PaymentType).map(s => <option key={s} value={s}>{t[s] || s}</option>)}
+                                    </select>
+                                </div>
                             </div>
                         )}
 
@@ -201,22 +210,24 @@ const translations = {
     ar: { 
         title: "معالم المشروع", project: "المشروع", selectHere: "اختر المشروع...", milestoneTitle: "اسم المعلم", 
         team: "الفريق", selectTeam: "اختر الفريق...", dueDate: "التاريخ", status: "الحالة",
-        hasPayment: "يوجد دفعة", paymentAmount: "المبلغ", paymentStatus: "الحالة",
+        hasPayment: "يوجد دفعة", paymentAmount: "المبلغ", paymentStatus: "الحالة", paymentType: "نوع الدفعة",
         addToList: "إضافة للقائمة", listTitle: "قائمة الحفظ", noItems: "فارغة", 
         saveAll: "حفظ الكل", cancel: "إلغاء", noProjectSelected: "اختر مشروعاً.", 
         validationErrorFields: "الاسم والفريق مطلوبان.", submitting: "حفظ...",
         successMsg: "تم الحفظ!", successLabel: "تم",
-        Pending: "معلق", "In Progress": "قيد التنفيذ", Completed: "مكتمل", Sent: "مرسلة", Paid: "مدفوعة"
+        Pending: "معلق", "In Progress": "قيد التنفيذ", Completed: "مكتمل", Sent: "مرسلة", Paid: "مدفوعة",
+        Downpayment: "دفعة مقدمة", Progress: "دفعة إنجاز", Final: "دفعة نهائية", Retention: "محجوزات", Other: "أخرى"
     },
     en: { 
         title: "Milestones Mgt", project: "Project", selectHere: "Select...", milestoneTitle: "Title", 
         team: "Team", selectTeam: "Select...", dueDate: "Date", status: "Status",
-        hasPayment: "Payment", paymentAmount: "Amount", paymentStatus: "Status",
+        hasPayment: "Payment", paymentAmount: "Amount", paymentStatus: "Status", paymentType: "Payment Type",
         addToList: "Add to Queue", listTitle: "Batch Queue", noItems: "Empty", 
         saveAll: "Save Batch", cancel: "Cancel", noProjectSelected: "Select project.", 
         validationErrorFields: "Required fields missing.", submitting: "Saving...",
         successMsg: "Saved successfully!", successLabel: "Done",
-        Pending: "Pending", "In Progress": "In Progress", Completed: "Completed", Sent: "Sent", Paid: "Paid"
+        Pending: "Pending", "In Progress": "In Progress", Completed: "Completed", Sent: "Sent", Paid: "Paid",
+        Downpayment: "Downpayment", Progress: "Progress Payment", Final: "Final Payment", Retention: "Retention", Other: "Other"
     }
 };
 
