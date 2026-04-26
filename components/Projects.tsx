@@ -139,7 +139,7 @@ const ImportProjectsModal: React.FC<ImportProjectsModalProps> = ({ isOpen, onClo
     );
 };
 
-export type ProjectColumn = 'status' | 'projectManager' | 'category' | 'team' | 'customer' | 'score';
+export type ProjectColumn = 'status' | 'projectManager' | 'category' | 'team' | 'customer' | 'tasks';
 
 interface ProjectsProps {
     allProjects: Project[];
@@ -162,10 +162,26 @@ interface ProjectsProps {
 const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssues, allUsers, language, onAddProject, onOpenEditModal, onOpenDeleteModal, searchResult, lookups, currentUser, isImportModalOpen, onOpenImportModal, onCloseImportModal, onImportProjects }) => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [viewingProject, setViewingProject] = useState<Project | null>(null);
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+    const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
+    const columnMenuRef = useRef<HTMLDivElement>(null);
     const [visibleColumns, setVisibleColumns] = useState<Record<ProjectColumn, boolean>>({
-        status: true, projectManager: true, category: false, team: false, customer: true, score: true,
+        status: true, projectManager: true, category: false, team: false, customer: true, tasks: true,
     });
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (columnMenuRef.current && !columnMenuRef.current.contains(event.target as Node)) {
+                setIsColumnDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const toggleColumn = (col: ProjectColumn) => {
+        setVisibleColumns(prev => ({ ...prev, [col]: !prev[col] }));
+    };
     
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedManagerId, setSelectedManagerId] = useState<string>('all');
@@ -228,6 +244,41 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssu
                     <p className="text-xs font-black text-slate-400 uppercase tracking-widest mt-1">{t.subtitle}</p>
                 </div>
                  <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+                    {viewMode === 'list' && (
+                        <div className="relative" ref={columnMenuRef}>
+                            <button 
+                                onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
+                                className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-900 border-2 border-slate-50 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-violet-500 transition-all"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+                                <span>{language === 'ar' ? 'تخصيص الأعمدة' : 'Customize Columns'}</span>
+                            </button>
+                            
+                            {isColumnDropdownOpen && (
+                                <div className="absolute top-full mt-2 right-0 w-64 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-2xl z-[100] p-4 space-y-3">
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">{language === 'ar' ? 'الأعمدة المرئية' : 'Visible Columns'}</h4>
+                                    {(Object.keys(visibleColumns) as ProjectColumn[]).map(col => (
+                                        <label key={col} className="flex items-center gap-3 cursor-pointer group">
+                                            <div 
+                                                onClick={() => toggleColumn(col)}
+                                                className={`w-10 h-5 rounded-full relative transition-colors ${visibleColumns[col] ? 'bg-violet-600' : 'bg-slate-200 dark:bg-slate-800'}`}
+                                            >
+                                                <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${visibleColumns[col] ? 'right-1' : 'left-1'}`}></div>
+                                            </div>
+                                            <span className="text-xs font-bold text-slate-600 dark:text-slate-300 group-hover:text-violet-600 transition-colors">
+                                                {col === 'status' && (language === 'ar' ? 'الحالة' : 'Status')}
+                                                {col === 'projectManager' && (language === 'ar' ? 'المدير' : 'Manager')}
+                                                {col === 'category' && (language === 'ar' ? 'الفئة' : 'Category')}
+                                                {col === 'team' && (language === 'ar' ? 'الفريق' : 'Team')}
+                                                {col === 'customer' && (language === 'ar' ? 'العميل' : 'Customer')}
+                                                {col === 'tasks' && (language === 'ar' ? 'المهام' : 'Tasks')}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                     <div className="flex bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-1 rounded-2xl shadow-sm">
                         <button onClick={() => setViewMode('list')} className={`p-2.5 rounded-xl transition-all ${viewMode === 'list' ? 'bg-violet-100 text-violet-600 dark:bg-violet-900/30' : 'text-slate-400'}`}><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button>
                         <button onClick={() => setViewMode('grid')} className={`p-2.5 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-violet-100 text-violet-600 dark:bg-violet-900/30' : 'text-slate-400'}`}><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" /><path d="M14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" /></svg></button>
@@ -257,6 +308,7 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssu
                         {projectsToDisplay.map(project => {
                             const projectMilestones = allMilestones.filter(m => m.projectId === project.id);
                             const projectMilestonesCount = projectMilestones.length;
+                            const projectIssuesCount = allIssues.filter(i => i.projectId === project.id).length;
                             const milestoneValue = projectMilestones.reduce((acc, m) => acc + (m.paymentAmount || 0), 0);
                             const milestoneTypes = Array.from(new Set(projectMilestones.filter(m => m.hasPayment && m.paymentType).map(m => m.paymentType!)));
                             
@@ -265,6 +317,7 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssu
                                     key={project.id} 
                                     project={project} 
                                     milestoneCount={projectMilestonesCount}
+                                    issueCount={projectIssuesCount}
                                     milestoneValue={milestoneValue}
                                     milestoneTypes={milestoneTypes}
                                     onEdit={() => onOpenEditModal(project)} 
@@ -277,21 +330,24 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssu
                     </div>
                 ) : (
                     <div className="overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl">
-                        <div className="min-w-[1000px] p-4">
-                            <div className="flex items-center gap-4 text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-4">
-                                <div className="flex-1">PROJECT INFO</div>
-                                <div className="w-24 text-center">{t.milestones}</div>
-                                <div className="w-32 text-center text-emerald-600 dark:text-emerald-400">{t.milestoneValue}</div>
-                                <div className="w-32 text-center">STATUS</div>
-                                <div className="w-24 text-center">SCORE</div>
-                                <div className="w-40 text-center">MANAGER</div>
-                                <div className="w-40 text-center">CUSTOMER</div>
-                                <div className="w-16 text-center">...</div>
+                        <div className="min-w-[1600px] p-6 text-slate-800 dark:text-slate-200">
+                            <div className="flex items-center gap-6 text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-6">
+                                <div className="w-[450px] shrink-0">PROJECT NAME</div>
+                                <div className="w-24 shrink-0 text-center">{t.milestones}</div>
+                                <div className="w-32 shrink-0 text-center text-emerald-600 dark:text-emerald-400">VALUE</div>
+                                {visibleColumns.status && <div className="w-32 shrink-0 text-center">STATUS</div>}
+                                {visibleColumns.tasks && <div className="w-24 shrink-0 text-center">TASKS</div>}
+                                {visibleColumns.projectManager && <div className="w-60 shrink-0 text-center">MANAGER</div>}
+                                {visibleColumns.customer && <div className="w-60 shrink-0 text-center">CUSTOMER</div>}
+                                {visibleColumns.category && <div className="w-40 shrink-0 text-center">CATEGORY</div>}
+                                {visibleColumns.team && <div className="w-40 shrink-0 text-center">TEAM</div>}
+                                <div className="w-16 shrink-0 text-center">...</div>
                             </div>
                             <div className="space-y-2">
                                 {projectsToDisplay.map(project => {
                                     const projectMilestones = allMilestones.filter(m => m.projectId === project.id);
                                     const projectMilestonesCount = projectMilestones.length;
+                                    const projectIssuesCount = allIssues.filter(i => i.projectId === project.id).length;
                                     const milestoneValue = projectMilestones.reduce((acc, m) => acc + (m.paymentAmount || 0), 0);
                                     const milestoneTypes = Array.from(new Set(projectMilestones.filter(m => m.hasPayment && m.paymentType).map(m => m.paymentType!)));
 
@@ -300,6 +356,7 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssu
                                             key={project.id} 
                                             project={project} 
                                             milestoneCount={projectMilestonesCount}
+                                            issueCount={projectIssuesCount}
                                             milestoneValue={milestoneValue}
                                             milestoneTypes={milestoneTypes}
                                             onEdit={() => onOpenEditModal(project)} 
@@ -322,8 +379,8 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssu
 };
 
 const translations = {
-    ar: { title: "المشاريع", subtitle: "نظرة عامة على جميع مشاريعك الحالية.", newProject: "إضافة مشروع", noProjectsFound: "لم يتم العثور على مشاريع.", gridView: "عرض شبكي", listView: "عرض قائمة", columns: "الأعمدة", status: "الحالة", score: "الأولوية", milestones: "المعالم", milestoneValue: "القيمة", projectManager: "مدير المشروع", category: "الفئة", team: "الفريق", customer: "العميل", projectName: "اسم المشروع", actions: "إجراءات", allManagers: "كل المدراء", allCustomers: "كل العملاء", allStatuses: "كل الحالات", allCountries: "كل الدول", clearFilters: "مسح الفلاتر", searchManagers: "بحث...", searchCustomers: "بحث...", searchStatuses: "بحث...", searchCountries: "بحث...", searchByName: "بحث بالاسم...", import: { button: "استيراد", title: "استيراد من CSV", instructionsTitle: "تعليمات", instruction1: "صيغة CSV فقط.", instruction2: "الصف الأول رؤوس.", downloadTemplate: "تنزيل القالب", instruction3: "الأعمدة الإلزامية.", instruction4: "التاريخ YYYY-MM-DD.", dropzone: "اسحب ملف CSV هنا.", fileReadAbort: "تم إلغاء القراءة.", fileReadError: "خطأ في الملف.", parsingError: "خطأ في التحليل.", missingHeadersError: "رؤوس مفقودة", moreRows: "صفوف إضافية", cancel: "إلغاء", importButton: "بدء الاستيراد", importing: "جاري الاستيراد..." } },
-    en: { title: "Projects", subtitle: "An overview of all current projects.", newProject: "Add Project", noProjectsFound: "No projects found.", gridView: "Grid View", listView: "List View", columns: "Columns", status: "Status", score: "Score", milestones: "Milestones", milestoneValue: "Value", projectManager: "Manager", category: "Category", team: "Team", customer: "Customer", projectName: "Project Name", actions: "Actions", allManagers: "All Managers", allCustomers: "All Customers", allStatuses: "All Statuses", allCountries: "All Countries", clearFilters: "Clear Filters", searchManagers: "Search...", searchCustomers: "Search...", searchStatuses: "Search...", searchCountries: "Search...", searchByName: "Search Name...", import: { button: "Import", title: "Import CSV", instructionsTitle: "How-to", instruction1: "CSV format only.", instruction2: "Headers in 1st row.", downloadTemplate: "Download Template", instruction3: "Required columns.", instruction4: "YYYY-MM-DD dates.", dropzone: "Drop CSV here.", fileReadAbort: "Aborted.", fileReadError: "Error.", parsingError: "Parse Error.", missingHeadersError: "Missing headers", moreRows: "rows", cancel: "Cancel", importButton: "Import", importing: "Importing..." } }
+    ar: { title: "المشاريع", subtitle: "نظرة عامة على جميع مشاريعك الحالية.", newProject: "إضافة مشروع", noProjectsFound: "لم يتم العثور على مشاريع.", gridView: "عرض شبكي", listView: "عرض قائمة", columns: "الأعمدة", status: "الحالة", tasks: "المهام", milestones: "المعالم", milestoneValue: "القيمة", projectManager: "مدير المشروع", category: "الفئة", team: "الفريق", customer: "العميل", projectName: "اسم المشروع", actions: "إجراءات", allManagers: "كل المدراء", allCustomers: "كل العملاء", allStatuses: "كل الحالات", allCountries: "كل الدول", clearFilters: "مسح الفلاتر", searchManagers: "بحث...", searchCustomers: "بحث...", searchStatuses: "بحث...", searchCountries: "بحث...", searchByName: "بحث بالاسم...", import: { button: "استيراد", title: "استيراد من CSV", instructionsTitle: "تعليمات", instruction1: "صيغة CSV فقط.", instruction2: "الصف الأول رؤوس.", downloadTemplate: "تنزيل القالب", instruction3: "الأعمدة الإلزامية.", instruction4: "التاريخ YYYY-MM-DD.", dropzone: "اسحب ملف CSV هنا.", fileReadAbort: "تم إلغاء القراءة.", fileReadError: "خطأ في الملف.", parsingError: "خطأ في التحليل.", missingHeadersError: "رؤوس مفقودة", moreRows: "صفوف إضافية", cancel: "إلغاء", importButton: "بدء الاستيراد", importing: "جاري الاستيراد..." } },
+    en: { title: "Projects", subtitle: "An overview of all current projects.", newProject: "Add Project", noProjectsFound: "No projects found.", gridView: "Grid View", listView: "List View", columns: "Columns", status: "Status", tasks: "Tasks", milestones: "Milestones", milestoneValue: "Value", projectManager: "Manager", category: "Category", team: "Team", customer: "Customer", projectName: "Project Name", actions: "Actions", allManagers: "All Managers", allCustomers: "All Customers", allStatuses: "All Statuses", allCountries: "All Countries", clearFilters: "Clear Filters", searchManagers: "Search...", searchCustomers: "Search...", searchStatuses: "Search...", searchCountries: "Search...", searchByName: "Search Name...", import: { button: "Import", title: "Import CSV", instructionsTitle: "How-to", instruction1: "CSV format only.", instruction2: "Headers in 1st row.", downloadTemplate: "Download Template", instruction3: "Required columns.", instruction4: "YYYY-MM-DD dates.", dropzone: "Drop CSV here.", fileReadAbort: "Aborted.", fileReadError: "Error.", parsingError: "Parse Error.", missingHeadersError: "Missing headers", moreRows: "rows", cancel: "Cancel", importButton: "Import", importing: "Importing..." } }
 };
 
 export default Projects;

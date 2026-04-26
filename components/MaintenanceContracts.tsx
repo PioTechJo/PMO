@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { MaintenanceContract, Lookup, Language } from '../types';
 import SearchableSelect from './SearchableSelect';
 import * as XLSX from 'xlsx';
+import StatCard from './StatCard';
 
 // --- Editable Row Sub-Component ---
 interface EditableRowProps {
@@ -232,10 +233,22 @@ const MaintenanceContracts: React.FC<MaintenanceContractsProps> = ({ contracts, 
         }
     };
     
+    const stats = useMemo(() => {
+        const total = filteredContracts.reduce((sum, c) => sum + (Number(c.totalAmount) || 0), 0);
+        const collected = filteredContracts.reduce((sum, c) => sum + (Number(c.collectedAmount) || 0), 0);
+        const lost = filteredContracts.reduce((sum, c) => sum + (Number(c.lostAmount) || 0), 0);
+        const activeCount = filteredContracts.filter(c => {
+            if (!c.endDate) return true;
+            return new Date(c.endDate) >= new Date();
+        }).length;
+        
+        return { total, collected, lost, activeCount };
+    }, [filteredContracts]);
+
     const formatCurrency = (amount: number | string | null | undefined) => {
         const num = Number(amount);
         if (isNaN(num)) return formatCurrency(0);
-        return num.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD' });
+        return num.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
     };
 
     const formatDate = (dateString: string | null) => dateString ? new Date(dateString).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US') : '--';
@@ -243,26 +256,22 @@ const MaintenanceContracts: React.FC<MaintenanceContractsProps> = ({ contracts, 
 
     const renderDisplayCell = (c: MaintenanceContract, key: string) => {
         switch (key) {
-            case 'type': return <div className="font-medium text-slate-900 dark:text-white">{c.type || '--'}</div>;
-            case 'customer': return c.customer?.name || '--';
-            case 'projectCode': return c.projectCode || '--';
+            case 'type': return <div className="font-bold text-slate-900 dark:text-white">{c.type || '--'}</div>;
+            case 'customer': return <div className="font-medium text-slate-600 dark:text-slate-300">{c.customer?.name || '--'}</div>;
+            case 'projectCode': return <div className="font-medium text-slate-500">{c.projectCode || '--'}</div>;
             case 'month': return c.month ?? t.notApplicable;
             case 'year': return c.year;
-            case 'totalAmount': return <div className="font-mono">{formatCurrency(c.totalAmount)}</div>;
-            case 'collectedAmount': return <div className="font-mono text-green-600 dark:text-green-400">{formatCurrency(c.collectedAmount)}</div>;
-            case 'lostAmount': return <div className="font-mono text-red-600 dark:text-red-400">{formatCurrency(c.lostAmount)}</div>;
+            case 'totalAmount': return <div className="font-bold text-slate-900 dark:text-white">{formatCurrency(c.totalAmount)}</div>;
+            case 'collectedAmount': return <div className="font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(c.collectedAmount)}</div>;
+            case 'lostAmount': return <div className="font-bold text-red-500 dark:text-red-400">{formatCurrency(c.lostAmount)}</div>;
             case 'remainingAmount':
                 const total = Number(c.totalAmount || 0);
                 const collected = Number(c.collectedAmount || 0);
                 const lost = Number(c.lostAmount || 0);
-                // In case of parsing issues, ensure robust calculation
-                if (isNaN(total) || isNaN(collected) || isNaN(lost)) {
-                    return <div className="font-mono font-bold text-slate-800 dark:text-white">{formatCurrency(0)}</div>;
-                }
-                return <div className="font-mono font-bold text-slate-800 dark:text-white">{formatCurrency(total - collected - lost)}</div>;
-            case 'startDate': return formatDate(c.startDate);
-            case 'endDate': return formatDate(c.endDate);
-            case 'notes': return <div className="whitespace-pre-wrap">{c.notes || '--'}</div>;
+                return <div className="font-black text-slate-900 dark:text-white">{formatCurrency(total - collected - lost)}</div>;
+            case 'startDate': return <div className="text-slate-500">{formatDate(c.startDate)}</div>;
+            case 'endDate': return <div className="text-slate-500">{formatDate(c.endDate)}</div>;
+            case 'notes': return <div className="whitespace-pre-wrap text-xs text-slate-500 line-clamp-2">{c.notes || '--'}</div>;
             case 'actions': return null;
             default: return null;
         }
@@ -270,79 +279,120 @@ const MaintenanceContracts: React.FC<MaintenanceContractsProps> = ({ contracts, 
     
 
     return (
-        <div className="space-y-8">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                 <div>
-                    <h1 className="text-3xl font-bold text-slate-800 dark:text-white">{t.title}</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">{t.subtitle}</p>
+        <div className="space-y-8 pb-10">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="flex items-center gap-3">
+                    <div className="p-3 bg-emerald-500/10 text-emerald-600 rounded-2xl">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{t.title}</h1>
+                        <p className="text-[10px] font-bold text-slate-400">{t.subtitle}</p>
+                    </div>
                 </div>
-                <button 
-                    onClick={exportToExcel}
-                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-600/20 transition-all font-bold text-sm"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                    <span>{t.exportExcel}</span>
-                </button>
+                
+                <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <select value={filters.year} onChange={e => handleFilterChange('year', e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-slate-500 outline-none h-10">{yearOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+                        <select value={filters.month} onChange={e => handleFilterChange('month', e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-slate-500 outline-none h-10">{monthOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+                    </div>
+                    <button 
+                        onClick={exportToExcel}
+                        className="flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 border-2 border-slate-100 dark:border-slate-800 rounded-xl hover:border-emerald-500 hover:text-emerald-600 transition-all bg-white dark:bg-slate-900 h-10"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        {t.exportExcel}
+                    </button>
+                </div>
+            </div>
+
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <StatCard 
+                    variant="gradient"
+                    color="blue"
+                    title={language === 'ar' ? 'إجمالي القيمة المالية' : 'TOTAL FINANCIAL VALUE'}
+                    value={formatCurrency(stats.total)}
+                    trend={{ val: '12.4%', label: 'vs last period', type: 'up' }}
+                    badge={{ label: language === 'ar' ? `${stats.activeCount} مشروع نشط` : `${stats.activeCount} Active Projects`, icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9l-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg> }}
+                />
+                <StatCard 
+                    color="emerald"
+                    title={language === 'ar' ? 'إجمالي المحصل' : 'TOTAL COLLECTED'}
+                    value={formatCurrency(stats.collected)}
+                    trend={{ val: '8.1%', label: 'this month', type: 'up' }}
+                    progress={(stats.collected / (stats.total || 1)) * 100}
+                    icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                />
+                <StatCard 
+                    color="red"
+                    title={language === 'ar' ? 'المبالغ المفقودة' : 'LOST AMOUNT'}
+                    value={formatCurrency(stats.lost)}
+                    trend={{ val: '2.3%', label: 'vs last month', type: 'up' }}
+                    icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>}
+                />
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
-                <select value={filters.type} onChange={e => handleFilterChange('type', e.target.value)} className={inputClasses + " lg:col-span-1"}>
+            {/* Filters Area */}
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-wrap items-center gap-4">
+                <select value={filters.type} onChange={e => handleFilterChange('type', e.target.value)} className="bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-2 text-[10px] font-black uppercase text-slate-500 outline-none h-10 min-w-[120px]">
                     {typeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
-                <div className="lg:col-span-2">
+                <div className="flex-1 min-w-[200px]">
                     <SearchableSelect options={customerOptions} value={filters.customerId} onChange={v => handleFilterChange('customerId', v)} placeholder={t.customer} language={language} searchPlaceholder={t.searchCustomers} />
                 </div>
-                <div className="lg:col-span-1">
-                    <input type="text" value={filters.projectSearch} onChange={e => handleFilterChange('projectSearch', e.target.value)} placeholder={t.searchByProject} className={inputClasses} />
+                <div className="min-w-[180px]">
+                    <input type="text" value={filters.projectSearch} onChange={e => handleFilterChange('projectSearch', e.target.value)} placeholder={t.searchByProject} className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-2 text-[10px] font-black uppercase text-slate-500 outline-none h-10" />
                 </div>
-                <select value={filters.month} onChange={e => handleFilterChange('month', e.target.value)} className={inputClasses}>{monthOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
-                <select value={filters.year} onChange={e => handleFilterChange('year', e.target.value)} className={inputClasses}>{yearOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
-                <button onClick={clearFilters} className="lg:col-span-6 flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-slate-200 dark:bg-slate-700/50 rounded-md border border-slate-300 dark:border-slate-600 hover:bg-slate-300 dark:hover:bg-slate-600/50 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 110 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" /></svg>
-                    <span>{t.clearFilters}</span>
+                <button onClick={clearFilters} className="px-4 h-10 text-[10px] font-black uppercase text-slate-400 hover:text-slate-600 transition-colors">
+                    {t.clearFilters}
                 </button>
             </div>
             
-            <div className="overflow-x-auto bg-white dark:bg-slate-900/30 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 rounded-2xl">
-                <table className="w-full text-sm text-left rtl:text-right text-slate-500 dark:text-slate-400 table-fixed">
-                    <colgroup>
-                        {columns.map(col => <col key={col.key} style={{ width: `${columnWidths[col.key]}px` }} />)}
-                    </colgroup>
-                    <thead className="text-xs text-slate-700 dark:text-slate-300 uppercase bg-slate-100 dark:bg-slate-800/50">
-                        <tr>
-                            {columns.map(col => (
-                                <th key={col.key} scope="col" className="px-6 py-3 relative group">
-                                    {col.label}
-                                    <div
-                                        onMouseDown={(e) => handleMouseDown(e, col.key)}
-                                        className="absolute top-0 right-0 h-full w-1 cursor-col-resize group-hover:bg-violet-300 dark:group-hover:bg-violet-700 transition-colors"
-                                    />
-                                </th>
+            <div className="bg-white dark:bg-transparent rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
+                <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-sm text-left rtl:text-right border-collapse table-fixed">
+                        <colgroup>
+                            {columns.map(col => <col key={col.key} style={{ width: `${columnWidths[col.key]}px` }} />)}
+                        </colgroup>
+                        <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
+                            <tr>
+                                {columns.map(col => (
+                                    <th key={col.key} scope="col" className="px-6 py-4 relative group text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                                        <div className="flex items-center gap-2">
+                                            {col.label}
+                                        </div>
+                                        <div
+                                            onMouseDown={(e) => handleMouseDown(e, col.key)}
+                                            className="absolute top-0 right-0 h-full w-1 cursor-col-resize group-hover:bg-blue-500 transition-colors"
+                                        />
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50 font-sans">
+                            <EditableRow isNew data={newContractData} onChange={(field, value) => setNewContractData(prev => ({...prev, [field]:value}))} onSave={handleAddNew} customers={customers} language={language} columns={columns}/>
+                            {filteredContracts.map(c => (
+                                editingId === c.id && editedData ? (
+                                    <EditableRow key={`edit-${c.id}`} data={editedData} onChange={(field, value) => setEditedData(prev => prev ? {...prev, [field]: value} : null)} onSave={handleSave} onCancel={handleCancel} customers={customers} language={language} columns={columns} />
+                                ) : (
+                                    <tr key={c.id} onDoubleClick={() => handleEdit(c)} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-all cursor-pointer">
+                                        {columns.map(col => (
+                                            <td key={col.key} className="px-6 py-5 align-top">
+                                                {renderDisplayCell(c, col.key)}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                )
                             ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <EditableRow isNew data={newContractData} onChange={(field, value) => setNewContractData(prev => ({...prev, [field]:value}))} onSave={handleAddNew} customers={customers} language={language} columns={columns}/>
-                        {filteredContracts.map(c => (
-                            editingId === c.id && editedData ? (
-                                <EditableRow key={`edit-${c.id}`} data={editedData} onChange={(field, value) => setEditedData(prev => prev ? {...prev, [field]: value} : null)} onSave={handleSave} onCancel={handleCancel} customers={customers} language={language} columns={columns} />
-                            ) : (
-                                <tr key={c.id} onDoubleClick={() => handleEdit(c)} className="border-b dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 cursor-pointer">
-                                    {columns.map(col => (
-                                        <td key={col.key} className="px-6 py-4 align-top">
-                                            {renderDisplayCell(c, col.key)}
-                                        </td>
-                                    ))}
-                                </tr>
-                            )
-                        ))}
-                         {filteredContracts.length === 0 && (
-                            <tr><td colSpan={columns.length} className="text-center py-10">{t.noData}</td></tr>
-                        )}
-                    </tbody>
-                </table>
+                        </tbody>
+                    </table>
+                </div>
+                {filteredContracts.length === 0 && (
+                    <div className="text-center py-20 bg-slate-50/30 dark:bg-transparent">
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.5em]">{t.noData}</p>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -350,7 +400,7 @@ const MaintenanceContracts: React.FC<MaintenanceContractsProps> = ({ contracts, 
 
 const translations = {
     ar: {
-        title: 'عقود الصيانة', subtitle: 'عرض وإدارة عقود الصيانة. انقر نقراً مزدوجاً للتعديل.', type: 'النوع', month: 'الشهر', year: 'السنة', customer: 'العميل',
+        title: 'تحليل عقود الصيانة', subtitle: 'نظرة عامة على جميع عقود الصيانة والتحصيلات', type: 'النوع', month: 'الشهر', year: 'السنة', customer: 'العميل',
         projectCode: 'كود المشروع', totalAmount: 'إجمالي العقد', collectedAmount: 'المبلغ المحصل', lostAmount: 'المبلغ المفقود', remainingAmount: 'المتبقي',
         startDate: 'تاريخ البداية', endDate: 'تاريخ النهاية', allCustomers: 'كل العملاء', allYears: 'كل السنوات',
         allMonths: 'كل الشهور', clearFilters: 'مسح الفلاتر', searchByProject: 'ابحث بالكود...', searchCustomers: 'ابحث عن عميل...', noData: 'لا توجد عقود تطابق معايير البحث.',
@@ -360,7 +410,7 @@ const translations = {
         addModal: { selectHere: 'اختر...' },
     },
     en: {
-        title: 'Maintenance Contracts', subtitle: 'View and manage contracts. Double-click a row to edit.', type: 'Type', month: 'Month', year: 'Year', customer: 'Customer',
+        title: 'Maintenance Contracts Analysis', subtitle: 'Overview of all maintenance contracts and collections', type: 'Type', month: 'Month', year: 'Year', customer: 'Customer',
         projectCode: 'Project Code', totalAmount: 'Total Amount', collectedAmount: 'Collected', lostAmount: 'Lost', remainingAmount: 'Remaining',
         startDate: 'Start Date', endDate: 'End Date', allCustomers: 'All Customers', allYears: 'All Years',
         allMonths: 'All Months', clearFilters: 'Clear Filters', searchByProject: 'Search by code...', searchCustomers: 'Search customers...', noData: 'No contracts match the search criteria.',

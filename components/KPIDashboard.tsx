@@ -22,6 +22,9 @@ const KPIDashboard: React.FC<KPIDashboardProps> = ({ projects, milestones, issue
     // States for Filters
     const [projectSearch, setProjectSearch] = useState('');
     const [assigneeSearch, setAssigneeSearch] = useState('');
+    const [taskProjectSearch, setTaskProjectSearch] = useState('');
+    const [taskAssigneeSearch, setTaskAssigneeSearch] = useState('');
+    const [selectedTaskAssignee, setSelectedTaskAssignee] = useState('all');
     const [selectedManager, setSelectedManager] = useState('all');
     const [selectedMonthYear, setSelectedMonthYear] = useState<string[]>(['all']);
 
@@ -36,6 +39,7 @@ const KPIDashboard: React.FC<KPIDashboardProps> = ({ projects, milestones, issue
     const [expandedManagers, setExpandedManagers] = useState<Record<string, boolean>>({});
     const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
     const [isRoadmapCollapsed, setIsRoadmapCollapsed] = useState(true);
+    const [isMaintenanceCollapsed, setIsMaintenanceCollapsed] = useState(true);
     const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>('byProject');
     const [expandedTasksAssignees, setExpandedTasksAssignees] = useState<Record<string, boolean>>({});
 
@@ -176,39 +180,76 @@ const KPIDashboard: React.FC<KPIDashboardProps> = ({ projects, milestones, issue
     }, [projects, filteredMilestones, projectManagers, projectSearch, selectedManager]);
 
     const issueStats = useMemo(() => {
-        const byProject: Record<string, { id: string, name: string, count: number }> = {};
+        const byProject: Record<string, { id: string, name: string, count: number, resourceIds: Set<string> }> = {};
         const byUser: Record<string, { id: string, name: string, count: number, avatar?: string }> = {};
 
         filteredIssues.forEach(issue => {
             if (issue.projectId) {
                 const proj = projects.find(p => p.id === issue.projectId);
                 const projName = proj?.name || t.unknownProject;
-                if (!byProject[issue.projectId]) byProject[issue.projectId] = { id: issue.projectId, name: projName, count: 0 };
-                byProject[issue.projectId].count++;
+                
+                if (!taskProjectSearch.trim() || projName.toLowerCase().includes(taskProjectSearch.toLowerCase())) {
+                    if (!byProject[issue.projectId]) {
+                        byProject[issue.projectId] = { 
+                            id: issue.projectId, 
+                            name: projName, 
+                            count: 0,
+                            resourceIds: new Set<string>()
+                        };
+                    }
+                    byProject[issue.projectId].count++;
+                    if (issue.assigneeId) {
+                        byProject[issue.projectId].resourceIds.add(issue.assigneeId);
+                    }
+                }
             }
 
             if (issue.assigneeId) {
                 const user = allUsers.find(u => u.id === issue.assigneeId);
                 const userName = user?.name || t.unassigned;
-                if (!byUser[issue.assigneeId]) byUser[issue.assigneeId] = { id: issue.assigneeId, name: userName, count: 0, avatar: user?.avatarUrl };
-                byUser[issue.assigneeId].count++;
+
+                const matchesSearch = !taskAssigneeSearch.trim() || userName.toLowerCase().includes(taskAssigneeSearch.toLowerCase());
+                const matchesDropdown = selectedTaskAssignee === 'all' || issue.assigneeId === selectedTaskAssignee;
+
+                if (matchesSearch && matchesDropdown) {
+                    if (!byUser[issue.assigneeId]) byUser[issue.assigneeId] = { id: issue.assigneeId, name: userName, count: 0, avatar: user?.avatarUrl };
+                    byUser[issue.assigneeId].count++;
+                }
             }
         });
 
+        const sortedByProject = Object.values(byProject)
+            .map(item => ({
+                ...item,
+                resourceCount: item.resourceIds.size
+            }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+
         return {
-            byProject: Object.values(byProject).sort((a, b) => b.count - a.count).slice(0, 5),
+            byProject: sortedByProject,
             byUser: Object.values(byUser).sort((a, b) => b.count - a.count)
         };
-    }, [filteredIssues, projects, allUsers, t]);
+    }, [filteredIssues, projects, allUsers, t, taskProjectSearch, taskAssigneeSearch, selectedTaskAssignee]);
 
     const groupedAssigneeIssues = useMemo(() => {
         const hierarchy: Record<string, { user: User | undefined, projectMap: Record<string, { project: Project, issues: Issue[] }> }> = {};
         
         filteredIssues.forEach(issue => {
             const assigneeId = issue.assigneeId || 'unassigned';
+            const user = allUsers.find(u => u.id === assigneeId);
+            const userName = user?.name || t.unassigned;
+
+            const matchesSearch = !taskAssigneeSearch.trim() || userName.toLowerCase().includes(taskAssigneeSearch.toLowerCase());
+            const matchesDropdown = selectedTaskAssignee === 'all' || assigneeId === selectedTaskAssignee;
+
+            if (!matchesSearch || !matchesDropdown) {
+                return;
+            }
+
             if (!hierarchy[assigneeId]) {
                 hierarchy[assigneeId] = {
-                    user: allUsers.find(u => u.id === assigneeId),
+                    user,
                     projectMap: {}
                 };
             }
@@ -232,7 +273,7 @@ const KPIDashboard: React.FC<KPIDashboardProps> = ({ projects, milestones, issue
             projectList: Object.values(data.projectMap),
             totalCount: Object.values(data.projectMap).reduce((sum, p) => sum + p.issues.length, 0)
         })).sort((a, b) => b.totalCount - a.totalCount);
-    }, [filteredIssues, allUsers, projects]);
+    }, [filteredIssues, allUsers, projects, taskAssigneeSearch, selectedTaskAssignee, t.unassigned]);
 
     // Logic to decide which users to show based on search
     const displayUsers = useMemo(() => {
@@ -505,233 +546,346 @@ const KPIDashboard: React.FC<KPIDashboardProps> = ({ projects, milestones, issue
             {/* Task Analysis Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                 {/* Maintenance Contracts Breakdown */}
-                <div className="bg-white dark:bg-slate-900 p-6 md:p-10 rounded-3xl md:rounded-4xl border border-slate-100 dark:border-slate-800 shadow-sm lg:col-span-2">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                <div className="bg-white dark:bg-slate-900 rounded-3xl md:rounded-4xl border border-slate-100 dark:border-slate-800 shadow-sm lg:col-span-2 overflow-hidden transition-all duration-500">
+                    <div 
+                        onClick={() => setIsMaintenanceCollapsed(!isMaintenanceCollapsed)}
+                        className="p-6 md:p-10 flex flex-col md:flex-row md:items-center justify-between gap-6 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors"
+                    >
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500">
-                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${isMaintenanceCollapsed ? 'bg-slate-100 dark:bg-slate-800 text-slate-400' : 'bg-emerald-500 text-white'}`}>
+                                <svg className={`w-6 h-6 transition-transform duration-300 ${isMaintenanceCollapsed ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                             </div>
                             <div>
-                                <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">{t.maintenanceTitle}</h3>
-                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t.maintenanceSubtitle}</p>
+                                <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{t.maintenanceTitle}</h3>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest">{t.maintenanceSubtitle}</p>
                             </div>
                         </div>
 
                         {/* Local Filters for Maintenance */}
-                        <div className="flex flex-col xl:flex-row items-center gap-3 w-full md:w-auto">
-                            <div className="relative w-full sm:w-48">
-                                <span className="absolute inset-y-0 left-3 rtl:left-auto rtl:right-3 flex items-center pointer-events-none text-slate-400">
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                                </span>
-                                <input 
-                                    type="text" 
-                                    value={maintenanceSearch}
-                                    onChange={(e) => setMaintenanceSearch(e.target.value)}
-                                    placeholder={t.searchByCodeOrCustomer}
-                                    className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl py-2 pl-9 pr-3 rtl:pr-9 rtl:pl-3 text-[10px] font-bold outline-none focus:ring-1 focus:ring-emerald-500"
-                                />
+                        {!isMaintenanceCollapsed && (
+                            <div className="flex flex-col xl:flex-row items-center gap-3 w-full md:w-auto" onClick={(e) => e.stopPropagation()}>
+                                <div className="relative w-full sm:w-48">
+                                    <span className="absolute inset-y-0 left-3 rtl:left-auto rtl:right-3 flex items-center pointer-events-none text-slate-400">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                    </span>
+                                    <input 
+                                        type="text" 
+                                        value={maintenanceSearch}
+                                        onChange={(e) => setMaintenanceSearch(e.target.value)}
+                                        placeholder={t.searchByCodeOrCustomer}
+                                        className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl py-2 pl-9 pr-3 rtl:pr-9 rtl:pl-3 text-[10px] font-bold outline-none focus:ring-1 focus:ring-emerald-500"
+                                    />
+                                </div>
+                                <div className="w-full sm:w-48">
+                                    <SearchableSelect 
+                                        options={[{ value: 'all', label: t.allCustomers }, ...customers.map(c => ({ value: c.id, label: c.name }))]} 
+                                        value={selectedCustomer} 
+                                        onChange={setSelectedCustomer} 
+                                        placeholder={t.customer} 
+                                        language={language} 
+                                    />
+                                </div>
+                                <div className="w-full sm:w-64">
+                                    <SearchableSelect 
+                                        isMulti={true}
+                                        options={monthYearOptions} 
+                                        value={selectedMaintenanceMonthYear} 
+                                        onChange={(val) => {
+                                            if (val.length === 0) {
+                                                setSelectedMaintenanceMonthYear(['all']);
+                                                return;
+                                            }
+                                            const last = val[val.length - 1];
+                                            if (last === 'all') setSelectedMaintenanceMonthYear(['all']);
+                                            else setSelectedMaintenanceMonthYear(val.filter(v => v !== 'all'));
+                                        }} 
+                                        placeholder={t.period} 
+                                        language={language} 
+                                    />
+                                </div>
                             </div>
-                            <div className="w-full sm:w-48">
-                                <SearchableSelect 
-                                    options={[{ value: 'all', label: t.allCustomers }, ...customers.map(c => ({ value: c.id, label: c.name }))]} 
-                                    value={selectedCustomer} 
-                                    onChange={setSelectedCustomer} 
-                                    placeholder={t.customer} 
-                                    language={language} 
-                                />
-                            </div>
-                            <div className="w-full sm:w-64">
-                                <SearchableSelect 
-                                    isMulti={true}
-                                    options={monthYearOptions} 
-                                    value={selectedMaintenanceMonthYear} 
-                                    onChange={(val) => {
-                                        if (val.length === 0) {
-                                            setSelectedMaintenanceMonthYear(['all']);
-                                            return;
-                                        }
-                                        const last = val[val.length - 1];
-                                        if (last === 'all') setSelectedMaintenanceMonthYear(['all']);
-                                        else setSelectedMaintenanceMonthYear(val.filter(v => v !== 'all'));
-                                    }} 
-                                    placeholder={t.period} 
-                                    language={language} 
-                                />
-                            </div>
-                        </div>
+                        )}
                     </div>
                     
-                    {/* Maintenance KPI Cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
-                         <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.totalAmount}</p>
-                             <p className="text-xl font-black text-slate-800 dark:text-white">{formatCurrency(maintenanceOverallTotals.total)}</p>
-                         </div>
-                         <div className="p-6 bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100/50 dark:border-emerald-900/50">
-                             <p className="text-[10px] font-black text-emerald-600/70 uppercase tracking-widest mb-1">{t.collected}</p>
-                             <p className="text-xl font-black text-emerald-600">{formatCurrency(maintenanceOverallTotals.collected)}</p>
-                         </div>
-                         <div className="p-6 bg-red-50 dark:bg-red-900/10 rounded-2xl border border-red-100/50 dark:border-red-900/50">
-                             <p className="text-[10px] font-black text-red-600/70 uppercase tracking-widest mb-1">{t.lost}</p>
-                             <p className="text-xl font-black text-red-600">{formatCurrency(maintenanceOverallTotals.lost)}</p>
-                         </div>
-                    </div>
-
-                    <div className="overflow-x-auto custom-scrollbar">
-                        <table className="w-full text-left rtl:text-right border-separate border-spacing-y-2">
-                            <thead>
-                                <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                    <th className="pb-4 px-4">{t.period}</th>
-                                    <th className="pb-4 px-4">{t.contractsCount}</th>
-                                    <th className="pb-4 px-4">{t.totalAmount}</th>
-                                    <th className="pb-4 px-4 font-black text-emerald-500">{t.collected}</th>
-                                    <th className="pb-4 px-4 font-black text-red-500">{t.lost}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {maintenanceStats.length > 0 ? maintenanceStats.map(([key, stat]) => {
-                                    const [year, month] = key.split('-').map(Number);
-                                    const monthLabel = new Date(year, month - 1).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { month: 'long', year: 'numeric' });
-                                    
-                                    return (
-                                        <tr key={key} className="group">
-                                            <td className="bg-slate-50 dark:bg-slate-800/40 py-4 px-4 rounded-s-2xl font-black text-xs text-slate-700 dark:text-slate-200">{monthLabel}</td>
-                                            <td className="bg-slate-50 dark:bg-slate-800/40 py-4 px-4 font-bold text-xs text-slate-600 dark:text-slate-400">{stat.count}</td>
-                                            <td className="bg-slate-50 dark:bg-slate-800/40 py-4 px-4 font-black text-xs text-slate-800 dark:text-white">{formatCurrency(stat.total)}</td>
-                                            <td className="bg-slate-50 dark:bg-slate-800/40 py-4 px-4 font-black text-xs text-emerald-500">{formatCurrency(stat.collected)}</td>
-                                            <td className="bg-slate-50 dark:bg-slate-800/40 py-4 px-4 rounded-e-2xl font-black text-xs text-red-500">{formatCurrency(stat.lost)}</td>
-                                        </tr>
-                                    );
-                                }) : (
-                                    <tr>
-                                        <td colSpan={5} className="text-center py-10 text-[10px] font-black text-slate-300 uppercase italic">{t.noData}</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Detailed Breakdown for the selected period */}
-                    <div className="mt-10 border-t border-slate-50 dark:border-slate-800 pt-8">
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">{t.detailedBreakdown}</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {filteredMaintenance.map(c => (
-                                <div key={c.id} className="p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl flex flex-col gap-2 hover:shadow-md transition-all">
-                                    <div className="flex justify-between items-start">
-                                        <span className="text-[10px] font-black text-indigo-500 uppercase tracking-wider">{c.projectCode || 'No Code'}</span>
-                                        <span className="text-[9px] font-bold text-slate-400">{c.year}-{String(c.month).padStart(2, '0')}</span>
-                                    </div>
-                                    <p className="text-xs font-black text-slate-700 dark:text-slate-200 truncate">{c.customer?.name || 'Customer'}</p>
-                                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-50 dark:border-slate-800">
-                                        <div>
-                                            <p className="text-[8px] font-black text-slate-400 uppercase">{t.totalAmount}</p>
-                                            <p className="text-xs font-black text-slate-800 dark:text-white">{formatCurrency(c.totalAmount)}</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-[8px] font-black text-emerald-500 uppercase">{t.collected}</p>
-                                            <p className="text-xs font-black text-emerald-500">{formatCurrency(c.collectedAmount)}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-            <div className="bg-white dark:bg-slate-900 p-6 md:p-10 rounded-3xl md:rounded-4xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-indigo-500">
-                             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">{t.taskAnalysis}</h3>
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t.teamLoadAndHealth}</p>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/50 px-4 py-2 rounded-xl border border-slate-100 dark:border-slate-800">
-                        <input 
-                            id="viewModeCheckbox"
-                            type="checkbox" 
-                            checked={taskViewMode === 'byAssignee'}
-                            onChange={() => setTaskViewMode(prev => prev === 'byProject' ? 'byAssignee' : 'byProject')}
-                            className="w-4 h-4 text-indigo-600 bg-white border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
-                        />
-                        <label htmlFor="viewModeCheckbox" className="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 cursor-pointer select-none">
-                            {t.byAssignee}
-                        </label>
-                    </div>
-                </div>
-
-                {taskViewMode === 'byProject' ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {issueStats.byProject.length > 0 ? issueStats.byProject.map((item, idx) => (
-                            <div 
-                                className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl group transition-all cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 border border-transparent hover:border-indigo-500/20" 
-                                key={idx}
-                                onClick={() => setSelectedProjectTasks(item.id)}
-                            >
-                                <div className="min-w-0">
-                                    <span className="text-xs font-black text-slate-700 dark:text-slate-200 truncate block">{item.name}</span>
-                                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">{t.activeTasks}</span>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">{item.count}</span>
-                                    <svg className="w-3 h-3 text-slate-300 group-hover:text-indigo-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path d="M9 5l7 7-7 7" /></svg>
-                                </div>
+                    {!isMaintenanceCollapsed && (
+                        <div className="px-6 md:px-10 pb-10 animate-in slide-in-from-top-4 duration-500">
+                            {/* Maintenance KPI Cards */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+                                 <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.totalAmount}</p>
+                                     <p className="text-xl font-black text-slate-800 dark:text-white">{formatCurrency(maintenanceOverallTotals.total)}</p>
+                                 </div>
+                                 <div className="p-6 bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100/50 dark:border-emerald-900/50">
+                                     <p className="text-[10px] font-black text-emerald-600/70 uppercase tracking-widest mb-1">{t.collected}</p>
+                                     <p className="text-xl font-black text-emerald-600">{formatCurrency(maintenanceOverallTotals.collected)}</p>
+                                 </div>
+                                 <div className="p-6 bg-red-50 dark:bg-red-900/10 rounded-2xl border border-red-100/50 dark:border-red-900/50">
+                                     <p className="text-[10px] font-black text-red-600/70 uppercase tracking-widest mb-1">{t.lost}</p>
+                                     <p className="text-xl font-black text-red-600">{formatCurrency(maintenanceOverallTotals.lost)}</p>
+                                 </div>
                             </div>
-                        )) : (
-                            <div className="col-span-full text-center py-10 text-[10px] font-black text-slate-300 uppercase italic border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-3xl">{t.noIssuesFound}</div>
-                        )}
-                    </div>
-                ) : (
-                    <div className="space-y-3">
-                        {groupedAssigneeIssues.length > 0 ? groupedAssigneeIssues.map((group) => (
-                            <div key={group.id} className="bg-slate-50 dark:bg-slate-800/30 rounded-2xl overflow-hidden transition-all border border-slate-100 dark:border-slate-800/50">
-                                <div 
-                                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
-                                    onClick={() => setExpandedTasksAssignees(prev => ({ ...prev, [group.id]: !prev[group.id] }))}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <img src={group.user?.avatarUrl || `https://ui-avatars.com/api/?name=${group.user?.name || 'U'}&background=8b5cf6&color=fff`} className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-800 shadow-sm" />
-                                        <div>
-                                            <span className="text-xs font-black text-slate-700 dark:text-slate-200 block">{group.user?.name || t.unassigned}</span>
-                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{group.projectList.length} {t.projectsCount}</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex items-center gap-1.5 group">
-                                            <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">{group.totalCount}</span>
-                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{t.tasks}</span>
-                                        </div>
-                                        <svg className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${expandedTasksAssignees[group.id] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path d="M19 9l-7 7-7-7" /></svg>
-                                    </div>
-                                </div>
-                                
-                                {expandedTasksAssignees[group.id] && (
-                                    <div className="px-4 pb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 animate-in slide-in-from-top-2 duration-300">
-                                        {group.projectList.map(p => (
-                                            <div 
-                                                key={p.project.id} 
-                                                className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 hover:border-indigo-500/30 transition-all cursor-pointer group"
-                                                onClick={() => setSelectedAssigneeTasks(group.id)}
-                                            >
-                                                <p className="text-[10px] font-black text-slate-800 dark:text-slate-200 truncate mb-1 group-hover:text-indigo-500 transition-colors uppercase">{p.project.name}</p>
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">{p.issues.length} {t.tasks}</span>
-                                                    <span className="text-[8px] font-black text-indigo-500 uppercase">{p.project.projectCode}</span>
+        
+                            <div className="overflow-x-auto custom-scrollbar">
+                                <table className="w-full text-left rtl:text-right border-separate border-spacing-y-2">
+                                    <thead>
+                                        <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                            <th className="pb-4 px-4">{t.period}</th>
+                                            <th className="pb-4 px-4">{t.contractsCount}</th>
+                                            <th className="pb-4 px-4">{t.totalAmount}</th>
+                                            <th className="pb-4 px-4 font-black text-emerald-500">{t.collected}</th>
+                                            <th className="pb-4 px-4 font-black text-red-500">{t.lost}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {maintenanceStats.length > 0 ? maintenanceStats.map(([key, stat]) => {
+                                            const [year, month] = key.split('-').map(Number);
+                                            const monthLabel = new Date(year, month - 1).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { month: 'long', year: 'numeric' });
+                                            
+                                            return (
+                                                <tr key={key} className="group">
+                                                    <td className="bg-slate-50 dark:bg-slate-800/40 py-4 px-4 rounded-s-2xl font-black text-xs text-slate-700 dark:text-slate-200">{monthLabel}</td>
+                                                    <td className="bg-slate-50 dark:bg-slate-800/40 py-4 px-4 font-bold text-xs text-slate-600 dark:text-slate-400">{stat.count}</td>
+                                                    <td className="bg-slate-50 dark:bg-slate-800/40 py-4 px-4 font-black text-xs text-slate-800 dark:text-white">{formatCurrency(stat.total)}</td>
+                                                    <td className="bg-slate-50 dark:bg-slate-800/40 py-4 px-4 font-black text-xs text-emerald-500">{formatCurrency(stat.collected)}</td>
+                                                    <td className="bg-slate-50 dark:bg-slate-800/40 py-4 px-4 rounded-e-2xl font-black text-xs text-red-500">{formatCurrency(stat.lost)}</td>
+                                                </tr>
+                                            );
+                                        }) : (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-10 text-[10px] font-black text-slate-300 uppercase italic">{t.noData}</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+        
+                            {/* Detailed Breakdown for the selected period */}
+                            <div className="mt-10 border-t border-slate-50 dark:border-slate-800 pt-8">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">{t.detailedBreakdown}</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {filteredMaintenance.map(c => (
+                                        <div key={c.id} className="p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl flex flex-col gap-2 hover:shadow-md transition-all">
+                                            <div className="flex justify-between items-start">
+                                                <span className="text-[10px] font-black text-indigo-500 uppercase tracking-wider">{c.projectCode || 'No Code'}</span>
+                                                <span className="text-[9px] font-bold text-slate-400">{c.year}-{String(c.month).padStart(2, '0')}</span>
+                                            </div>
+                                            <p className="text-xs font-black text-slate-700 dark:text-slate-200 truncate">{c.customer?.name || 'Customer'}</p>
+                                            <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-50 dark:border-slate-800">
+                                                <div>
+                                                    <p className="text-[8px] font-black text-slate-400 uppercase">{t.totalAmount}</p>
+                                                    <p className="text-xs font-black text-slate-800 dark:text-white">{formatCurrency(c.totalAmount)}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-[8px] font-black text-emerald-500 uppercase">{t.collected}</p>
+                                                    <p className="text-xs font-black text-emerald-500">{formatCurrency(c.collectedAmount)}</p>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+            <div className="bg-white dark:bg-slate-900 rounded-3xl md:rounded-4xl border border-slate-100 dark:border-slate-800 shadow-sm lg:col-span-2 overflow-hidden">
+                {/* Header / Toolbar */}
+                <div className="p-6 md:p-8 border-b border-slate-50 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/10">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-indigo-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight leading-none">{t.taskAnalysis}</h3>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase mt-2 tracking-[0.2em]">{t.teamLoadAndHealth}</p>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col md:flex-row items-center gap-4">
+                            {/* Segmented Control */}
+                            <div className="flex bg-slate-200/50 dark:bg-slate-800 p-1 rounded-xl w-full md:w-auto">
+                                <button 
+                                    onClick={() => setTaskViewMode('byProject')}
+                                    className={`flex-1 md:flex-none px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${taskViewMode === 'byProject' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    {t.byProject}
+                                </button>
+                                <button 
+                                    onClick={() => setTaskViewMode('byAssignee')}
+                                    className={`flex-1 md:flex-none px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${taskViewMode === 'byAssignee' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    {t.byAssignee}
+                                </button>
+                            </div>
+
+                            {/* Search Unified */}
+                            <div className="relative w-full md:w-80">
+                                {taskViewMode === 'byProject' ? (
+                                    <>
+                                        <span className="absolute inset-y-0 left-3 rtl:left-auto rtl:right-3 flex items-center pointer-events-none text-slate-400 z-10">
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                        </span>
+                                        <input 
+                                            type="text" 
+                                            value={taskProjectSearch}
+                                            onChange={(e) => setTaskProjectSearch(e.target.value)}
+                                            placeholder={language === 'ar' ? 'ابحث عن مشروع...' : 'Search project...'}
+                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-9 pr-4 rtl:pr-9 rtl:pl-4 text-[10px] font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
+                                        />
+                                    </>
+                                ) : (
+                                    <SearchableSelect 
+                                        options={[{ value: 'all', label: language === 'ar' ? 'كل المسؤولين' : 'All Assignees' }, ...allUsers.map(u => ({ value: u.id, label: u.name }))]}
+                                        value={selectedTaskAssignee}
+                                        onChange={setSelectedTaskAssignee}
+                                        placeholder={language === 'ar' ? 'اختر المسؤول...' : 'Select Assignee...'}
+                                        language={language}
+                                    />
                                 )}
                             </div>
-                        )) : (
-                            <div className="text-center py-10 text-[10px] font-black text-slate-300 uppercase italic border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-3xl">{t.noIssuesFound}</div>
-                        )}
+                        </div>
                     </div>
-                )}
+                </div>
+
+                <div className="p-6 md:p-8">
+                    {taskViewMode === 'byProject' ? (
+                        <div className="space-y-4">
+                            {issueStats.byProject.length > 0 ? issueStats.byProject.map((item, idx) => (
+                                <div 
+                                    className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 group hover:border-indigo-500/30 hover:shadow-lg transition-all cursor-pointer relative overflow-hidden" 
+                                    key={idx}
+                                    onClick={() => setSelectedProjectTasks(item.id)}
+                                >
+                                    <div className="flex items-center gap-6 relative z-10">
+                                        {/* Rank */}
+                                        <div className="flex flex-col items-center justify-center w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase">#{idx + 1}</span>
+                                        </div>
+
+                                        {/* Project Info */}
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="text-sm font-black text-slate-800 dark:text-white group-hover:text-indigo-500 transition-colors truncate">
+                                                {item.name}
+                                            </h4>
+                                            <div className="flex items-center gap-4 mt-1">
+                                                <div className="flex items-center gap-1.5 text-slate-400">
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeWidth="3" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2" /></svg>
+                                                    <span className="text-[11px] font-bold uppercase tracking-tight">{t.tasks}: <span className="text-indigo-600 dark:text-indigo-400">{item.count}</span></span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 text-slate-400">
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeWidth="3" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                                                    <span className="text-[11px] font-bold uppercase tracking-tight">{t.resources}: <span className="text-emerald-600 dark:text-emerald-400">{item.resourceCount}</span></span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Visual Indicator */}
+                                        <div className="hidden sm:flex items-center gap-1">
+                                            {Array.from({ length: Math.min(item.count, 5) }).map((_, i) => (
+                                                <div key={i} className="w-1.5 h-6 bg-indigo-500/10 rounded-full">
+                                                    <div className="w-full h-full bg-indigo-500 rounded-full scale-y-0 group-hover:scale-y-100 transition-transform origin-bottom" style={{ transitionDelay: `${i * 50}ms` }}></div>
+                                                </div>
+                                            ))}
+                                            {item.count > 5 && <span className="text-[10px] font-bold text-slate-300 ml-1">+{item.count - 5}</span>}
+                                        </div>
+
+                                        {/* Arrow */}
+                                        <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-300 group-hover:bg-indigo-500 group-hover:text-white transition-all">
+                                            <svg className="w-5 h-5 rtl:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path d="M9 5l7 7-7 7" /></svg>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Progress line at bottom */}
+                                    <div className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500 w-0 group-hover:w-full"></div>
+                                </div>
+                            )) : (
+                                <div className="col-span-full py-20 flex flex-col items-center justify-center text-center bg-slate-50/50 dark:bg-slate-800/20 rounded-3xl border-2 border-dashed border-slate-100 dark:border-slate-800">
+                                    <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-full shadow-sm flex items-center justify-center text-slate-300 mb-4">
+                                        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                    </div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.noIssuesFound}</p>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {groupedAssigneeIssues.length > 0 ? groupedAssigneeIssues.map((group) => (
+                                <div key={group.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden transition-all group hover:shadow-lg hover:shadow-slate-200/50 dark:hover:shadow-none">
+                                    <div 
+                                        className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
+                                        onClick={() => setExpandedTasksAssignees(prev => ({ ...prev, [group.id]: !prev[group.id] }))}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="relative">
+                                                <img 
+                                                    src={group.user?.avatarUrl || `https://ui-avatars.com/api/?name=${group.user?.name || 'U'}&background=6366f1&color=fff`} 
+                                                    className="w-12 h-12 rounded-xl border-2 border-white dark:border-slate-800 shadow-md object-cover" 
+                                                />
+                                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-indigo-500 rounded-lg flex items-center justify-center text-[8px] font-black text-white border-2 border-white dark:border-slate-900 shadow-sm">
+                                                    {group.totalCount}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <span className="text-sm font-black text-slate-800 dark:text-white block group-hover:text-indigo-500 transition-colors uppercase tracking-tight">{group.user?.name || t.unassigned}</span>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{group.projectList.length} {t.projectsCount}</span>
+                                                    <span className="w-1 h-1 bg-slate-200 dark:bg-slate-700 rounded-full"></span>
+                                                    <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">{t.tasks} {group.totalCount}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 self-end md:self-auto">
+                                            <div className="hidden md:flex -space-x-2">
+                                                {group.projectList.slice(0, 3).map((p, i) => (
+                                                    <div key={p.project.id} className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[8px] font-black text-indigo-500 uppercase" title={p.project.name}>
+                                                        {p.project.projectCode?.substring(0, 2) || 'P'}
+                                                    </div>
+                                                ))}
+                                                {group.projectList.length > 3 && (
+                                                    <div className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[8px] font-black text-slate-400">
+                                                        +{group.projectList.length - 3}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${expandedTasksAssignees[group.id] ? 'bg-indigo-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                                                <svg className={`w-4 h-4 transition-transform duration-300 ${expandedTasksAssignees[group.id] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path d="M19 9l-7 7-7-7" /></svg>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {expandedTasksAssignees[group.id] && (
+                                        <div className="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-in slide-in-from-top-4 duration-300 border-t border-slate-50 dark:border-slate-800 pt-5">
+                                            {group.projectList.map(p => (
+                                                <div 
+                                                    key={p.project.id} 
+                                                    className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-indigo-500/30 transition-all cursor-pointer group/child"
+                                                    onClick={() => setSelectedAssigneeTasks(group.id)}
+                                                >
+                                                    <p className="text-[10px] font-black text-slate-700 dark:text-slate-200 truncate mb-2 group-hover/child:text-indigo-500 transition-colors uppercase">{p.project.name}</p>
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                                            <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tighter">{p.issues.length} {t.tasks}</span>
+                                                        </div>
+                                                        <span className="text-[9px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 px-2 py-0.5 rounded-md uppercase">{p.project.projectCode}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )) : (
+                                <div className="py-20 flex flex-col items-center justify-center text-center bg-slate-50/50 dark:bg-slate-800/20 rounded-3xl border-2 border-dashed border-slate-100 dark:border-slate-800">
+                                    <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-full shadow-sm flex items-center justify-center text-slate-300 mb-4">
+                                        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                    </div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.noIssuesFound}</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
             </div>
 
@@ -868,7 +1022,7 @@ const translations = {
         searchAssignee: "بحث عن موظف...", lost: "المبالغ المفقودة", maintenanceTitle: "تحليل عقود الصيانة",
         taskAnalysis: "تحليل المهام والعيوب", teamLoadAndHealth: "حمل الفريق وصحة التنفيذ",
         byProject: "حسب المشروع", byAssignee: "حسب المسؤول", activeTasks: "المهام النشطة",
-        projectsCount: "مشاريع", tasks: "مهام",
+        projectsCount: "مشاريع", tasks: "مهام", resources: "الموارد البشرية",
         maintenanceSubtitle: "نظرة شاملة على التحصيل والمبالغ المفقودة", contractsCount: "عدد العقود",
         detailedBreakdown: "تفاصيل العقود حسب الكود والمرجع", searchByCodeOrCustomer: "بحث بالكود أو العميل...",
         allCustomers: "كل العملاء", customer: "العميل"
@@ -886,7 +1040,7 @@ const translations = {
         searchAssignee: "Search assignee...", lost: "Lost Amount", maintenanceTitle: "Maintenance Contracts Analysis",
         taskAnalysis: "Tasks & Defects Management", teamLoadAndHealth: "Team load and execution health",
         byProject: "By Project", byAssignee: "By Assignee", activeTasks: "Active Tasks",
-        projectsCount: "Projects", tasks: "Tasks",
+        projectsCount: "Projects", tasks: "Tasks", resources: "Resources",
         maintenanceSubtitle: "Comprehensive overview of collection and loss", contractsCount: "Contracts Count",
         detailedBreakdown: "Detailed Breakdown by Code", searchByCodeOrCustomer: "Search code or customer...",
         allCustomers: "All Customers", customer: "Customer"

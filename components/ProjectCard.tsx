@@ -5,6 +5,7 @@ import { Project, Language } from '../types';
 interface ProjectCardProps {
     project: Project;
     milestoneCount: number;
+    issueCount: number;
     milestoneValue: number;
     milestoneTypes: string[];
     onEdit: () => void;
@@ -16,6 +17,7 @@ interface ProjectCardProps {
 const ProjectCard: React.FC<ProjectCardProps> = ({ 
     project, 
     milestoneCount, 
+    issueCount,
     milestoneValue,
     milestoneTypes,
     onEdit, 
@@ -47,7 +49,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
             noCustomer: "لا يوجد عميل",
             options: "خيارات المشروع",
             progress: "التقدم",
-            score: "الأولوية",
+            tasks: "المهام",
             milestones: "المعالم",
             milestoneValue: "قيمة المعالم",
             Downpayment: "دفعة مقدمة", Progress: "دفعة إنجاز", Final: "دفعة نهائية", Retention: "محجوزات", Other: "أخرى"
@@ -62,7 +64,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
             noCustomer: "No Customer",
             options: "Project options",
             progress: "Progress",
-            score: "Score",
+            tasks: "Tasks",
             milestones: "Milestones",
             milestoneValue: "Milestone Value",
             Downpayment: "Downpayment", Progress: "Progress Payment", Final: "Final Payment", Retention: "Retention", Other: "Other"
@@ -81,14 +83,6 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
         'Cancelled': 'bg-red-500/10 text-red-600 dark:text-red-400',
     };
 
-    // Requested Formula: (Impacts Sum) - Resource Load
-    const priorityScore = (
-        (project.revenueImpact || 1) + 
-        (project.strategicValue || 1) + 
-        (project.deliveryRisk || 1) + 
-        (project.customerPressure || 1)
-    ) - (project.resourceLoad || 1);
-    
     return (
         <div 
             onClick={onClick}
@@ -100,8 +94,8 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                         <span className={`px-2 py-1 rounded-full font-semibold text-xs ${project.status?.name ? statusColors[project.status.name] : 'bg-slate-500/10 text-slate-600 dark:text-slate-400'}`}>
                             {project.status?.name || t.noStatus}
                         </span>
-                        <div className="flex items-center gap-1 bg-violet-600 text-white px-2 py-1 rounded-full shadow-sm" title={t.score}>
-                            <span className="font-black text-[11px] leading-none">{priorityScore}</span>
+                        <div className="flex items-center gap-1 bg-violet-600 text-white px-2 py-1 rounded-full shadow-sm" title={t.tasks}>
+                            <span className="font-black text-[11px] leading-none">{issueCount}</span>
                         </div>
                         <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded-full border border-slate-200 dark:border-slate-700 font-bold text-[10px]" title={t.milestones}>
                             <span>🚩 {milestoneCount}</span>

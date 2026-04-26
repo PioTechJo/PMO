@@ -6,6 +6,7 @@ import { ProjectColumn } from './Projects';
 interface ProjectListItemProps {
     project: Project;
     milestoneCount: number;
+    issueCount: number;
     milestoneValue: number;
     milestoneTypes: string[];
     onEdit: () => void;
@@ -18,6 +19,7 @@ interface ProjectListItemProps {
 const ProjectListItem: React.FC<ProjectListItemProps> = ({ 
     project, 
     milestoneCount, 
+    issueCount,
     milestoneValue,
     milestoneTypes,
     onEdit, 
@@ -40,8 +42,8 @@ const ProjectListItem: React.FC<ProjectListItemProps> = ({
     }, []);
 
     const translations = {
-        ar: { edit: "تعديل", delete: "حذف", unassigned: "غير معين", noStatus: "لا توجد حالة", options: "خيارات المشروع", progress: "التقدم", score: "الأولوية", milestones: "المعالم", Downpayment: "دفعة مقدمة", Progress: "دفعة إنجاز", Final: "دفعة نهائية", Retention: "محجوزات", Other: "أخرى" },
-        en: { edit: "Edit", delete: "Delete", unassigned: "Unassigned", noStatus: "No Status", options: "Project options", progress: "Progress", score: "Score", milestones: "Milestones", Downpayment: "Downpayment", Progress: "Progress Payment", Final: "Final Payment", Retention: "Retention", Other: "Other" }
+        ar: { edit: "تعديل", delete: "حذف", unassigned: "غير معين", noStatus: "لا توجد حالة", options: "خيارات المشروع", progress: "التقدم", tasks: "المهام", milestones: "المعالم", Downpayment: "دفعة مقدمة", Progress: "دفعة إنجاز", Final: "دفعة نهائية", Retention: "محجوزات", Other: "أخرى" },
+        en: { edit: "Edit", delete: "Delete", unassigned: "Unassigned", noStatus: "No Status", options: "Project options", progress: "Progress", tasks: "Tasks", milestones: "Milestones", Downpayment: "Downpayment", Progress: "Progress Payment", Final: "Final Payment", Retention: "Retention", Other: "Other" }
     };
     const t = translations[language];
 
@@ -56,70 +58,54 @@ const ProjectListItem: React.FC<ProjectListItemProps> = ({
         'Cancelled': 'bg-red-500/10 text-red-600 dark:text-red-400',
     };
 
-    const priorityScore = (
-        (project.revenueImpact || 1) + 
-        (project.strategicValue || 1) + 
-        (project.deliveryRisk || 1) + 
-        (project.customerPressure || 1)
-    ) - (project.resourceLoad || 1);
-
     return (
         <div 
             onClick={onClick}
-            className="bg-white dark:bg-slate-900/30 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 p-3 rounded-lg flex items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-300 text-sm cursor-pointer shadow-sm hover:shadow-md"
+            className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl flex items-center gap-6 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-300 text-sm cursor-pointer shadow-sm hover:shadow-md group"
         >
-            <div className="flex-1 min-w-0">
-                <p className="font-bold text-slate-800 dark:text-white truncate">{project.name}</p>
-                <p className="text-xs font-mono text-violet-500 dark:text-violet-400">{project.projectCode}</p>
-                <div className="mt-2">
-                     <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t.progress}</span>
-                        <span className="text-xs font-bold text-violet-600 dark:text-violet-400">{project.progress || 0}%</span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5">
-                        <div className="bg-gradient-to-r from-violet-500 to-indigo-500 h-1.5 rounded-full" style={{ width: `${project.progress || 0}%` }}></div>
-                    </div>
-                </div>
+            <div className="w-[450px] shrink-0">
+                <p className="font-black text-slate-800 dark:text-white group-hover:text-violet-600 transition-colors uppercase tracking-tight leading-relaxed">{project.name}</p>
             </div>
             
             <div className="w-24 text-center shrink-0">
-                <div className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full border border-slate-200 dark:border-slate-700 inline-flex items-center gap-1 font-bold text-[10px] text-slate-600 dark:text-slate-300" title={t.milestones}>
-                    <span>🚩 {milestoneCount}</span>
+                <div className="bg-slate-50 dark:bg-slate-800 px-3 py-1 rounded-xl border border-slate-100 dark:border-slate-800 inline-flex items-center gap-1.5 font-black text-[10px] text-slate-500 dark:text-slate-400" title={t.milestones}>
+                    <span className="text-red-500">🚩</span>
+                    <span>{milestoneCount}</span>
                 </div>
             </div>
 
             <div className="w-32 text-center shrink-0">
-                <p className="font-bold text-emerald-600 dark:text-emerald-400 font-mono text-sm">
+                <p className="font-black text-emerald-600 dark:text-emerald-400 font-mono text-sm leading-none">
                     {milestoneValue.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })}
                 </p>
-                {milestoneTypes.length > 0 && <p className="text-[7px] text-slate-400 uppercase truncate px-1" title={milestoneTypes.map(mt => t[mt] || mt).join(', ')}>{milestoneTypes.map(mt => t[mt] || mt).join(', ')}</p>}
+                {milestoneTypes.length > 0 && <p className="text-[8px] font-bold text-slate-400 uppercase mt-1" title={milestoneTypes.map(mt => t[mt] || mt).join(', ')}>{milestoneTypes.map(mt => t[mt] || mt).join(', ')}</p>}
             </div>
             
             {visibleColumns.status && (
-                <div className="w-40 text-center shrink-0">
-                    <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${project.status?.name ? statusColors[project.status.name] : 'bg-slate-500/10 text-slate-600 dark:text-slate-400'}`}>
-                        {project.status?.name || t.noStatus}
+                <div className="w-32 text-center shrink-0">
+                    <span className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg ${project.status?.name ? statusColors[project.status.name] : 'bg-slate-500/10 text-slate-600 dark:text-slate-400'}`}>
+                        {project.status?.name ? (language === 'ar' ? project.status.name : (project.status.name === 'نشط' ? 'ACTIVE' : project.status.name)) : t.noStatus}
                     </span>
                 </div>
             )}
 
-            {visibleColumns.score && (
-                <div className="w-40 text-center shrink-0">
-                     <div className="flex items-center justify-center gap-1 bg-violet-600 text-white px-3 py-1 rounded-full shadow-sm mx-auto w-max" title={t.score}>
-                        <span className="font-black text-[12px] leading-none">{priorityScore}</span>
+            {visibleColumns.tasks && (
+                <div className="w-24 text-center shrink-0">
+                     <div className="flex items-center justify-center bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 px-3 py-1 rounded-lg font-black text-[11px] mx-auto w-max" title={t.tasks}>
+                        {issueCount}
                     </div>
                 </div>
             )}
 
             {visibleColumns.projectManager && (
-                <div className="w-40 flex items-center gap-2 shrink-0 min-w-0">
-                    <img src={project.projectManager?.avatarUrl || `https://ui-avatars.com/api/?name=${project.projectManager?.name || '?'}&background=8b5cf6&color=f5f3ff`} alt={project.projectManager?.name || t.unassigned} className="w-7 h-7 rounded-full shrink-0" />
-                    <span className="font-medium text-slate-800 dark:text-white truncate">{project.projectManager?.name || t.unassigned}</span>
+                <div className="w-60 flex items-center gap-3 shrink-0 px-2">
+                    <img src={project.projectManager?.avatarUrl || `https://ui-avatars.com/api/?name=${project.projectManager?.name || '?'}&background=8b5cf6&color=f5f3ff`} alt={project.projectManager?.name || t.unassigned} className="w-8 h-8 rounded-xl shrink-0 shadow-sm" />
+                    <span className="font-bold text-slate-700 dark:text-slate-200">{project.projectManager?.name || t.unassigned}</span>
                 </div>
             )}
 
             {visibleColumns.customer && (
-                 <div className="w-40 text-center shrink-0 text-slate-600 dark:text-slate-300 truncate">{project.customer?.name || '--'}</div>
+                 <div className="w-60 text-[11px] font-bold text-slate-500 dark:text-slate-400 px-2 text-center">{project.customer?.name || '--'}</div>
             )}
             
             {visibleColumns.category && (

@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { Milestone, Project, Lookup, Language, PaymentStatus, MilestoneStatus, MilestoneUpdate, User, Lookups } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Milestone, Project, Lookup, Language, PaymentStatus, MilestoneStatus, MilestoneUpdate, User, Lookups, MilestoneAuditLog } from '../types';
+import { fetchMilestoneAuditLogs } from '../services/api';
 
 interface MilestoneDetailModalProps {
     milestone: Milestone;
@@ -27,6 +28,26 @@ const MilestoneDetailModal: React.FC<MilestoneDetailModalProps> = ({ milestone, 
     
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [activeTab, setActiveTab] = useState<'updates' | 'history'>('updates');
+    const [auditLogs, setAuditLogs] = useState<MilestoneAuditLog[]>([]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+    useEffect(() => {
+        if (activeTab === 'history') {
+            const loadHistory = async () => {
+                setIsLoadingHistory(true);
+                try {
+                    const logs = await fetchMilestoneAuditLogs(milestone.id);
+                    setAuditLogs(logs);
+                } catch (err) {
+                    console.error("Error loading history:", err);
+                } finally {
+                    setIsLoadingHistory(false);
+                }
+            };
+            loadHistory();
+        }
+    }, [activeTab, milestone.id]);
 
     // Fix: Corrected MilestoneStatus mapping to use valid enum members (Completed, InProgress, Pending)
     const statusColors: { [key in MilestoneStatus]: string } = {
@@ -194,49 +215,94 @@ const MilestoneDetailModal: React.FC<MilestoneDetailModalProps> = ({ milestone, 
                         </div>
                         
                         <div>
-                            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-3">{t.updatesTitle}</h3>
-                            <div className="flex flex-wrap gap-4 items-center mb-4 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg">
-                                <div className="flex-grow flex items-center gap-2">
-                                    <label htmlFor="startDate" className="text-sm font-medium text-slate-600 dark:text-slate-300">{t.from}</label>
-                                    <input type="date" id="startDate" value={startDate} onChange={e => setStartDate(e.target.value)} className="p-2 bg-white dark:bg-slate-900/50 rounded-md border border-slate-300 dark:border-slate-600 text-sm w-full sm:w-auto"/>
-                                </div>
-                                <div className="flex-grow flex items-center gap-2">
-                                    <label htmlFor="endDate" className="text-sm font-medium text-slate-600 dark:text-slate-300">{t.to}</label>
-                                    <input type="date" id="endDate" value={endDate} onChange={e => setEndDate(e.target.value)} className="p-2 bg-white dark:bg-slate-900/50 rounded-md border border-slate-300 dark:border-slate-600 text-sm w-full sm:w-auto"/>
-                                </div>
-                                <div className="flex gap-2 w-full sm:w-auto">
-                                    <button onClick={handleExport} className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-500/20 rounded-md hover:bg-violet-200 dark:hover:bg-violet-500/30 transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v3a2 2 0 002 2h10a2 2 0 002-2v-3h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z" clipRule="evenodd" /></svg>
-                                        <span>{t.exportPdf}</span>
-                                    </button>
-                                     <button onClick={handleExportExcel} className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-500/20 rounded-md hover:bg-green-200 dark:hover:bg-green-500/30 transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M5 4a3 3 0 00-3 3v6a3 3 0 003 3h10a3 3 0 003-3V7a3 3 0 00-3-3H5zm-1 9v-1h5v2H5a1 1 0 01-1-1zm7 1h4a1 1 0 001-1v-1h-5v2zm0-4h5V8h-5v2zM4 8h5v2H4V8z" clipRule="evenodd" />
-                                        </svg>
-                                        <span>{t.exportExcel}</span>
-                                    </button>
-                                </div>
+                            <div className="flex border-b border-slate-200 dark:border-slate-800 mb-4 font-tajawal">
+                                <button 
+                                    onClick={() => setActiveTab('updates')}
+                                    className={`px-4 py-2 text-sm font-bold transition-all border-b-2 ${activeTab === 'updates' ? 'border-violet-600 text-violet-600' : 'border-transparent text-slate-500'}`}
+                                >
+                                    {t.updatesTitle}
+                                </button>
+                                <button 
+                                    onClick={() => setActiveTab('history')}
+                                    className={`px-4 py-2 text-sm font-bold transition-all border-b-2 ${activeTab === 'history' ? 'border-violet-600 text-violet-600' : 'border-transparent text-slate-500'}`}
+                                >
+                                    {t.historyTitle}
+                                </button>
                             </div>
-                            <div className="space-y-4 max-h-60 overflow-y-auto pr-2 rtl:pl-2">
-                                {filteredUpdates.length > 0 ? filteredUpdates.map(update => {
-                                    const user = getUserById(update.userId);
-                                    return (
-                                        <div key={update.id} className="flex items-start gap-3">
-                                            <img src={user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name || '?'}&background=a78bfa&color=f5f3ff`} alt={user?.name || 'User'} className="w-8 h-8 rounded-full mt-1 flex-shrink-0" />
-                                            <div>
-                                                <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                    <span className="font-bold text-slate-700 dark:text-slate-200">{user?.name}</span>
-                                                    <span className="mx-1">&middot;</span>
-                                                    <span>{new Date(update.createdAt).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
-                                                </p>
-                                                <p className="text-sm text-slate-800 dark:text-slate-100 whitespace-pre-wrap">{update.updateText}</p>
+
+                            {activeTab === 'updates' ? (
+                                <>
+                                    <h3 className="hidden text-lg font-bold text-slate-800 dark:text-white mb-3">{t.updatesTitle}</h3>
+                                    <div className="flex flex-wrap gap-4 items-center mb-4 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg">
+                                        <div className="flex-grow flex items-center gap-2">
+                                            <label htmlFor="startDate" className="text-sm font-medium text-slate-600 dark:text-slate-300">{t.from}</label>
+                                            <input type="date" id="startDate" value={startDate} onChange={e => setStartDate(e.target.value)} className="p-2 bg-white dark:bg-slate-900/50 rounded-md border border-slate-300 dark:border-slate-600 text-sm w-full sm:w-auto"/>
+                                        </div>
+                                        <div className="flex-grow flex items-center gap-2">
+                                            <label htmlFor="endDate" className="text-sm font-medium text-slate-600 dark:text-slate-300">{t.to}</label>
+                                            <input type="date" id="endDate" value={endDate} onChange={e => setEndDate(e.target.value)} className="p-2 bg-white dark:bg-slate-900/50 rounded-md border border-slate-300 dark:border-slate-600 text-sm w-full sm:w-auto"/>
+                                        </div>
+                                        <div className="flex gap-2 w-full sm:w-auto">
+                                            <button onClick={handleExport} className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-500/20 rounded-md hover:bg-violet-200 dark:hover:bg-violet-500/30 transition-colors">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v3a2 2 0 002 2h10a2 2 0 002-2v-3h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z" clipRule="evenodd" /></svg>
+                                                <span>{t.exportPdf}</span>
+                                            </button>
+                                             <button onClick={handleExportExcel} className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-500/20 rounded-md hover:bg-green-200 dark:hover:bg-green-500/30 transition-colors">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fillRule="evenodd" d="M5 4a3 3 0 00-3 3v6a3 3 0 003 3h10a3 3 0 003-3V7a3 3 0 00-3-3H5zm-1 9v-1h5v2H5a1 1 0 01-1-1zm7 1h4a1 1 0 001-1v-1h-5v2zm0-4h5V8h-5v2zM4 8h5v2H4V8z" clipRule="evenodd" />
+                                                </svg>
+                                                <span>{t.exportExcel}</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4 max-h-60 overflow-y-auto pr-2 rtl:pl-2">
+                                        {filteredUpdates.length > 0 ? filteredUpdates.map(update => {
+                                            const user = getUserById(update.userId);
+                                            return (
+                                                <div key={update.id} className="flex items-start gap-3">
+                                                    <img src={user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.name || '?'}&background=a78bfa&color=f5f3ff`} alt={user?.name || 'User'} className="w-8 h-8 rounded-full mt-1 flex-shrink-0" />
+                                                    <div>
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                            <span className="font-bold text-slate-700 dark:text-slate-200">{user?.name}</span>
+                                                            <span className="mx-1">&middot;</span>
+                                                            <span>{new Date(update.createdAt).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+                                                        </p>
+                                                        <p className="text-sm text-slate-800 dark:text-slate-100 whitespace-pre-wrap">{update.updateText}</p>
+                                                    </div>
+                                                </div>
+                                            )
+                                        }) : (
+                                            <p className="text-sm text-center text-slate-500 dark:text-slate-400 py-6">{t.noUpdates}</p>
+                                        )}
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="space-y-4 max-h-80 overflow-y-auto pr-2 rtl:pl-2">
+                                    {isLoadingHistory ? (
+                                        <div className="flex justify-center py-10"><div className="w-8 h-8 border-4 border-violet-600/20 border-t-violet-600 rounded-full animate-spin"></div></div>
+                                    ) : auditLogs.length > 0 ? auditLogs.map(log => (
+                                        <div key={log.id} className="p-3 bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+                                            <div className="flex justify-between items-start mb-2">
+                                               <span className="text-[10px] font-black px-2 py-0.5 bg-violet-600 text-white rounded uppercase">{log.action.replace('_', ' ')}</span>
+                                               <span className="text-[10px] text-slate-400 font-bold">{new Date(log.createdAt).toLocaleString()}</span>
+                                            </div>
+                                            <p className="text-xs font-bold text-slate-800 dark:text-white">{log.userName}</p>
+                                            <div className="mt-2 grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <p className="text-[9px] font-black text-slate-400 uppercase">Old Date</p>
+                                                    <p className="text-[11px] text-slate-500 line-through">{log.oldValue ? new Date(log.oldValue).toLocaleDateString() : '--'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[9px] font-black text-slate-400 uppercase">New Date</p>
+                                                    <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold">{log.newValue ? new Date(log.newValue).toLocaleDateString() : '--'}</p>
+                                                </div>
                                             </div>
                                         </div>
-                                    )
-                                }) : (
-                                    <p className="text-sm text-center text-slate-500 dark:text-slate-400 py-6">{t.noUpdates}</p>
-                                )}
-                            </div>
+                                    )) : (
+                                        <p className="text-sm text-center text-slate-500 dark:text-slate-400 py-6">{t.noHistory}</p>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -249,12 +315,12 @@ const translations = {
     ar: {
         inProject: "في مشروع", noDescription: "لا يوجد وصف.", status: "الحالة", team: "الفريق", dueDate: "تاريخ الاستحقاق", payment: "الدفعة", updatesTitle: "تحديثات المعلم", noUpdates: "لا توجد تحديثات في هذه الفترة.", unassigned: "غير معين",
         from: "من", to: "إلى", exportPdf: "تصدير PDF", exportExcel: "تصدير Excel", milestoneReport: "تقرير المعلم", details: "التفاصيل", project: "المشروع",
-        Pending: "معلقة", Sent: "مرسلة", Paid: "مدفوعة",
+        Pending: "معلقة", Sent: "مرسلة", Paid: "مدفوعة", historyTitle: "سجل التغييرات", noHistory: "لا يوجد سجل تغييرات."
     },
     en: {
         inProject: "In project", noDescription: "No description provided.", status: "Status", team: "Team", dueDate: "Due Date", payment: "Payment", updatesTitle: "Milestone Updates", noUpdates: "No updates found for this period.", unassigned: "Unassigned",
         from: "From", to: "To", exportPdf: "Export to PDF", exportExcel: "Export to Excel", milestoneReport: "Milestone Report", details: "Details", project: "Project",
-        Pending: "Pending", Sent: "Sent", Paid: "Paid",
+        Pending: "Pending", Sent: "Sent", Paid: "Paid", historyTitle: "Change History", noHistory: "No change history found."
     },
 };
 

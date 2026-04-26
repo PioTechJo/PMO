@@ -62,7 +62,7 @@ const PaymentMilestoneRow: React.FC<PaymentMilestoneRowProps> = ({ milestone, te
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
                     </button>
                     {paymentMenuOpen && (
-                        <div className="absolute top-full right-1/2 translate-x-1/2 mt-1 w-32 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
+                        <div className="absolute top-full right-0 mt-1 w-32 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] z-[100] overflow-hidden">
                             {Object.values(PaymentStatus)
                                 .map(status => ({ value: status, label: t[status as keyof typeof t] || status }))
                                 .sort((a, b) => a.label.localeCompare(b.label))

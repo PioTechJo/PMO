@@ -45,18 +45,8 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ projectWithMile
         return new Date(dateString).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US');
     };
 
-    // Final Requested Formula: Score = (Impacts Sum) - Resource Load
-    const impactsSum = (project.revenueImpact || 1) + (project.strategicValue || 1) + (project.deliveryRisk || 1) + (project.customerPressure || 1);
-    const resourceLoad = (project.resourceLoad || 1);
-    const priorityScore = impactsSum - resourceLoad;
-
     const totalMilestoneValue = milestones.reduce((sum, m) => sum + (m.hasPayment ? m.paymentAmount : 0), 0);
-
-    const getScoreColor = (score: number) => {
-        if (score >= 12) return 'text-green-600 dark:text-green-400';
-        if (score >= 7) return 'text-yellow-600 dark:text-yellow-400';
-        return 'text-red-600 dark:text-red-400';
-    };
+    const taskCount = projectWithMilestones.issues.length;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity">
@@ -68,13 +58,9 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ projectWithMile
                                 <h2 className="text-2xl font-bold text-slate-800 dark:text-white">{project.name}</h2>
                                 <p className="text-sm font-mono text-violet-500 dark:text-violet-400">{project.projectCode}</p>
                             </div>
-                            <div className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-center border border-slate-200 dark:border-slate-700 group relative">
-                                <p className="text-[10px] text-slate-500 uppercase font-bold">{t.priorityScore}</p>
-                                <p className={`text-xl font-black ${getScoreColor(priorityScore)}`}>{priorityScore}</p>
-                                {/* Tooltip for formula explanation */}
-                                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-56 p-2 bg-slate-800 text-white text-[10px] rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center">
-                                    {t.formulaTip}: ({impactsSum} {t.impacts}) - ({resourceLoad} {t.load}) = {priorityScore}
-                                </div>
+                            <div className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-center border border-slate-200 dark:border-slate-700">
+                                <p className="text-[10px] text-slate-500 uppercase font-bold">{t.tasks}</p>
+                                <p className="text-xl font-black text-violet-600 dark:text-violet-400">{taskCount}</p>
                             </div>
                         </div>
                         <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">

@@ -44,7 +44,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
         const baseOptions = isMulti ? options.filter(o => o.value !== 'all') : options;
         if (!searchTerm) return baseOptions;
         return baseOptions.filter(opt =>
-            opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+            (opt.label || '').toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [options, searchTerm, isMulti]);
 
@@ -81,7 +81,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
         return selectedOptions[0]?.label || placeholder;
     }, [selectedOptions, value, isMulti, placeholder, t.selected]);
 
-    const buttonClasses = "w-full p-2 bg-slate-200 dark:bg-slate-700/50 rounded-md border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500 text-slate-800 dark:text-white text-sm min-h-[40px]";
+    const buttonClasses = "w-full py-2.5 px-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-700 dark:text-slate-200 text-[10px] font-bold min-h-[44px] transition-all shadow-sm";
     
     return (
         <div className="relative w-full" ref={wrapperRef}>
@@ -103,26 +103,26 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
                             onChange={(e) => setSearchTerm(e.target.value)}
                             placeholder={searchPlaceholder || placeholder}
                             autoFocus
-                            className="w-full p-2 bg-slate-100 dark:bg-slate-900/50 rounded-md border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-violet-500 text-slate-800 dark:text-white text-sm"
+                            className="w-full p-2 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-slate-700 dark:text-slate-200 text-[10px] font-bold"
                         />
                     </div>
                     <ul className="max-h-60 overflow-y-auto p-1 custom-scrollbar">
                         {filteredOptions.length > 0 ? (
-                            filteredOptions.map(option => {
+                            filteredOptions.map((option, index) => {
                                 const isSelected = isMulti 
                                     ? (Array.isArray(value) && value.includes(option.value))
                                     : value === option.value;
 
                                 return (
-                                    <li key={option.value}>
+                                    <li key={`${option.value}-${index}`}>
                                         <button
                                             type="button"
                                             onClick={() => handleSelect(option.value)}
-                                            className={`w-full text-left rtl:text-right p-2.5 text-sm rounded-md transition-colors flex items-center gap-2 ${isSelected ? 'bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300 font-bold' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                                            className={`w-full text-left rtl:text-right p-2.5 text-[10px] font-bold rounded-lg transition-colors flex items-center gap-2 ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
                                         >
                                             {isMulti && (
-                                                <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'bg-violet-600 border-violet-600 text-white' : 'bg-transparent border-slate-300 dark:border-slate-600'}`}>
-                                                    {isSelected && <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
+                                                <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-transparent border-slate-300 dark:border-slate-600'}`}>
+                                                    {isSelected && <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
                                                 </div>
                                             )}
                                             <span className="truncate">{option.label}</span>
@@ -131,7 +131,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
                                 );
                             })
                         ) : (
-                            <li className="p-4 text-sm text-center text-slate-500 dark:text-slate-400">
+                            <li className="p-4 text-[10px] font-bold text-center text-slate-400">
                                 {t.noResults}
                             </li>
                         )}

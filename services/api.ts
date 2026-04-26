@@ -1,6 +1,6 @@
 
 import { getSupabase } from './supabaseClient';
-import { Project, Milestone, User, Lookups, MilestoneStatus, PaymentStatus, MaintenanceContract, Issue, IssueStatus, IssuePriority, Notification, Lookup, IssueComment } from '../types';
+import { Project, Milestone, User, Lookups, MilestoneStatus, PaymentStatus, MaintenanceContract, Issue, IssueStatus, IssuePriority, Notification, Lookup, IssueComment, MilestoneChangeRequest, MilestoneAuditLog } from '../types';
 
 const mapDbToNotification = (db: any): Notification => ({
     id: db.id,
@@ -42,7 +42,7 @@ export const fetchAllData = async () => {
         id: u.id,
         name: u.name || 'Anonymous User',
         avatarUrl: u.avatar_url,
-        type: u.type || 'Staff'
+        type: (u.role === 'Manager' || u.type === 'Manager') ? 'Manager' : (u.type || u.role || 'Staff')
     }));
 
     const lookups: Lookups = {
@@ -110,7 +110,17 @@ export const fetchAllData = async () => {
             id: db.id, createdAt: db.created_at, type: db.type, month: db.month, year: db.year, customerId: db.customer_id, projectCode: db.project_code, totalAmount: db.total_amount || 0, collectedAmount: db.collected_amount || 0, lostAmount: db.lost_amount || 0, startDate: db.start_date, endDate: db.end_date, notes: db.notes, customer: lookups.customers.find(l => l.id === db.customer_id)
         })),
         issues: iss.map(db => ({
-            id: db.id, title: db.title, description: db.description || '', status: (db.status || IssueStatus.Open) as IssueStatus, priority: (db.priority || IssuePriority.Medium) as IssuePriority, projectId: db.project_id, milestoneId: db.milestone_id, assigneeId: db.assignee_id, reporterId: db.reporter_id, createdAt: db.created_at,
+            id: db.id, 
+            title: db.title, 
+            description: db.description || '', 
+            status: (db.status || IssueStatus.Open) as IssueStatus, 
+            priority: (db.priority || IssuePriority.Medium) as IssuePriority, 
+            projectId: db.project_id, 
+            milestoneId: db.milestone_id, 
+            assigneeId: db.assignee_id, 
+            reporterId: db.reporter_id, 
+            createdAt: db.created_at,
+            expectedDuration: db.expected_duration,
             project: projects.find(p => p.id === db.project_id), 
             assignee: mappedUsers.find(u => u.id === db.assignee_id), 
             reporter: mappedUsers.find(u => u.id === db.reporter_id),
@@ -118,6 +128,165 @@ export const fetchAllData = async () => {
         })),
         notifications: ntf.map(mapDbToNotification)
     };
+};
+
+export const requestMilestoneChange = async (req: Omit<MilestoneChangeRequest, 'id' | 'requestedDate' | 'status'>) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+
+    // 1. Create the request
+    const { data, error } = await supabase.from('milestone_change_requests').insert([{
+        milestone_id: req.milestoneId,
+        requested_by: req.requestedBy,
+        old_due_date: req.oldDueDate,
+        new_due_date: req.newDueDate,
+        reason: req.reason,
+        status: 'pending'
+    }]).select();
+
+    if (error) throw error;
+
+    // 2. Create Audit Log
+    await supabase.from('milestone_audit_logs').insert([{
+        milestone_id: req.milestoneId,
+        user_id: req.requestedBy,
+        action: 'requested_change',
+        field_name: 'due_date',
+        old_value: req.oldDueDate,
+        new_value: req.newDueDate
+    }]);
+
+    // 3. Notify Managers
+    const { data: managers } = await supabase.from('users').select('id').or('type.eq.Manager,role.eq.Manager');
+    if (managers && managers.length > 0) {
+        const notifications = managers.map(m => ({
+            user_id: m.id,
+            title: 'Milestone Change Requested',
+            message: `A change has been requested for milestone: ${req.milestoneTitle || 'N/A'}`,
+            type: 'milestone_change_requested',
+            link_id: req.milestoneId
+        }));
+        await supabase.from('notifications').insert(notifications);
+    }
+
+    return data[0];
+};
+
+export const approveMilestoneChange = async (requestId: string, managerId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+
+    const { data: req, error: fetchErr } = await supabase.from('milestone_change_requests').select('*').eq('id', requestId).single();
+    if (fetchErr) throw fetchErr;
+
+    const { error: milErr } = await supabase.from('activities').update({
+        due_date: req.new_due_date
+    }).eq('id', req.milestone_id);
+    if (milErr) throw milErr;
+
+    await supabase.from('milestone_change_requests').update({
+        status: 'approved',
+        approved_by: managerId,
+        approval_date: new Date().toISOString()
+    }).eq('id', requestId);
+
+    await supabase.from('milestone_audit_logs').insert([{
+        milestone_id: req.milestone_id,
+        user_id: managerId,
+        action: 'approved_change',
+        field_name: 'due_date',
+        old_value: req.old_due_date,
+        new_value: req.new_due_date
+    }]);
+
+    await supabase.from('notifications').insert([{
+        user_id: req.requested_by,
+        title: 'Milestone Change Approved',
+        message: `Your requested change for milestone due date has been approved.`,
+        type: 'milestone_change_result',
+        link_id: req.milestone_id
+    }]);
+};
+
+export const rejectMilestoneChange = async (requestId: string, managerId: string, reason: string) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+
+    const { data: req } = await supabase.from('milestone_change_requests').select('*').eq('id', requestId).single();
+
+    await supabase.from('milestone_change_requests').update({
+        status: 'rejected',
+        approved_by: managerId,
+        rejection_reason: reason,
+        approval_date: new Date().toISOString()
+    }).eq('id', requestId);
+
+    await supabase.from('milestone_audit_logs').insert([{
+        milestone_id: req.milestone_id,
+        user_id: managerId,
+        action: 'rejected_change',
+        field_name: 'due_date',
+        old_value: req.old_due_date,
+        new_value: req.new_due_date
+    }]);
+
+    await supabase.from('notifications').insert([{
+        user_id: req.requested_by,
+        title: 'Milestone Change Rejected',
+        message: `Your requested change for milestone due date was rejected: ${reason}`,
+        type: 'milestone_change_result',
+        link_id: req.milestone_id
+    }]);
+};
+
+export const fetchMilestoneChangeRequests = async () => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('milestone_change_requests')
+        .select(`
+            *, 
+            activities(title, project_id, payment_amount, projects(name, project_code)), 
+            users:requested_by(name)
+        `)
+        .order('requested_date', { ascending: false });
+    if (error) throw error;
+    return data.map((d: any) => ({
+        id: d.id,
+        milestoneId: d.milestone_id,
+        requestedBy: d.requested_by,
+        requestedDate: d.requested_date,
+        oldDueDate: d.old_due_date,
+        newDueDate: d.new_due_date,
+        reason: d.reason,
+        status: d.status,
+        approvedBy: d.approved_by,
+        approvalDate: d.approval_date,
+        rejectionReason: d.rejection_reason,
+        requesterName: d.users?.name,
+        milestoneTitle: d.activities?.title,
+        milestoneAmount: d.activities?.payment_amount,
+        projectId: d.activities?.project_id,
+        projectName: d.activities?.projects?.name,
+        projectCode: d.activities?.projects?.project_code
+    }));
+};
+
+export const fetchMilestoneAuditLogs = async (milestoneId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('milestone_audit_logs').select('*, users(name)').eq('milestone_id', milestoneId).order('created_at', { ascending: false });
+    if (error) throw error;
+    return data.map((d: any) => ({
+        id: d.id,
+        milestoneId: d.milestone_id,
+        userId: d.user_id,
+        action: d.action,
+        fieldName: d.field_name,
+        oldValue: d.old_value,
+        newValue: d.new_value,
+        createdAt: d.created_at,
+        userName: d.users?.name
+    }));
 };
 
 export const addIssueComment = async (issueId: string, userId: string, content: string) => {
@@ -150,7 +319,8 @@ export const addIssue = async (issueData: Omit<Issue, 'id' | 'createdAt'>) => {
         project_id: issueData.projectId,
         milestone_id: issueData.milestoneId || null,
         assignee_id: issueData.assigneeId || null,
-        reporter_id: issueData.reporterId
+        reporter_id: issueData.reporterId,
+        expected_duration: issueData.expectedDuration || null
     };
 
     const { data, error } = await supabase.from('issues').insert([insertData]).select();

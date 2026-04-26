@@ -14,7 +14,7 @@ export interface User {
     id:string;
     name: string;
     avatarUrl?: string;
-    type?: string; // Roles: 'PM', 'PS', 'Staff', 'Client'
+    type?: string; // Roles: 'PM', 'PS', 'Staff', 'Client', 'Manager'
 }
 
 export interface RolePermissions {
@@ -33,10 +33,42 @@ export interface Notification {
     userId: string;
     title: string;
     message: string;
-    type: 'issue_assigned' | 'status_change' | 'milestone_alert';
+    type: 'issue_assigned' | 'status_change' | 'milestone_alert' | 'milestone_change_requested' | 'milestone_change_result';
     isRead: boolean;
     createdAt: string;
     linkId?: string;
+}
+
+export interface MilestoneChangeRequest {
+    id: string;
+    milestoneId: string;
+    requestedBy: string;
+    requestedDate: string;
+    oldDueDate: string | null;
+    newDueDate: string | null;
+    reason: string;
+    status: 'pending' | 'approved' | 'rejected';
+    approvedBy?: string | null;
+    approvalDate?: string | null;
+    rejectionReason?: string | null;
+    requesterName?: string;
+    milestoneTitle?: string;
+    projectId?: string;
+    projectCode?: string;
+    projectName?: string;
+    milestoneAmount?: number;
+}
+
+export interface MilestoneAuditLog {
+    id: string;
+    milestoneId: string;
+    userId: string;
+    action: string;
+    fieldName: string;
+    oldValue: string | null;
+    newValue: string | null;
+    createdAt: string;
+    userName?: string;
 }
 
 export interface MilestoneUpdate {
@@ -126,6 +158,7 @@ export interface Issue {
     assigneeId: string | null;
     reporterId: string;
     createdAt: string;
+    expectedDuration?: number | null;
     project?: Project;
     milestone?: Milestone;
     assignee?: User;

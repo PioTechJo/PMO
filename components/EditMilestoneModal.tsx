@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Milestone, Project, Lookup, MilestoneStatus, Language, PaymentStatus, PaymentType, MilestoneUpdate, User } from '../types';
+import { Milestone, Project, Lookup, MilestoneStatus, Language, PaymentStatus, PaymentType, MilestoneUpdate, User, MilestoneChangeRequest } from '../types';
+import { requestMilestoneChange } from '../services/api';
 
 interface EditMilestoneModalProps {
   milestoneToEdit: Milestone;
@@ -53,6 +54,8 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [isSuccess, setIsSuccess] = useState(false);
     const [newUpdateText, setNewUpdateText] = useState('');
+    const [changeReason, setChangeReason] = useState('');
+    const [isMakerCheckerRequired, setIsMakerCheckerRequired] = useState(false);
 
     // Load initial or selected milestone into form
     useEffect(() => {
@@ -75,8 +78,18 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
                 paymentStatus: merged.paymentStatus || PaymentStatus.Pending,
                 paymentType: merged.paymentType || PaymentType.Progress,
             });
+            
+            // Check if Maker/Checker is needed (PM changing due date of existing milestone)
+            if (currentUser?.type === 'PM' && editingTargetId) {
+                const originalMilestone = allMilestones.find(am => am.id === editingTargetId);
+                const originalDueDate = originalMilestone?.dueDate ? new Date(originalMilestone.dueDate).toISOString().split('T')[0] : '';
+                const currentDueDate = merged.dueDate ? new Date(merged.dueDate).toISOString().split('T')[0] : '';
+                setIsMakerCheckerRequired(originalDueDate !== currentDueDate);
+            } else {
+                setIsMakerCheckerRequired(false);
+            }
         }
-    }, [editingTargetId, allMilestones, milestoneToEdit.projectId, modifiedExisting]);
+    }, [editingTargetId, allMilestones, milestoneToEdit.projectId, modifiedExisting, currentUser]);
 
     const translations = {
       ar: {
@@ -112,7 +125,9 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
           addingMode: "إضافة معلم جديد",
           doubleClickTip: "انقر نقراً مزدوجاً على معلم لتحميله للتعديل",
           Pending: "معلق", "In Progress": "قيد التنفيذ", Completed: "مكتمل", Sent: "مرسلة", Paid: "مدفوعة",
-          Downpayment: "دفعة مقدمة", Progress: "دفعة إنجاز", Final: "دفعة نهائية", Retention: "محجوزات", Other: "أخرى"
+          Downpayment: "دفعة مقدمة", Progress: "دفعة إنجاز", Final: "دفعة نهائية", Retention: "محجوزات", Other: "أخرى",
+          reasonPlaceholder: "سبب تغيير التاريخ...",
+          makerCheckerTip: "يجب الموافقة على تغيير التاريخ من قبل المدير"
       },
       en: {
           title: "Manage Project Milestones",
@@ -147,7 +162,9 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
           addingMode: "Adding New Milestone",
           doubleClickTip: "Double-click an item to edit it",
           Pending: "Pending", "In Progress": "In Progress", Completed: "Completed", Sent: "Sent", Paid: "Paid",
-          Downpayment: "Downpayment", Progress: "Progress Payment", Final: "Final Payment", Retention: "Retention", Other: "Other"
+          Downpayment: "Downpayment", Progress: "Progress Payment", Final: "Final Payment", Retention: "Retention", Other: "Other",
+          reasonPlaceholder: "Reason for date change...",
+          makerCheckerTip: "Date change requires Manager approval"
       },
   };
   const t = translations[language];
@@ -214,7 +231,33 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
     try {
         // 1. Update modified existing ones
         for (const [id, data] of Object.entries(modifiedExisting)) {
-            await onUpdateMilestone(id, data);
+            const typedData = data as any;
+            const originalMilestone = allMilestones.find(m => m.id === id);
+            const originalDueDate = originalMilestone?.dueDate ? new Date(originalMilestone.dueDate).toISOString().split('T')[0] : '';
+            const newDueDate = typedData.dueDate ? (typeof typedData.dueDate === 'string' ? typedData.dueDate.split('T')[0] : '') : '';
+
+            if (currentUser?.type === 'PM' && originalDueDate !== newDueDate) {
+                // If PM changed the due date, create a request instead of direct update
+                if (!changeReason.trim()) {
+                    throw new Error(language === 'ar' ? "يرجى ذكر سبب تغيير التاريخ" : "Please provide a reason for the date change");
+                }
+                
+                await requestMilestoneChange({
+                    milestoneId: id,
+                    requestedBy: currentUser.id,
+                    oldDueDate: originalMilestone?.dueDate || null,
+                    newDueDate: typedData.dueDate || null,
+                    reason: changeReason,
+                    milestoneTitle: originalMilestone?.title
+                });
+
+                const { dueDate: _, ...otherFields } = typedData;
+                if (Object.keys(otherFields).length > 0) {
+                    await onUpdateMilestone(id, otherFields);
+                }
+            } else {
+                await onUpdateMilestone(id, data);
+            }
         }
         // 2. Add new ones
         if (newItemsQueue.length > 0) {
@@ -281,6 +324,22 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
                                     <input type="date" name="dueDate" value={formData.dueDate} onChange={handleInputChange} className={inputClasses} />
                                 </div>
                             </div>
+
+                            {isMakerCheckerRequired && (
+                                <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-2xl space-y-3 animate-in fade-in slide-in-from-top-2">
+                                    <p className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase flex items-center gap-2">
+                                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                                        {t.makerCheckerTip}
+                                    </p>
+                                    <textarea 
+                                        value={changeReason} 
+                                        onChange={e => setChangeReason(e.target.value)} 
+                                        placeholder={t.reasonPlaceholder} 
+                                        className={`${inputClasses} bg-white dark:bg-slate-900`} 
+                                        required
+                                    />
+                                </div>
+                            )}
 
                             <div className="p-4 bg-white dark:bg-slate-950/50 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4 shadow-inner">
                                 <div className="flex items-center justify-between">

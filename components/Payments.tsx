@@ -65,7 +65,7 @@ const Payments: React.FC<PaymentsProps> = ({ allProjects, allMilestones, allTeam
                                     <span>{projectTotal.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD' })}</span>
                                 </div>
                             </div>
-                            <div className="overflow-x-auto">
+                            <div className="overflow-x-auto pb-44 min-h-[400px]">
                                 <table className="w-full text-sm text-left rtl:text-right text-slate-500 dark:text-slate-400">
                                     <thead className="text-xs text-slate-700 dark:text-slate-300 uppercase bg-slate-100 dark:bg-slate-800/50">
                                         <tr>

@@ -13,40 +13,48 @@ interface SidebarProps {
 }
 
 const NavIcon: React.FC<{ view: View }> = ({ view }) => {
-    const iconProps = { className: "w-5 h-5", strokeWidth: "2", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" };
+    const iconProps = { className: "w-5 h-5 transition-transform duration-300 group-hover:scale-110", strokeWidth: "1.75", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" };
     const icons: Record<View, React.ReactNode> = {
-        dashboard: <svg {...iconProps}><path d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 12a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z" /></svg>,
-        filter: <svg {...iconProps}><path d="M3 4a1 1 0 011-1h16a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" /></svg>,
-        projects: <svg {...iconProps}><path d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
-        milestones: <svg {...iconProps}><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>,
-        team: <svg {...iconProps}><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
-        payments: <svg {...iconProps}><path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>,
-        maintenanceContracts: <svg {...iconProps}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /></svg>,
-        issues: <svg {...iconProps}><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>,
-        system: <svg {...iconProps}><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066" /></svg>,
-        reports: <svg {...iconProps}><path d="M9 17v-2m3 2v-4m3 4v-6" /></svg>,
+        dashboard: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>,
+        projects: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>,
+        milestones: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
+        payments: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>,
+        maintenanceContracts: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
+        issues: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>,
+        team: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
+        reports: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
+        filter: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" /></svg>,
+        system: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066" /></svg>,
     };
     return icons[view] || icons.dashboard;
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language, allowedViews, onLogout, isOpen, onClose }) => {
   const translations = {
-    ar: { dashboard: 'لوحة التحكم', reports: 'التقارير', projects: 'المشاريع', milestones: 'المعالم', payments: 'المدفوعات', tasks: 'المهام', users: 'المدراء', settings: 'الإعدادات', logout: 'تسجيل الخروج', filter: 'الفلاتر المتقدمة', maintenance: 'عقود الصيانة' },
-    en: { dashboard: 'Dashboard', reports: 'Reports', projects: 'Projects', milestones: 'Milestones', payments: 'Payments', tasks: 'Tasks', users: 'Managers', settings: 'Settings', logout: 'Logout', filter: 'Advanced Filter', maintenance: 'Maintenance' },
+    ar: { dashboard: 'لوحة التحكم', reports: 'التقارير', projects: 'المشاريع', milestones: 'المعالم', payments: 'المدفوعات', tasks: 'المهام', users: 'المدراء', settings: 'الإعدادات', logout: 'تسجيل الخروج', filter: 'الفلاتر المتقدمة', maintenance: 'الصيانة', main: 'الرئيسية', operations: 'العمليات' },
+    en: { dashboard: 'Dashboard', reports: 'Reports', projects: 'Projects', milestones: 'Milestones', payments: 'Payments', tasks: 'Tasks', users: 'Managers', settings: 'Settings', logout: 'Logout', filter: 'Advanced Filter', maintenance: 'Maintenance', main: 'Main', operations: 'Operations' },
   };
   const t = translations[language];
 
-  const menuItems = [
-    { view: 'dashboard', label: t.dashboard },
-    { view: 'projects', label: t.projects },
-    { view: 'milestones', label: t.milestones },
-    { view: 'payments', label: t.payments },
-    { view: 'maintenanceContracts', label: t.maintenance },
-    { view: 'issues', label: t.tasks },
-    { view: 'team', label: t.users },
-    { view: 'reports', label: t.reports },
-    { view: 'filter', label: t.filter },
-    { view: 'system', label: t.settings },
+  const sections = [
+    {
+      title: t.main,
+      items: [
+        { view: 'dashboard', label: t.dashboard },
+        { view: 'projects', label: t.projects },
+        { view: 'milestones', label: t.milestones },
+        { view: 'payments', label: t.payments },
+      ]
+    },
+    {
+      title: t.operations,
+      items: [
+        { view: 'maintenanceContracts', label: t.maintenance },
+        { view: 'issues', label: t.tasks },
+        { view: 'team', label: t.users },
+        { view: 'reports', label: t.reports },
+      ]
+    }
   ];
 
   return (
@@ -59,45 +67,66 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
         />
       )}
 
-      <aside className={`fixed lg:relative inset-y-0 ${language === 'ar' ? 'right-0' : 'left-0'} w-72 lg:translate-x-0 transition-transform duration-300 ease-in-out z-[60] flex flex-col h-full bg-white dark:bg-[#0f172a] border-r border-slate-100 dark:border-slate-800 shadow-2xl lg:shadow-none ${isOpen ? 'translate-x-0' : (language === 'ar' ? 'translate-x-full' : '-translate-x-full')}`} dir={language === 'ar' ? 'rtl' : 'ltr'}>
-        <div className="h-24 flex items-center px-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-tr from-indigo-600 to-violet-500 rounded-xl flex items-center justify-center text-white shadow-lg">
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11a1 1 0 011-1h2a1 1 0 110 2H3a1 1 0 01-1-1zm5 2a1 1 0 011-1h10a1 1 0 110 2H8a1 1 0 01-1-1zM2 5a1 1 0 011-1h2a1 1 0 110 2H3a1 1 0 01-1-1zm5 2a1 1 0 011-1h10a1 1 0 110 2H8a1 1 0 01-1-1z"/></svg>
+      <aside className={`fixed lg:relative inset-y-0 ${language === 'ar' ? 'right-0' : 'left-0'} w-72 lg:translate-x-0 transition-transform duration-300 ease-in-out z-[60] flex flex-col h-full bg-[#0a1628] border-r border-[#1e293b]/20 shadow-2xl lg:shadow-none ${isOpen ? 'translate-x-0' : (language === 'ar' ? 'translate-x-full' : '-translate-x-full')}`} dir={language === 'ar' ? 'rtl' : 'ltr'}>
+        <div className="h-28 flex items-center px-8 shrink-0 relative">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-[0_0_20px_rgba(37,99,235,0.4)]">
+              PT
             </div>
-            <h1 className="text-xl font-black text-slate-800 dark:text-white tracking-tight uppercase">Pio-Tech</h1>
+            <div>
+              <h1 className="text-lg font-black text-white tracking-widest uppercase mb-0.5">PIO-TECH</h1>
+              <p className="text-[11px] text-slate-400 font-medium tracking-wide">Projects Portfolio</p>
+            </div>
           </div>
           {/* Close button for mobile */}
-          <button onClick={onClose} className="lg:hidden ms-auto p-2 text-slate-400 hover:text-slate-600">
+          <button onClick={onClose} className="lg:hidden ms-auto p-2 text-slate-400 hover:text-slate-200">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
+          <div className="absolute bottom-0 left-0 right-0 border-b border-[#1e293b]/30 mx-4" />
         </div>
 
-        <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto custom-scrollbar">
-          {menuItems.filter(item => allowedViews.includes(item.view as any)).map(item => (
-            <button
-              key={item.view}
-              onClick={() => setCurrentView(item.view as any)}
-              className={`w-full flex items-center gap-4 px-6 py-3.5 rounded-2xl text-sm font-bold transition-all duration-200 group ${
-                currentView === item.view
-                  ? 'bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
-              }`}
-            >
-              <div className={`${currentView === item.view ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'}`}>
-                  <NavIcon view={item.view as any} />
+        <div className="flex-1 px-3 py-4 space-y-6 overflow-y-auto custom-scrollbar">
+          {sections.map((section, sIdx) => (
+            <div key={sIdx} className="space-y-4">
+              <div className="px-5">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] opacity-70">{section.title}</p>
               </div>
-              <span>{item.label}</span>
-            </button>
+              <div className="space-y-0.5">
+                {section.items.filter(item => allowedViews.includes(item.view as any)).map(item => {
+                  const isActive = currentView === item.view;
+                  return (
+                    <button
+                      key={item.view}
+                      onClick={() => setCurrentView(item.view as any)}
+                      className={`w-full flex items-center justify-between px-5 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 group relative ${
+                        isActive
+                          ? 'bg-blue-600/10 text-white'
+                          : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                      }`}
+                    >
+                      {isActive && <div className={`absolute ${language === 'ar' ? 'right-0' : 'left-0'} top-2.5 bottom-2.5 w-1 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]`} />}
+                      <div className="flex items-center gap-2.5">
+                          <div className={`${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'} transition-colors duration-200`}>
+                              <NavIcon view={item.view as any} />
+                          </div>
+                          <span className={`${isActive ? 'font-bold' : 'font-medium'} tracking-tight`}>{item.label}</span>
+                      </div>
+                      {item.view === 'projects' && <span className="bg-[#1e2d4d] text-blue-400 text-[10px] font-black px-2 py-0.5 rounded-md border border-blue-500/20">12</span>}
+                      {item.view === 'issues' && <span className="bg-blue-600 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full shadow-lg">7</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           ))}
-        </nav>
+        </div>
 
-        <div className="p-6 border-t border-slate-100 dark:border-slate-800">
+        <div className="p-6 border-t border-[#1e293b]/30 shrink-0">
           <button 
             onClick={onLogout}
-            className="w-full flex items-center gap-4 px-6 py-4 text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-2xl transition-all"
+            className="w-full flex items-center gap-4 px-6 py-4 text-xs font-bold text-slate-500 hover:text-red-500 hover:bg-red-500/5 rounded-xl transition-all"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            <svg className="w-5 h-5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
             <span>{t.logout}</span>
           </button>
         </div>

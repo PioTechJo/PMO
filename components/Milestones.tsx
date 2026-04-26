@@ -3,6 +3,9 @@ import { Milestone, Project, Lookup, Language, Lookups, User, PaymentStatus } fr
 import MilestoneListItem from './MilestoneListItem';
 import AddMilestoneModal from './AddMilestoneModal';
 import SearchableSelect from './SearchableSelect';
+import MilestonePendingChanges from './MilestonePendingChanges';
+import MilestoneHistory from './MilestoneHistory';
+import { History, List, Plus } from 'lucide-react';
 
 interface MilestonesProps {
     allMilestones: Milestone[];
@@ -12,13 +15,15 @@ interface MilestonesProps {
     onOpenEditModal: (milestone: Milestone) => void;
     onViewMilestoneDetails: (milestone: Milestone) => void;
     onUpdateMilestone: (milestoneId: string, updatedData: Partial<Omit<Milestone, 'id'>>) => Promise<void>;
+    onRefresh: () => void;
     searchResult?: { id: string }[];
     lookups: Lookups;
     currentUser?: User;
 }
 
-const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, language, onAddMilestones, onOpenEditModal, onViewMilestoneDetails, onUpdateMilestone, searchResult, lookups, currentUser }) => {
+const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, language, onAddMilestones, onOpenEditModal, onViewMilestoneDetails, onUpdateMilestone, onRefresh, searchResult, lookups, currentUser }) => {
     const [showAddModal, setShowAddModal] = useState(false);
+    const [showHistory, setShowHistory] = useState(false);
     const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
     const [selectedManagerId, setSelectedManagerId] = useState<string>('all');
     const [selectedPaymentStatus, setSelectedPaymentStatus] = useState<string>('all');
@@ -62,6 +67,8 @@ const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, lan
             Pending: "معلقة",
             Sent: "مرسلة",
             exportGantt: "تصدير مخطط جانت",
+            history: "سجل التغييرات",
+            backToList: "العودة للقائمة",
             start: "البداية",
             end: "النهاية",
         },
@@ -90,6 +97,8 @@ const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, lan
             Pending: "Pending",
             Sent: "Sent",
             exportGantt: "Export Gantt Chart",
+            history: "Changes History",
+            backToList: "Back to List",
             start: "Start",
             end: "End",
         }
@@ -403,6 +412,10 @@ const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, lan
         <div className="space-y-8">
             {showAddModal && <AddMilestoneModal teams={lookups.teams} projects={allProjects} onClose={() => setShowAddModal(false)} onAddMilestone={handleAddMilestone} language={language} />}
 
+            {currentUser?.type === 'Manager' && (
+                <MilestonePendingChanges language={language} currentUser={currentUser} onUpdate={onRefresh} />
+            )}
+
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-800 dark:text-white">{t.title}</h1>
@@ -415,75 +428,88 @@ const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, lan
                             <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{grandTotalPayments.toLocaleString()}</span>
                         </div>
                     )}
+                    <button 
+                        onClick={() => setShowHistory(!showHistory)} 
+                        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold py-2 px-6 rounded-full flex items-center gap-2 transition-all hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm"
+                    >
+                        {showHistory ? <List className="w-4 h-4" /> : <History className="w-4 h-4" />}
+                        <span>{showHistory ? t.backToList : t.history}</span>
+                    </button>
                     <button onClick={() => setShowAddModal(true)} className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 text-white font-bold py-2 px-6 rounded-full flex items-center gap-2 transition-colors shadow-lg hover:shadow-violet-700/50">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"></path></svg>
+                        <Plus className="w-5 h-5" />
                         <span>{t.newMilestone}</span>
                     </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
-                <SearchableSelect options={managerOptions} value={selectedManagerId} onChange={setSelectedManagerId} placeholder={t.allManagers} searchPlaceholder={t.searchManagers} language={language} />
-                <SearchableSelect options={projectOptions} value={selectedProjectId} onChange={setSelectedProjectId} placeholder={t.allProjects} searchPlaceholder={t.searchProjects} language={language} />
-                <SearchableSelect options={paymentStatusOptions} value={selectedPaymentStatus} onChange={setSelectedPaymentStatus} placeholder={t.allPaymentStatuses} searchPlaceholder={t.searchPaymentStatuses} language={language} />
-                <SearchableSelect options={hasPaymentOptions} value={selectedHasPayment} onChange={setSelectedHasPayment} placeholder={t.hasPayment} language={language} />
-                <SearchableSelect options={finalMonthYearOptions} value={selectedMonthYear} onChange={setSelectedMonthYear} placeholder={t.allMonths} searchPlaceholder={t.searchMonths} language={language} />
-                <button
-                    onClick={handleClearFilters}
-                    title={t.clearFilters}
-                    className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-slate-200 dark:bg-slate-700/50 rounded-md border border-slate-300 dark:border-slate-600 hover:bg-slate-300 dark:hover:bg-slate-600/50 transition-colors"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 110 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" /></svg>
-                    <span>{t.clearFilters}</span>
-                </button>
-            </div>
-
-
-            <div className="space-y-10">
-                {groupedMilestones.length === 0 && (
-                    <p className="text-slate-500 dark:text-slate-400 text-center py-10">{t.noMilestonesFound}</p>
-                )}
-
-                {groupedMilestones.map(project => (
-                    <div key={project.id}>
-                        <div className="flex flex-wrap gap-4 justify-between items-center mb-4 pb-2 border-b-2 border-violet-500/50">
-                            <div className="flex items-center gap-4">
-                               <h2 className="text-xl font-bold text-slate-800 dark:text-white">{project.name}</h2>
-                               <button 
-                                    onClick={() => handleExportGantt(project)}
-                                    title={t.exportGantt}
-                                    className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-500/20 rounded-full hover:bg-violet-200 dark:hover:bg-violet-500/30 transition-colors"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                        <path d="M2 11a1 1 0 011-1h2a1 1 0 110 2H3a1 1 0 01-1-1zm5 2a1 1 0 011-1h10a1 1 0 110 2H8a1 1 0 01-1-1zM2 5a1 1 0 011-1h2a1 1 0 110 2H3a1 1 0 01-1-1zm5 2a1 1 0 011-1h10a1 1 0 110 2H8a1 1 0 01-1-1z"/>
-                                    </svg>
-                                    <span>{t.exportGantt}</span>
-                                </button>
-                            </div>
-                            {project.totalPayments > 0 && (
-                                <div className="bg-green-500/10 text-green-800 dark:text-green-200 font-bold text-sm px-3 py-1.5 rounded-full">
-                                    <span>{t.totalPayments}: </span>
-                                    <span>{project.totalPayments.toLocaleString()}</span>
-                                </div>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                             {project.milestones.map(milestone => (
-                                <MilestoneListItem
-                                    key={milestone.id}
-                                    milestone={milestone}
-                                    project={getProjectById(milestone.projectId)}
-                                    team={getTeamById(milestone.teamId)}
-                                    language={language}
-                                    onOpenEditModal={() => onOpenEditModal(milestone)}
-                                    onDoubleClick={() => onViewMilestoneDetails(milestone)}
-                                    onUpdateMilestone={onUpdateMilestone}
-                                />
-                             ))}
-                        </div>
+            {showHistory ? (
+                <MilestoneHistory language={language} projects={allProjects} currentUser={currentUser || null} />
+            ) : (
+                <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+                        <SearchableSelect options={managerOptions} value={selectedManagerId} onChange={setSelectedManagerId} placeholder={t.allManagers} searchPlaceholder={t.searchManagers} language={language} />
+                        <SearchableSelect options={projectOptions} value={selectedProjectId} onChange={setSelectedProjectId} placeholder={t.allProjects} searchPlaceholder={t.searchProjects} language={language} />
+                        <SearchableSelect options={paymentStatusOptions} value={selectedPaymentStatus} onChange={setSelectedPaymentStatus} placeholder={t.allPaymentStatuses} searchPlaceholder={t.searchPaymentStatuses} language={language} />
+                        <SearchableSelect options={hasPaymentOptions} value={selectedHasPayment} onChange={setSelectedHasPayment} placeholder={t.hasPayment} language={language} />
+                        <SearchableSelect options={finalMonthYearOptions} value={selectedMonthYear} onChange={setSelectedMonthYear} placeholder={t.allMonths} searchPlaceholder={t.searchMonths} language={language} />
+                        <button
+                            onClick={handleClearFilters}
+                            title={t.clearFilters}
+                            className="flex-shrink-0 flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-slate-200 dark:bg-slate-700/50 rounded-md border border-slate-300 dark:border-slate-600 hover:bg-slate-300 dark:hover:bg-slate-600/50 transition-colors"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 110 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" /></svg>
+                            <span>{t.clearFilters}</span>
+                        </button>
                     </div>
-                ))}
-            </div>
+
+
+                    <div className="space-y-10">
+                        {groupedMilestones.length === 0 && (
+                            <p className="text-slate-500 dark:text-slate-400 text-center py-10">{t.noMilestonesFound}</p>
+                        )}
+
+                        {groupedMilestones.map(project => (
+                            <div key={project.id}>
+                                <div className="flex flex-wrap gap-4 justify-between items-center mb-4 pb-2 border-b-2 border-violet-500/50">
+                                    <div className="flex items-center gap-4">
+                                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">{project.name}</h2>
+                                    <button 
+                                            onClick={() => handleExportGantt(project)}
+                                            title={t.exportGantt}
+                                            className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-500/20 rounded-full hover:bg-violet-200 dark:hover:bg-violet-500/30 transition-colors"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                <path d="M2 11a1 1 0 011-1h2a1 1 0 110 2H3a1 1 0 01-1-1zm5 2a1 1 0 011-1h10a1 1 0 110 2H8a1 1 0 01-1-1zM2 5a1 1 0 011-1h2a1 1 0 110 2H3a1 1 0 01-1-1zm5 2a1 1 0 011-1h10a1 1 0 110 2H8a1 1 0 01-1-1z"/>
+                                            </svg>
+                                            <span>{t.exportGantt}</span>
+                                        </button>
+                                    </div>
+                                    {project.totalPayments > 0 && (
+                                        <div className="bg-green-500/10 text-green-800 dark:text-green-200 font-bold text-sm px-3 py-1.5 rounded-full">
+                                            <span>{t.totalPayments}: </span>
+                                            <span>{project.totalPayments.toLocaleString()}</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    {project.milestones.map(milestone => (
+                                        <MilestoneListItem
+                                            key={milestone.id}
+                                            milestone={milestone}
+                                            project={getProjectById(milestone.projectId)}
+                                            team={getTeamById(milestone.teamId)}
+                                            language={language}
+                                            onOpenEditModal={() => onOpenEditModal(milestone)}
+                                            onDoubleClick={() => onViewMilestoneDetails(milestone)}
+                                            onUpdateMilestone={onUpdateMilestone}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
         </div>
     );
 };

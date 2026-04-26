@@ -13,6 +13,7 @@
     "@google/genai": "^1.24.0",
     "@supabase/supabase-js": "^2.44.0",
     "lucide-react": "^1.8.0",
+    "motion": "^12.38.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-dropzone": "^14.3.8",
