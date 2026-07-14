@@ -121,6 +121,9 @@ export const fetchAllData = async () => {
             reporterId: db.reporter_id, 
             createdAt: db.created_at,
             expectedDuration: db.expected_duration,
+            resolvedAt: db.resolved_at,
+            isEscalated: !!db.is_escalated,
+            escalatedAt: db.escalated_at,
             project: projects.find(p => p.id === db.project_id), 
             assignee: mappedUsers.find(u => u.id === db.assignee_id), 
             reporter: mappedUsers.find(u => u.id === db.reporter_id),
@@ -320,7 +323,10 @@ export const addIssue = async (issueData: Omit<Issue, 'id' | 'createdAt'>) => {
         milestone_id: issueData.milestoneId || null,
         assignee_id: issueData.assigneeId || null,
         reporter_id: issueData.reporterId,
-        expected_duration: issueData.expectedDuration || null
+        expected_duration: issueData.expectedDuration || null,
+        resolved_at: issueData.resolvedAt || null,
+        is_escalated: issueData.isEscalated || false,
+        escalated_at: issueData.escalatedAt || null
     };
 
     const { data, error } = await supabase.from('issues').insert([insertData]).select();
@@ -345,6 +351,10 @@ export const updateIssue = async (id: string, issueData: Partial<Issue>) => {
     if (issueData.status) updateData.status = issueData.status;
     if (issueData.priority) updateData.priority = issueData.priority;
     if (issueData.assigneeId !== undefined) updateData.assignee_id = issueData.assigneeId || null;
+    if (issueData.resolvedAt !== undefined) updateData.resolved_at = issueData.resolvedAt;
+    if (issueData.isEscalated !== undefined) updateData.is_escalated = issueData.isEscalated;
+    if (issueData.escalatedAt !== undefined) updateData.escalated_at = issueData.escalatedAt;
+    
     const { data, error } = await supabase.from('issues').update(updateData).eq('id', id).select();
     if (error) throw error;
     return data[0];
