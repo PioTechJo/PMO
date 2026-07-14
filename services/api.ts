@@ -130,113 +130,46 @@ export const fetchAllData = async () => {
     };
 };
 
+// These three functions delegate to Postgres RPCs (see
+// supabase/migrations/20260714120000_maker_checker_rls_fix.sql) so the
+// request/audit-log/notification writes happen atomically and the Manager
+// role check for approve/reject is enforced server-side, not just in the UI.
 export const requestMilestoneChange = async (req: Omit<MilestoneChangeRequest, 'id' | 'requestedDate' | 'status'>) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized");
 
-    // 1. Create the request
-    const { data, error } = await supabase.from('milestone_change_requests').insert([{
-        milestone_id: req.milestoneId,
-        requested_by: req.requestedBy,
-        old_due_date: req.oldDueDate,
-        new_due_date: req.newDueDate,
-        reason: req.reason,
-        status: 'pending'
-    }]).select();
-
+    const { data, error } = await supabase.rpc('request_milestone_change', {
+        p_milestone_id: req.milestoneId,
+        p_new_due_date: req.newDueDate,
+        p_reason: req.reason
+    });
     if (error) throw error;
-
-    // 2. Create Audit Log
-    await supabase.from('milestone_audit_logs').insert([{
-        milestone_id: req.milestoneId,
-        user_id: req.requestedBy,
-        action: 'requested_change',
-        field_name: 'due_date',
-        old_value: req.oldDueDate,
-        new_value: req.newDueDate
-    }]);
-
-    // 3. Notify Managers
-    const { data: managers } = await supabase.from('users').select('id').or('type.eq.Manager,role.eq.Manager');
-    if (managers && managers.length > 0) {
-        const notifications = managers.map(m => ({
-            user_id: m.id,
-            title: 'Milestone Change Requested',
-            message: `A change has been requested for milestone: ${req.milestoneTitle || 'N/A'}`,
-            type: 'milestone_change_requested',
-            link_id: req.milestoneId
-        }));
-        await supabase.from('notifications').insert(notifications);
-    }
-
-    return data[0];
+    return data;
 };
 
-export const approveMilestoneChange = async (requestId: string, managerId: string) => {
+export const approveMilestoneChange = async (requestId: string) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized");
 
-    const { data: req, error: fetchErr } = await supabase.from('milestone_change_requests').select('*').eq('id', requestId).single();
-    if (fetchErr) throw fetchErr;
-
-    const { error: milErr } = await supabase.from('activities').update({
-        due_date: req.new_due_date
-    }).eq('id', req.milestone_id);
-    if (milErr) throw milErr;
-
-    await supabase.from('milestone_change_requests').update({
-        status: 'approved',
-        approved_by: managerId,
-        approval_date: new Date().toISOString()
-    }).eq('id', requestId);
-
-    await supabase.from('milestone_audit_logs').insert([{
-        milestone_id: req.milestone_id,
-        user_id: managerId,
-        action: 'approved_change',
-        field_name: 'due_date',
-        old_value: req.old_due_date,
-        new_value: req.new_due_date
-    }]);
-
-    await supabase.from('notifications').insert([{
-        user_id: req.requested_by,
-        title: 'Milestone Change Approved',
-        message: `Your requested change for milestone due date has been approved.`,
-        type: 'milestone_change_result',
-        link_id: req.milestone_id
-    }]);
+    const { data, error } = await supabase.rpc('resolve_milestone_change_request', {
+        p_request_id: requestId,
+        p_decision: 'approved'
+    });
+    if (error) throw error;
+    return data;
 };
 
-export const rejectMilestoneChange = async (requestId: string, managerId: string, reason: string) => {
+export const rejectMilestoneChange = async (requestId: string, reason: string) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized");
 
-    const { data: req } = await supabase.from('milestone_change_requests').select('*').eq('id', requestId).single();
-
-    await supabase.from('milestone_change_requests').update({
-        status: 'rejected',
-        approved_by: managerId,
-        rejection_reason: reason,
-        approval_date: new Date().toISOString()
-    }).eq('id', requestId);
-
-    await supabase.from('milestone_audit_logs').insert([{
-        milestone_id: req.milestone_id,
-        user_id: managerId,
-        action: 'rejected_change',
-        field_name: 'due_date',
-        old_value: req.old_due_date,
-        new_value: req.new_due_date
-    }]);
-
-    await supabase.from('notifications').insert([{
-        user_id: req.requested_by,
-        title: 'Milestone Change Rejected',
-        message: `Your requested change for milestone due date was rejected: ${reason}`,
-        type: 'milestone_change_result',
-        link_id: req.milestone_id
-    }]);
+    const { data, error } = await supabase.rpc('resolve_milestone_change_request', {
+        p_request_id: requestId,
+        p_decision: 'rejected',
+        p_rejection_reason: reason
+    });
+    if (error) throw error;
+    return data;
 };
 
 export const fetchMilestoneChangeRequests = async () => {
@@ -352,8 +285,8 @@ export const updateIssue = async (id: string, issueData: Partial<Issue>) => {
 
 export const addProject = async (p: any) => {
     const supabase = getSupabase();
-    if (!supabase) return;
-    
+    if (!supabase) throw new Error("Supabase client not initialized");
+
     const generatedCode = 'PIO-' + Math.floor(1000 + Math.random() * 9000);
 
     const { error } = await supabase.from('projects').insert([{
@@ -382,7 +315,7 @@ export const addProject = async (p: any) => {
 
 export const updateProject = async (id: string, p: any) => {
     const supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) throw new Error("Supabase client not initialized");
     const { error } = await supabase.from('projects').update({
         name: p.name, 
         description: p.description, 
@@ -408,14 +341,14 @@ export const updateProject = async (id: string, p: any) => {
 
 export const deleteProject = async (id: string) => {
     const supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) throw new Error("Supabase client not initialized");
     const { error } = await supabase.from('projects').delete().eq('id', id);
     if (error) throw error;
 };
 
 export const addMilestones = async (ms: any[]) => {
     const supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) throw new Error("Supabase client not initialized");
     
     // Fix: Map the camelCase frontend properties to snake_case backend columns
     const { error } = await supabase.from('activities').insert(ms.map(m => ({
@@ -434,7 +367,7 @@ export const addMilestones = async (ms: any[]) => {
 
 export const updateMilestone = async (id: string, m: any) => {
     const supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) throw new Error("Supabase client not initialized");
     const updateData: any = {};
     if (m.title !== undefined) updateData.title = m.title;
     if (m.status !== undefined) updateData.status = m.status;
@@ -448,7 +381,7 @@ export const updateMilestone = async (id: string, m: any) => {
 
 export const addMaintenanceContract = async (c: any) => {
     const supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) throw new Error("Supabase client not initialized");
     const { error } = await supabase.from('maintenance_contracts').insert([{
         type: c.type, 
         month: c.month, 
@@ -467,7 +400,7 @@ export const addMaintenanceContract = async (c: any) => {
 
 export const updateMaintenanceContract = async (id: string, c: any) => {
     const supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) throw new Error("Supabase client not initialized");
     const { error } = await supabase.from('maintenance_contracts').update({
         type: c.type, 
         month: c.month, 
@@ -486,19 +419,25 @@ export const updateMaintenanceContract = async (id: string, c: any) => {
 
 export const updateLookups = async (type: keyof Lookups, items: Lookup[]) => {
     const supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) throw new Error("Supabase client not initialized");
     const tableMap: Record<string, string> = {
         countries: 'countries', categories: 'categories', teams: 'teams', products: 'products', projectStatuses: 'project_statuses', customers: 'customers'
     };
     const tableName = tableMap[type];
-    if (!tableName) return;
-    await supabase.from(tableName).delete().not('id', 'in', items.map(i => i.id));
-    await supabase.from(tableName).upsert(items.map(i => ({ id: i.id, name: i.name })));
+    if (!tableName) throw new Error(`Unknown lookup type: ${type}`);
+
+    // Delete + upsert run inside a single Postgres function body (one transaction),
+    // so a failed upsert can't leave the table with rows deleted and nothing restored.
+    const { error } = await supabase.rpc('replace_lookup_items', {
+        p_table: tableName,
+        p_items: items.map(i => ({ id: i.id, name: i.name }))
+    });
+    if (error) throw error;
 };
 
 export const addMilestoneUpdate = async (u: any) => {
     const supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) throw new Error("Supabase client not initialized");
     const { error } = await supabase.from('milestone_updates').insert([{
         milestone_id: u.milestoneId, user_id: u.userId, update_text: u.updateText
     }]);

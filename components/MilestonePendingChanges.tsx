@@ -14,17 +14,15 @@ const MilestonePendingChanges: React.FC<MilestonePendingChangesProps> = ({ langu
     const [error, setError] = useState<string | null>(null);
     const [rejectionReason, setRejectionReason] = useState<Record<string, string>>({});
     const [showRejectionInput, setShowRejectionInput] = useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
 
     const loadRequests = async () => {
         setIsLoading(true);
         setError(null);
         try {
-            console.log("Fetching milestone change requests...");
             const data = await fetchMilestoneChangeRequests();
-            console.log("Fetched requests:", data);
             setRequests(data.filter(r => r.status === 'pending'));
         } catch (err: any) {
-            console.error("Error fetching change requests:", err);
             setError(err.message || "Failed to load requests");
         } finally {
             setIsLoading(false);
@@ -36,25 +34,27 @@ const MilestonePendingChanges: React.FC<MilestonePendingChangesProps> = ({ langu
     }, []);
 
     const handleApprove = async (id: string) => {
+        setActionError(null);
         try {
-            await approveMilestoneChange(id, currentUser.id);
+            await approveMilestoneChange(id);
             loadRequests();
             onUpdate();
-        } catch (err) {
-            console.error("Error approving request:", err);
+        } catch (err: any) {
+            setActionError(err.message || "Failed to approve request");
         }
     };
 
     const handleReject = async (id: string) => {
         const reason = rejectionReason[id];
         if (!reason?.trim()) return;
+        setActionError(null);
         try {
-            await rejectMilestoneChange(id, currentUser.id, reason);
+            await rejectMilestoneChange(id, reason);
             setShowRejectionInput(null);
             loadRequests();
             onUpdate();
-        } catch (err) {
-            console.error("Error rejecting request:", err);
+        } catch (err: any) {
+            setActionError(err.message || "Failed to reject request");
         }
     };
 
@@ -70,7 +70,8 @@ const MilestonePendingChanges: React.FC<MilestonePendingChangesProps> = ({ langu
             reject: "رفض",
             noRequests: "لا توجد طلبات معلقة",
             rejectionReasonPlaceholder: "سبب الرفض...",
-            submitReject: "تأكيد الرفض"
+            submitReject: "تأكيد الرفض",
+            actionErrorPrefix: "تعذر تنفيذ الإجراء: "
         },
         en: {
             title: "Pending Date Change Requests",
@@ -83,12 +84,13 @@ const MilestonePendingChanges: React.FC<MilestonePendingChangesProps> = ({ langu
             reject: "Reject",
             noRequests: "No pending requests",
             rejectionReasonPlaceholder: "Reason for rejection...",
-            submitReject: "Confirm Reject"
+            submitReject: "Confirm Reject",
+            actionErrorPrefix: "Action failed: "
         }
     };
     const t = translations[language === 'ar' ? 'ar' : 'en'];
 
-    if (requests.length === 0 && !isLoading && !error) return null;
+    if (requests.length === 0 && !isLoading && !error && !actionError) return null;
 
     return (
         <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-3xl p-6 mb-8 animate-in fade-in slide-in-from-top-4">
@@ -100,6 +102,12 @@ const MilestonePendingChanges: React.FC<MilestonePendingChangesProps> = ({ langu
             {error && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 p-4 rounded-2xl text-xs font-bold mb-4">
                     {error}
+                </div>
+            )}
+
+            {actionError && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 p-4 rounded-2xl text-xs font-bold mb-4">
+                    {t.actionErrorPrefix}{actionError}
                 </div>
             )}
 
