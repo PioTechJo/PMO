@@ -9,6 +9,7 @@ import {
 import { Issue, Project, Milestone, User, Language, IssueStatus, IssuePriority, IssueComment } from '../types';
 import SearchableSelect from './SearchableSelect';
 import StatCard from './StatCard';
+import EngineerPerformance from './EngineerPerformance';
 
 interface IssuesProps {
     allIssues: Issue[];
@@ -23,6 +24,7 @@ interface IssuesProps {
 }
 
 const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, allUsers, language, onAddIssue, onUpdateIssue, onAddComment, currentUser }) => {
+    const [activeTab, setActiveTab] = useState<'issues' | 'performance'>('performance');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
     const [selectedProjectId, setSelectedProjectId] = useState('all');
@@ -138,6 +140,20 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
+                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                        <button 
+                            onClick={() => setActiveTab('issues')}
+                            className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'issues' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                        >
+                            {language === 'ar' ? 'المهام' : 'Issues'}
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('performance')}
+                            className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'performance' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                        >
+                            {language === 'ar' ? 'أداء المهندسين' : 'Engineer Performance'}
+                        </button>
+                    </div>
                     <button 
                         onClick={() => setOnlyMyIssues(!onlyMyIssues)}
                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 h-10 ${onlyMyIssues ? 'bg-white dark:bg-slate-900 border-[#3b82f6] text-[#3b82f6]' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-500'}`}
@@ -283,8 +299,15 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
                 </div>
             </div>
 
-            {/* List / Table View */}
-            {viewMode === 'list' ? (
+            {/* Main Content Area */}
+            {activeTab === 'performance' ? (
+                <EngineerPerformance 
+                    allIssues={filteredIssues} 
+                    allUsers={allUsers} 
+                    language={language} 
+                    t={t} 
+                />
+            ) : viewMode === 'list' ? (
                 <div className="bg-white dark:bg-[#111927] rounded-3xl border border-slate-100 dark:border-slate-800/80 overflow-hidden shadow-sm">
                     <div className="overflow-x-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse" dir={language === 'ar' ? 'rtl' : 'ltr'}>

@@ -159,6 +159,9 @@ export interface Issue {
     reporterId: string;
     createdAt: string;
     expectedDuration?: number | null;
+    resolvedAt?: string | null;
+    isEscalated?: boolean;
+    escalatedAt?: string | null;
     project?: Project;
     milestone?: Milestone;
     assignee?: User;
