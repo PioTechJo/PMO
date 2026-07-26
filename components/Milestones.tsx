@@ -1,17 +1,15 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Milestone, Project, Lookup, Language, Lookups, User, PaymentStatus } from '../types';
 import MilestoneListItem from './MilestoneListItem';
-import AddMilestoneModal from './AddMilestoneModal';
 import SearchableSelect from './SearchableSelect';
 import MilestonePendingChanges from './MilestonePendingChanges';
 import MilestoneHistory from './MilestoneHistory';
-import { History, List, Plus } from 'lucide-react';
+import { History, List } from 'lucide-react';
 
 interface MilestonesProps {
     allMilestones: Milestone[];
     allProjects: Project[];
     language: Language;
-    onAddMilestones: (milestones: Omit<Milestone, 'id'>[]) => Promise<void>;
     onOpenEditModal: (milestone: Milestone) => void;
     onViewMilestoneDetails: (milestone: Milestone) => void;
     onUpdateMilestone: (milestoneId: string, updatedData: Partial<Omit<Milestone, 'id'>>) => Promise<void>;
@@ -21,8 +19,7 @@ interface MilestonesProps {
     currentUser?: User;
 }
 
-const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, language, onAddMilestones, onOpenEditModal, onViewMilestoneDetails, onUpdateMilestone, onRefresh, searchResult, lookups, currentUser }) => {
-    const [showAddModal, setShowAddModal] = useState(false);
+const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, language, onOpenEditModal, onViewMilestoneDetails, onUpdateMilestone, onRefresh, searchResult, lookups, currentUser }) => {
     const [showHistory, setShowHistory] = useState(false);
     const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
     const [selectedManagerId, setSelectedManagerId] = useState<string>('all');
@@ -45,7 +42,6 @@ const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, lan
         ar: {
             title: "المعالم",
             subtitle: "نظرة على جميع المعالم الخاصة بك، منظمة حسب المشروع.",
-            newMilestone: "إضافة معلم",
             unassignedMilestones: "معالم غير مسندة لمشروع",
             noMilestonesInProject: "لا توجد معالم في هذا المشروع.",
             noMilestonesFound: "لم يتم العثور على معالم.",
@@ -75,7 +71,6 @@ const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, lan
         en: {
             title: "Milestones",
             subtitle: "An overview of all your milestones, organized by project.",
-            newMilestone: "Add Milestone",
             unassignedMilestones: "Unassigned Milestones",
             noMilestonesInProject: "No milestones in this project.",
             noMilestonesFound: "No milestones found.",
@@ -224,11 +219,6 @@ const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, lan
 
     const getProjectById = (id: string) => allProjects.find(p => p.id === id);
     const getTeamById = (id: string | null) => id ? lookups.teams.find(t => t.id === id) : undefined;
-
-    const handleAddMilestone = async (newMilestonesData: Omit<Milestone, 'id'>[]) => {
-        await onAddMilestones(newMilestonesData);
-        setShowAddModal(false);
-    };
 
     const handleClearFilters = () => {
         setSelectedProjectId('all');
@@ -410,8 +400,6 @@ const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, lan
 
     return (
         <div className="space-y-8">
-            {showAddModal && <AddMilestoneModal teams={lookups.teams} projects={allProjects} onClose={() => setShowAddModal(false)} onAddMilestone={handleAddMilestone} language={language} />}
-
             {currentUser?.type === 'Manager' && (
                 <MilestonePendingChanges language={language} currentUser={currentUser} onUpdate={onRefresh} />
             )}
@@ -434,10 +422,6 @@ const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, lan
                     >
                         {showHistory ? <List className="w-4 h-4" /> : <History className="w-4 h-4" />}
                         <span>{showHistory ? t.backToList : t.history}</span>
-                    </button>
-                    <button onClick={() => setShowAddModal(true)} className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 text-white font-bold py-2 px-6 rounded-full flex items-center gap-2 transition-colors shadow-lg hover:shadow-violet-700/50">
-                        <Plus className="w-5 h-5" />
-                        <span>{t.newMilestone}</span>
                     </button>
                 </div>
             </div>

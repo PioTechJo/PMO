@@ -4,6 +4,7 @@ import { Session, SupabaseClient } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import KPIDashboard from './components/KPIDashboard';
+import DashboardTabs from './components/DashboardTabs';
 import Projects from './components/Projects';
 import Milestones from './components/Milestones';
 import Team from './components/Team';
@@ -19,7 +20,7 @@ import EditMilestoneModal from './components/EditMilestoneModal';
 import MilestoneDetailModal from './components/MilestoneDetailModal';
 import ConfirmDeleteModal from './components/ConfirmDeleteModal';
 import Chatbot from './components/Chatbot';
-import { Language, Theme, View, Project, Milestone, User, Lookups, MaintenanceContract, Issue, Notification, RolePermissions } from './types';
+import { Language, Theme, View, Project, Milestone, User, Lookups, MaintenanceContract, Issue, IssueStatus, Notification, RolePermissions } from './types';
 import { 
     fetchAllData, 
     addProject as apiAddProject, 
@@ -56,8 +57,8 @@ const App: React.FC = () => {
     // Permissions State
     const [rolePermissions, setRolePermissions] = useState<RolePermissions[]>(() => {
         const defaultPermissions = [
-            { role: 'Manager', allowedViews: ['dashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'system', 'issues'] },
-            { role: 'PM', allowedViews: ['dashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'system', 'issues'] },
+            { role: 'Manager', allowedViews: ['dashboard', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'system', 'issues'] },
+            { role: 'PM', allowedViews: ['dashboard', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'system', 'issues'] },
             { role: 'PS', allowedViews: ['issues'] },
             { role: 'Staff', allowedViews: ['dashboard', 'projects', 'issues'] },
             { role: 'User', allowedViews: ['dashboard', 'projects', 'issues'] }
@@ -211,6 +212,8 @@ const App: React.FC = () => {
                 onLogout={handleLogout} 
                 isOpen={isSidebarOpen}
                 onClose={closeSidebar}
+                projectsCount={projects.length}
+                openTasksCount={issues.filter(i => i.status === IssueStatus.Open || i.status === IssueStatus.InProgress).length}
             />
 
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -226,8 +229,9 @@ const App: React.FC = () => {
 
                 <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 custom-scrollbar">
                     {view === 'dashboard' && allowedViews.includes('dashboard') && <KPIDashboard projects={projects} milestones={milestones} issues={issues} allUsers={users} teams={lookups.teams} projectManagers={lookups.projectManagers} customers={lookups.customers} countries={lookups.countries} language={language} maintenanceContracts={maintenanceContracts} />}
-                    {view === 'projects' && allowedViews.includes('projects') && <Projects allProjects={projects} allMilestones={milestones} allIssues={issues} allUsers={users} language={language} onAddProject={async (d) => { await apiAddProject(d); loadData(); }} onOpenEditModal={setEditingProject} onOpenDeleteModal={setDeletingProject} lookups={lookups} isImportModalOpen={isImportModalOpen} onOpenImportModal={() => setIsImportModalOpen(true)} onCloseImportModal={() => setIsImportModalOpen(false)} onImportProjects={async () => {}} currentUser={currentUser} />}
-                    {view === 'milestones' && allowedViews.includes('milestones') && <Milestones allMilestones={milestones} allProjects={projects} language={language} onAddMilestones={async (d) => { await apiAddMilestones(d); loadData(); }} onOpenEditModal={setEditingMilestone} onViewMilestoneDetails={setViewingMilestone} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} onRefresh={loadData} lookups={lookups} currentUser={currentUser} />}
+                    {view === 'paymentsTargetsDashboard' && allowedViews.includes('paymentsTargetsDashboard') && <DashboardTabs allProjects={projects} allMilestones={milestones} allProjectManagers={lookups.projectManagers} lookups={lookups} language={language} />}
+                    {view === 'projects' && allowedViews.includes('projects') && <Projects allProjects={projects} allMilestones={milestones} allIssues={issues} allUsers={users} language={language} onAddProject={async (d) => { const created = await apiAddProject(d); await loadData(); return created; }} onAddMilestones={async (d) => { await apiAddMilestones(d); loadData(); }} onOpenEditModal={setEditingProject} onOpenDeleteModal={setDeletingProject} lookups={lookups} isImportModalOpen={isImportModalOpen} onOpenImportModal={() => setIsImportModalOpen(true)} onCloseImportModal={() => setIsImportModalOpen(false)} onImportProjects={async () => {}} currentUser={currentUser} />}
+                    {view === 'milestones' && allowedViews.includes('milestones') && <Milestones allMilestones={milestones} allProjects={projects} language={language} onOpenEditModal={setEditingMilestone} onViewMilestoneDetails={setViewingMilestone} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} onRefresh={loadData} lookups={lookups} currentUser={currentUser} />}
                     {view === 'team' && allowedViews.includes('team') && <Team allUsers={users} allProjects={projects} language={language} />}
                     {view === 'payments' && allowedViews.includes('payments') && <Payments allProjects={projects} allMilestones={milestones} allTeams={lookups.teams} language={language} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} />}
                     {view === 'maintenanceContracts' && allowedViews.includes('maintenanceContracts') && <MaintenanceContracts contracts={maintenanceContracts} customers={lookups.customers} language={language} onAddContract={async (d) => { await apiAddContract(d); loadData(); }} onUpdateContract={async (id, d) => { await apiUpdateContract(id, d); loadData(); }} />}

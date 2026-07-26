@@ -43,19 +43,21 @@ const KPIDashboard: React.FC<KPIDashboardProps> = ({ projects, milestones, issue
     const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>('byProject');
     const [expandedTasksAssignees, setExpandedTasksAssignees] = useState<Record<string, boolean>>({});
 
-    // 1. توليد خيارات الشهر/السنة مرتبة تصاعدياً
+    // 1. توليد خيارات الشهر/السنة مرتبة تصاعدياً (السنة الحالية وطالع بس، دايماً)
+    const minYear = new Date().getFullYear();
     const monthYearOptions = useMemo(() => {
         const uniqueMonthYears = new Set<string>();
         milestones.forEach(m => {
             if (m.dueDate) {
                 const date = new Date(m.dueDate);
+                if (date.getFullYear() < minYear) return;
                 const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
                 uniqueMonthYears.add(key);
             }
         });
-        
+
         maintenanceContracts.forEach(c => {
-            if (c.year && c.month) {
+            if (c.year && c.month && c.year >= minYear) {
                 const key = `${c.year}-${String(c.month).padStart(2, '0')}`;
                 uniqueMonthYears.add(key);
             }

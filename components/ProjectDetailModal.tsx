@@ -1,6 +1,7 @@
 
-import React from 'react';
-import { Project, Milestone, Language, PaymentStatus, Issue } from '../types';
+import React, { useState } from 'react';
+import { Project, Milestone, Lookup, Language, PaymentStatus, Issue } from '../types';
+import AddMilestoneModal from './AddMilestoneModal';
 
 type ProjectWithMilestones = Project & { milestones: Milestone[], issues: Issue[] };
 
@@ -8,6 +9,8 @@ interface ProjectDetailModalProps {
     projectWithMilestones: ProjectWithMilestones;
     onClose: () => void;
     language: Language;
+    teams?: Lookup[];
+    onAddMilestones?: (milestones: Omit<Milestone, 'id'>[]) => Promise<void>;
 }
 
 const statusColors: { [key: string]: string } = {
@@ -36,9 +39,10 @@ const InfoItem: React.FC<{ label: string; value?: string | null; children?: Reac
     </div>
 );
 
-const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ projectWithMilestones, onClose, language }) => {
+const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ projectWithMilestones, onClose, language, teams, onAddMilestones }) => {
     const { milestones, ...project } = projectWithMilestones;
     const t = translations[language];
+    const [showAddMilestone, setShowAddMilestone] = useState(false);
 
     const formatDate = (dateString: string | null | undefined) => {
         if (!dateString) return '--';
@@ -92,7 +96,17 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ projectWithMile
 
                         {/* Milestones List */}
                         <div className="pt-4">
-                            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-3 tracking-tight">{t.milestones} ({milestones.length})</h3>
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">{t.milestones} ({milestones.length})</h3>
+                                {onAddMilestones && (
+                                    <button
+                                        onClick={() => setShowAddMilestone(true)}
+                                        className="px-4 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-black uppercase tracking-wider transition-colors"
+                                    >
+                                        + {t.addMilestone}
+                                    </button>
+                                )}
+                            </div>
                             <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
                                 <table className="w-full text-sm text-left rtl:text-right">
                                     <thead className="bg-slate-50 dark:bg-slate-800/50">
@@ -226,6 +240,18 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ projectWithMile
                     </div>
                 </div>
             </div>
+
+            {showAddMilestone && onAddMilestones && (
+                <AddMilestoneModal
+                    teams={teams || []}
+                    projects={[project]}
+                    onClose={() => setShowAddMilestone(false)}
+                    onAddMilestone={onAddMilestones}
+                    language={language}
+                    fixedProjectId={project.id}
+                    fixedProjectLabel={`${project.name} (${project.projectCode})`}
+                />
+            )}
         </div>
     );
 };
@@ -266,6 +292,7 @@ const translations = {
         noTasks: "لا توجد مهام لهذا المشروع.",
         Open: "مفتوحة", Resolved: "تم الحل", Closed: "مغلقة",
         total: "المجموع",
+        addMilestone: "إضافة معلم",
     },
     en: {
         progress: "Progress",
@@ -302,6 +329,7 @@ const translations = {
         noTasks: "No tasks for this project.",
         Open: "Open", Resolved: "Resolved", Closed: "Closed",
         total: "Total",
+        addMilestone: "Add Milestone",
     },
 };
 

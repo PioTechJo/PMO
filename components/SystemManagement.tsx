@@ -46,7 +46,8 @@ const SystemManagement: React.FC<SystemManagementProps> = ({ lookups, onUpdate, 
     const t = translations[language];
 
     const allAvailableViews: {id: View, label: string}[] = [
-        { id: 'dashboard', label: language === 'ar' ? 'لوحة التحكم' : 'Dashboard' },
+        { id: 'dashboard', label: language === 'ar' ? 'نظرة عامة' : 'Overview' },
+        { id: 'paymentsTargetsDashboard', label: language === 'ar' ? 'لوحة المتابعة' : 'Dashboard' },
         { id: 'filter', label: language === 'ar' ? 'الفلاتر' : 'Filters' },
         { id: 'projects', label: language === 'ar' ? 'المشاريع' : 'Projects' },
         { id: 'milestones', label: language === 'ar' ? 'المعالم' : 'Milestones' },

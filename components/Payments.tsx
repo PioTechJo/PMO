@@ -16,7 +16,12 @@ const Payments: React.FC<PaymentsProps> = ({ allProjects, allMilestones, allTeam
     const [selectedProjectId, setSelectedProjectId] = useState<string>('');
     const t = translations[language];
 
-    const projectOptions = useMemo(() => allProjects.map(p => ({ value: p.id, label: p.name })), [allProjects]);
+    const projectOptions = useMemo(() => allProjects.map(p => ({
+        value: p.id,
+        label: p.projectManager?.name ? `${p.name} — ${p.projectManager.name}` : p.name
+    })), [allProjects]);
+
+    const selectedProject = useMemo(() => allProjects.find(p => p.id === selectedProjectId), [allProjects, selectedProjectId]);
 
     const paymentMilestones = useMemo(() => {
         if (!selectedProjectId) return [];
@@ -59,7 +64,12 @@ const Payments: React.FC<PaymentsProps> = ({ allProjects, allMilestones, allTeam
                     {paymentMilestones.length > 0 ? (
                         <>
                             <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-xl font-bold text-slate-800 dark:text-white">{allProjects.find(p => p.id === selectedProjectId)?.name}</h2>
+                                <div>
+                                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">{selectedProject?.name}</h2>
+                                    {selectedProject?.projectManager?.name && (
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{t.projectManager}: {selectedProject.projectManager.name}</p>
+                                    )}
+                                </div>
                                 <div className="bg-green-500/10 text-green-800 dark:text-green-200 font-bold text-sm px-3 py-1.5 rounded-full">
                                     <span>{t.totalPayments}: </span>
                                     <span>{projectTotal.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD' })}</span>
@@ -117,6 +127,7 @@ const translations = {
         dueDate: "تاريخ الاستحقاق",
         status: "الحالة",
         searchProjects: "ابحث عن مشروع...",
+        projectManager: "مدير المشروع",
     },
     en: {
         title: "Payments Management",
@@ -131,6 +142,7 @@ const translations = {
         dueDate: "Due Date",
         status: "Status",
         searchProjects: "Search projects...",
+        projectManager: "Project Manager",
     }
 };
 

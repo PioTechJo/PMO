@@ -1,16 +1,19 @@
 
 import React, { useState, useMemo } from 'react';
-import { Project, Lookups, Language } from '../types';
+import { Project, Milestone, Lookups, Language } from '../types';
 import SearchableSelect from './SearchableSelect';
+import AddMilestoneModal from './AddMilestoneModal';
 
 interface AddProjectModalProps {
   lookups: Lookups;
   onClose: () => void;
-  onAddProject: (newProject: Omit<Project, 'id' | 'projectCode' | 'country' | 'category' | 'team' | 'product' | 'status' | 'projectManager' | 'customer'>) => Promise<void>;
+  onAddProject: (newProject: Omit<Project, 'id' | 'projectCode' | 'country' | 'category' | 'team' | 'product' | 'status' | 'projectManager' | 'customer'>) => Promise<Project>;
+  onAddMilestones: (milestones: Omit<Milestone, 'id'>[]) => Promise<void>;
   language: Language;
 }
 
-const AddProjectModal: React.FC<AddProjectModalProps> = ({ lookups, onClose, onAddProject, language }) => {
+const AddProjectModal: React.FC<AddProjectModalProps> = ({ lookups, onClose, onAddProject, onAddMilestones, language }) => {
+  const [createdProject, setCreatedProject] = useState<Project | null>(null);
   const [formData, setFormData] = useState({
       name: '',
       description: '',
@@ -150,11 +153,9 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ lookups, onClose, onA
             resourceLoad: Number(formData.resourceLoad),
         };
 
-        await onAddProject(submissionData);
+        const created = await onAddProject(submissionData);
         setIsSuccess(true);
-        setTimeout(() => {
-            onClose();
-        }, 1500);
+        setCreatedProject(created);
     } catch (err: any) {
         setError(t.errorPrefix + (err.message || "Connection failed"));
     } finally {
@@ -173,6 +174,20 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ lookups, onClose, onA
           </select>
       </div>
   );
+
+  if (createdProject) {
+    return (
+      <AddMilestoneModal
+        teams={lookups.teams}
+        projects={[createdProject]}
+        onClose={onClose}
+        onAddMilestone={onAddMilestones}
+        language={language}
+        fixedProjectId={createdProject.id}
+        fixedProjectLabel={`${createdProject.name} (${createdProject.projectCode})`}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">

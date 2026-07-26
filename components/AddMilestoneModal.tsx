@@ -9,10 +9,13 @@ interface AddMilestoneModalProps {
   onClose: () => void;
   onAddMilestone: (newMilestones: Omit<Milestone, 'id'>[]) => Promise<void>;
   language: Language;
+  /** When set, the project selector is hidden and every milestone is added to this project. */
+  fixedProjectId?: string;
+  fixedProjectLabel?: string;
 }
 
-const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, onClose, onAddMilestone, language }) => {
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, onClose, onAddMilestone, language, fixedProjectId, fixedProjectLabel }) => {
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(fixedProjectId || '');
   const [isSaving, setIsSaving] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [milestonesList, setMilestonesList] = useState<Omit<Milestone, 'id'>[]>([]);
@@ -43,12 +46,12 @@ const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, 
   };
 
   const addMilestoneToList = () => {
-    if (!selectedProjectId) { setError(t.noProjectSelected); return; }
+    if (!fixedProjectId && !selectedProjectId) { setError(t.noProjectSelected); return; }
     if (!currentMilestone.title || !currentMilestone.teamId) { setError(t.validationErrorFields); return; }
     
     const newItem: Omit<Milestone, 'id'> = {
       ...currentMilestone,
-      projectId: selectedProjectId,
+      projectId: fixedProjectId || selectedProjectId,
       dueDate: currentMilestone.dueDate ? new Date(currentMilestone.dueDate).toISOString() : null,
       paymentAmount: currentMilestone.hasPayment ? Number(currentMilestone.paymentAmount) : 0,
       paymentStatus: currentMilestone.hasPayment ? currentMilestone.paymentStatus : null,
@@ -106,7 +109,11 @@ const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, 
                 <div className="space-y-4">
                     <div className="p-3 bg-violet-50/50 dark:bg-violet-900/10 rounded-xl border border-violet-100 dark:border-violet-800/50">
                          <label className={labelClasses + " text-violet-600"}>{t.project}</label>
-                         <SearchableSelect options={projectOptions} value={selectedProjectId} onChange={setSelectedProjectId} placeholder={t.selectHere} language={language} />
+                         {fixedProjectId ? (
+                             <p className="text-sm font-bold text-slate-800 dark:text-white">{fixedProjectLabel}</p>
+                         ) : (
+                             <SearchableSelect options={projectOptions} value={selectedProjectId} onChange={setSelectedProjectId} placeholder={t.selectHere} language={language} />
+                         )}
                     </div>
 
                     <div className="grid grid-cols-1 gap-3">

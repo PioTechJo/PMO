@@ -289,28 +289,29 @@ export const addProject = async (p: any) => {
 
     const generatedCode = 'PIO-' + Math.floor(1000 + Math.random() * 9000);
 
-    const { error } = await supabase.from('projects').insert([{
-        name: p.name, 
-        description: p.description, 
+    const { data, error } = await supabase.from('projects').insert([{
+        name: p.name,
+        description: p.description,
         project_code: generatedCode,
-        country_id: p.countryId || null, 
-        category_id: p.categoryId || null, 
-        team_id: p.teamId || null, 
-        product_id: p.productId || null, 
-        status_id: p.statusId || null, 
-        project_manager_id: p.projectManagerId || null, 
-        customer_id: p.customerId || null, 
-        launch_date: p.launchDate || null, 
-        actual_start_date: p.actualStartDate || null, 
-        expected_closure_date: p.expectedClosureDate || null, 
-        progress: p.progress, 
-        revenue_impact: p.revenueImpact, 
-        strategic_value: p.strategicValue, 
-        delivery_risk: p.deliveryRisk, 
-        customer_pressure: p.customerPressure, 
+        country_id: p.countryId || null,
+        category_id: p.categoryId || null,
+        team_id: p.teamId || null,
+        product_id: p.productId || null,
+        status_id: p.statusId || null,
+        project_manager_id: p.projectManagerId || null,
+        customer_id: p.customerId || null,
+        launch_date: p.launchDate || null,
+        actual_start_date: p.actualStartDate || null,
+        expected_closure_date: p.expectedClosureDate || null,
+        progress: p.progress,
+        revenue_impact: p.revenueImpact,
+        strategic_value: p.strategicValue,
+        delivery_risk: p.deliveryRisk,
+        customer_pressure: p.customerPressure,
         resource_load: p.resourceLoad
-    }]);
+    }]).select().single();
     if (error) throw error;
+    return data;
 };
 
 export const updateProject = async (id: string, p: any) => {

@@ -147,7 +147,8 @@ interface ProjectsProps {
     allIssues: Issue[];
     allUsers: User[];
     language: Language;
-    onAddProject: (project: Omit<Project, 'id' | 'projectCode' | 'country' | 'category' | 'team' | 'product' | 'status' | 'projectManager' | 'customer'>) => Promise<void>;
+    onAddProject: (project: Omit<Project, 'id' | 'projectCode' | 'country' | 'category' | 'team' | 'product' | 'status' | 'projectManager' | 'customer'>) => Promise<Project>;
+    onAddMilestones: (milestones: Omit<Milestone, 'id'>[]) => Promise<void>;
     onOpenEditModal: (project: Project) => void;
     onOpenDeleteModal: (project: Project) => void;
     searchResult?: { id: string }[];
@@ -159,7 +160,7 @@ interface ProjectsProps {
     onImportProjects: (rows: ProjectImportRow[]) => Promise<void>;
 }
 
-const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssues, allUsers, language, onAddProject, onOpenEditModal, onOpenDeleteModal, searchResult, lookups, currentUser, isImportModalOpen, onOpenImportModal, onCloseImportModal, onImportProjects }) => {
+const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssues, allUsers, language, onAddProject, onAddMilestones, onOpenEditModal, onOpenDeleteModal, searchResult, lookups, currentUser, isImportModalOpen, onOpenImportModal, onCloseImportModal, onImportProjects }) => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [viewingProject, setViewingProject] = useState<Project | null>(null);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
@@ -223,11 +224,11 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssu
     
     return (
         <div className="space-y-6 md:space-y-8">
-            {showAddModal && <AddProjectModal lookups={lookups} onClose={() => setShowAddModal(false)} onAddProject={onAddProject} language={language} />}
+            {showAddModal && <AddProjectModal lookups={lookups} onClose={() => setShowAddModal(false)} onAddProject={onAddProject} onAddMilestones={onAddMilestones} language={language} />}
             <ImportProjectsModal isOpen={isImportModalOpen} onClose={onCloseImportModal} onImport={onImportProjects} language={language} />
 
             {viewingProject && (
-                <ProjectDetailModal 
+                <ProjectDetailModal
                     projectWithMilestones={{
                         ...viewingProject,
                         milestones: allMilestones.filter(m => m.projectId === viewingProject.id),
@@ -235,6 +236,8 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssu
                     }}
                     onClose={() => setViewingProject(null)}
                     language={language}
+                    teams={lookups.teams}
+                    onAddMilestones={onAddMilestones}
                 />
             )}
 

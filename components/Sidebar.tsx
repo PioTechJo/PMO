@@ -10,12 +10,15 @@ interface SidebarProps {
   onLogout: () => void;
   isOpen: boolean;
   onClose: () => void;
+  projectsCount: number;
+  openTasksCount: number;
 }
 
 const NavIcon: React.FC<{ view: View }> = ({ view }) => {
     const iconProps = { className: "w-5 h-5 transition-transform duration-300 group-hover:scale-110", strokeWidth: "1.75", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" };
     const icons: Record<View, React.ReactNode> = {
         dashboard: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>,
+        paymentsTargetsDashboard: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
         projects: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>,
         milestones: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
         payments: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>,
@@ -29,10 +32,10 @@ const NavIcon: React.FC<{ view: View }> = ({ view }) => {
     return icons[view] || icons.dashboard;
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language, allowedViews, onLogout, isOpen, onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language, allowedViews, onLogout, isOpen, onClose, projectsCount, openTasksCount }) => {
   const translations = {
-    ar: { dashboard: 'لوحة التحكم', reports: 'التقارير', projects: 'المشاريع', milestones: 'المعالم', payments: 'المدفوعات', tasks: 'المهام', users: 'المدراء', settings: 'الإعدادات', logout: 'تسجيل الخروج', filter: 'الفلاتر المتقدمة', maintenance: 'الصيانة', main: 'الرئيسية', operations: 'العمليات' },
-    en: { dashboard: 'Dashboard', reports: 'Reports', projects: 'Projects', milestones: 'Milestones', payments: 'Payments', tasks: 'Tasks', users: 'Managers', settings: 'Settings', logout: 'Logout', filter: 'Advanced Filter', maintenance: 'Maintenance', main: 'Main', operations: 'Operations' },
+    ar: { dashboard: 'نظرة عامة', paymentsTargetsDashboard: 'لوحة المتابعة', reports: 'التقارير', projects: 'المشاريع', milestones: 'المعالم', payments: 'المدفوعات', tasks: 'المهام', users: 'المدراء', settings: 'الإعدادات', logout: 'تسجيل الخروج', filter: 'الفلاتر المتقدمة', maintenance: 'الصيانة', main: 'الرئيسية', operations: 'العمليات' },
+    en: { dashboard: 'Overview', paymentsTargetsDashboard: 'Dashboard', reports: 'Reports', projects: 'Projects', milestones: 'Milestones', payments: 'Payments', tasks: 'Tasks', users: 'Managers', settings: 'Settings', logout: 'Logout', filter: 'Advanced Filter', maintenance: 'Maintenance', main: 'Main', operations: 'Operations' },
   };
   const t = translations[language];
 
@@ -41,6 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
       title: t.main,
       items: [
         { view: 'dashboard', label: t.dashboard },
+        { view: 'paymentsTargetsDashboard', label: t.paymentsTargetsDashboard },
         { view: 'projects', label: t.projects },
         { view: 'milestones', label: t.milestones },
         { view: 'payments', label: t.payments },
@@ -111,8 +115,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
                           </div>
                           <span className={`${isActive ? 'font-bold' : 'font-medium'} tracking-tight`}>{item.label}</span>
                       </div>
-                      {item.view === 'projects' && <span className="bg-[#1e2d4d] text-blue-400 text-[10px] font-black px-2 py-0.5 rounded-md border border-blue-500/20">12</span>}
-                      {item.view === 'issues' && <span className="bg-blue-600 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full shadow-lg">7</span>}
+                      {item.view === 'projects' && projectsCount > 0 && <span className="bg-[#1e2d4d] text-blue-400 text-[10px] font-black px-2 py-0.5 rounded-md border border-blue-500/20">{projectsCount}</span>}
+                      {item.view === 'issues' && openTasksCount > 0 && <span className="bg-blue-600 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full shadow-lg">{openTasksCount}</span>}
                     </button>
                   );
                 })}

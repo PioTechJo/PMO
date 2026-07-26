@@ -1,7 +1,7 @@
 
 export type Language = 'ar' | 'en';
 export type Theme = 'light' | 'dark' | 'system';
-export type View = 'dashboard' | 'projects' | 'milestones' | 'team' | 'payments' | 'system' | 'maintenanceContracts' | 'filter' | 'reports' | 'issues';
+export type View = 'dashboard' | 'paymentsTargetsDashboard' | 'projects' | 'milestones' | 'team' | 'payments' | 'system' | 'maintenanceContracts' | 'filter' | 'reports' | 'issues';
 export type GroupingType = 'project' | 'assignee';
 export type TaskViewMode = 'byProject' | 'byAssignee';
 
