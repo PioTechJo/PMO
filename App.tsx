@@ -4,12 +4,14 @@ import { Session, SupabaseClient } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import KPIDashboard from './components/KPIDashboard';
+import TasksOverview from './components/TasksOverview';
 import DashboardTabs from './components/DashboardTabs';
 import Projects from './components/Projects';
 import Milestones from './components/Milestones';
 import Team from './components/Team';
 import Payments from './components/Payments';
 import MaintenanceContracts from './components/MaintenanceContracts';
+import MaintenanceOverview from './components/MaintenanceOverview';
 import Issues from './components/Issues';
 import SystemManagement from './components/SystemManagement';
 import MilestoneFilter from './components/MilestoneFilter';
@@ -57,11 +59,11 @@ const App: React.FC = () => {
     // Permissions State
     const [rolePermissions, setRolePermissions] = useState<RolePermissions[]>(() => {
         const defaultPermissions = [
-            { role: 'Manager', allowedViews: ['dashboard', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'system', 'issues'] },
-            { role: 'PM', allowedViews: ['dashboard', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'system', 'issues'] },
-            { role: 'PS', allowedViews: ['issues'] },
-            { role: 'Staff', allowedViews: ['dashboard', 'projects', 'issues'] },
-            { role: 'User', allowedViews: ['dashboard', 'projects', 'issues'] }
+            { role: 'Manager', allowedViews: ['dashboard', 'tasksOverview', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'maintenanceOverview', 'system', 'issues'] },
+            { role: 'PM', allowedViews: ['dashboard', 'tasksOverview', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'maintenanceOverview', 'system', 'issues'] },
+            { role: 'PS', allowedViews: ['tasksOverview', 'issues'] },
+            { role: 'Staff', allowedViews: ['dashboard', 'tasksOverview', 'projects', 'issues'] },
+            { role: 'User', allowedViews: ['dashboard', 'tasksOverview', 'projects', 'issues'] }
         ];
         const saved = localStorage.getItem('rolePermissions');
         if (!saved) return defaultPermissions;
@@ -72,7 +74,12 @@ const App: React.FC = () => {
             if (!parsed.some((p: any) => p.role === 'Manager')) {
                 return defaultPermissions;
             }
-            return parsed;
+            // Migrate: grant tasksOverview to any role that already had dashboard access
+            return parsed.map((p: any) => (
+                p.allowedViews.includes('dashboard') && !p.allowedViews.includes('tasksOverview')
+                    ? { ...p, allowedViews: [...p.allowedViews, 'tasksOverview'] }
+                    : p
+            ));
         } catch (e) {
             return defaultPermissions;
         }
@@ -228,13 +235,15 @@ const App: React.FC = () => {
                 {isAnalyzing && <div className="h-0.5 w-full bg-violet-600/20 overflow-hidden"><div className="h-full bg-violet-600 animate-[loading_2s_ease-in-out_infinite]" style={{ width: '30%', transformOrigin: 'left' }}></div></div>}
 
                 <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 custom-scrollbar">
-                    {view === 'dashboard' && allowedViews.includes('dashboard') && <KPIDashboard projects={projects} milestones={milestones} issues={issues} allUsers={users} teams={lookups.teams} projectManagers={lookups.projectManagers} customers={lookups.customers} countries={lookups.countries} language={language} maintenanceContracts={maintenanceContracts} />}
+                    {view === 'dashboard' && allowedViews.includes('dashboard') && <KPIDashboard projects={projects} milestones={milestones} issues={issues} allUsers={users} projectManagers={lookups.projectManagers} language={language} />}
+                    {view === 'tasksOverview' && allowedViews.includes('tasksOverview') && <TasksOverview issues={issues} projects={projects} allUsers={users} language={language} />}
                     {view === 'paymentsTargetsDashboard' && allowedViews.includes('paymentsTargetsDashboard') && <DashboardTabs allProjects={projects} allMilestones={milestones} allProjectManagers={lookups.projectManagers} lookups={lookups} language={language} />}
                     {view === 'projects' && allowedViews.includes('projects') && <Projects allProjects={projects} allMilestones={milestones} allIssues={issues} allUsers={users} language={language} onAddProject={async (d) => { const created = await apiAddProject(d); await loadData(); return created; }} onAddMilestones={async (d) => { await apiAddMilestones(d); loadData(); }} onOpenEditModal={setEditingProject} onOpenDeleteModal={setDeletingProject} lookups={lookups} isImportModalOpen={isImportModalOpen} onOpenImportModal={() => setIsImportModalOpen(true)} onCloseImportModal={() => setIsImportModalOpen(false)} onImportProjects={async () => {}} currentUser={currentUser} />}
                     {view === 'milestones' && allowedViews.includes('milestones') && <Milestones allMilestones={milestones} allProjects={projects} language={language} onOpenEditModal={setEditingMilestone} onViewMilestoneDetails={setViewingMilestone} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} onRefresh={loadData} lookups={lookups} currentUser={currentUser} />}
-                    {view === 'team' && allowedViews.includes('team') && <Team allUsers={users} allProjects={projects} language={language} />}
+                    {view === 'team' && allowedViews.includes('team') && <Team allUsers={users} allProjects={projects} allIssues={issues} language={language} currentUser={currentUser} onUserInvited={loadData} />}
                     {view === 'payments' && allowedViews.includes('payments') && <Payments allProjects={projects} allMilestones={milestones} allTeams={lookups.teams} language={language} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} />}
                     {view === 'maintenanceContracts' && allowedViews.includes('maintenanceContracts') && <MaintenanceContracts contracts={maintenanceContracts} customers={lookups.customers} language={language} onAddContract={async (d) => { await apiAddContract(d); loadData(); }} onUpdateContract={async (id, d) => { await apiUpdateContract(id, d); loadData(); }} />}
+                    {view === 'maintenanceOverview' && allowedViews.includes('maintenanceOverview') && <MaintenanceOverview maintenanceContracts={maintenanceContracts} customers={lookups.customers} language={language} />}
                     {view === 'issues' && allowedViews.includes('issues') && <Issues allIssues={issues} allProjects={projects} allMilestones={milestones} allUsers={users} language={language} onAddIssue={async (d) => { await apiAddIssue(d); loadData(); }} onUpdateIssue={async (id, d) => { await apiUpdateIssue(id, d); loadData(); }} onAddComment={async (id, uid, c) => { await apiAddIssueComment(id, uid, c); loadData(); }} currentUser={currentUser} />}
                     {view === 'system' && allowedViews.includes('system') && <SystemManagement lookups={lookups} onUpdate={apiUpdateLookups} language={language} onSaveConfig={(k, u) => { localStorage.setItem('supabaseAnonKey', k); localStorage.setItem('supabaseUrl', u); setupClient(k, u); }} rolePermissions={rolePermissions} onUpdatePermissions={(p) => { setRolePermissions(p); localStorage.setItem('rolePermissions', JSON.stringify(p)); }} />}
                     {view === 'filter' && allowedViews.includes('filter') && <MilestoneFilter projects={projects} milestones={milestones} teams={lookups.teams} customers={lookups.customers} projectManagers={lookups.projectManagers} language={language} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} />}

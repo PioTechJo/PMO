@@ -1,7 +1,7 @@
 
 export type Language = 'ar' | 'en';
 export type Theme = 'light' | 'dark' | 'system';
-export type View = 'dashboard' | 'paymentsTargetsDashboard' | 'projects' | 'milestones' | 'team' | 'payments' | 'system' | 'maintenanceContracts' | 'filter' | 'reports' | 'issues';
+export type View = 'dashboard' | 'tasksOverview' | 'paymentsTargetsDashboard' | 'projects' | 'milestones' | 'team' | 'payments' | 'system' | 'maintenanceContracts' | 'maintenanceOverview' | 'filter' | 'reports' | 'issues';
 export type GroupingType = 'project' | 'assignee';
 export type TaskViewMode = 'byProject' | 'byAssignee';
 
@@ -15,6 +15,7 @@ export interface User {
     name: string;
     avatarUrl?: string;
     type?: string; // Roles: 'PM', 'PS', 'Staff', 'Client', 'Manager'
+    department?: string | null;
 }
 
 export interface RolePermissions {
@@ -159,6 +160,8 @@ export interface Issue {
     reporterId: string;
     createdAt: string;
     expectedDuration?: number | null;
+    estimatedHours?: number | null;
+    completedAt?: string | null;
     project?: Project;
     milestone?: Milestone;
     assignee?: User;

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import type { Language } from '../types';
 import LanguageSwitcher from './LanguageSwitcher';
 import { SupabaseClient, Session } from '@supabase/supabase-js';
+import { forgotPassword } from '../services/api';
 
 interface LoginProps {
     onLoginSuccess: (session: Session) => void;
@@ -12,11 +13,9 @@ interface LoginProps {
 }
 
 const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, supabaseClient }) => {
-    const [mode, setMode] = useState<'login' | 'signup' | 'forgot_password'>('login');
+    const [mode, setMode] = useState<'login' | 'forgot_password'>('login');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [fullName, setFullName] = useState('');
-    const [userType, setUserType] = useState('Staff'); // Default type
     const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     const [message, setMessage] = useState('');
@@ -35,7 +34,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
             loginTitle: 'تسجيل الدخول',
             signupTitle: 'إنشاء حساب جديد',
             forgotTitle: 'إعادة تعيين كلمة المرور',
-            forgotSubtitle: "أدخل بريدك الإلكتروني وسنرسل لك رابطًا لاستعادة حسابك.",
+            forgotSubtitle: "أدخل بريدك الإلكتروني وسنرسل لك كلمة مرور جديدة.",
             nameLabel: 'الاسم الكامل',
             typeLabel: 'نوع المستخدم',
             emailLabel: 'البريد الإلكتروني',
@@ -49,13 +48,13 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
             goLogin: 'سجل الدخول',
             backToLogin: 'العودة لتسجيل الدخول',
             signupSuccess: 'تم التسجيل بنجاح! يرجى التحقق من بريدك الإلكتروني لتفعيل حسابك.',
-            resetSuccess: 'تم إرسال رابط إعادة تعيين كلمة المرور! يرجى التحقق من بريدك الإلكتروني.',
+            resetSuccess: 'إذا كان بريدك مسجل لدينا، تم إرسال كلمة مرور جديدة إليه. يرجى التحقق من بريدك الإلكتروني.',
             resendLink: 'إعادة إرسال رابط التأكيد',
             emailNotConfirmed: 'البريد الإلكتروني غير مؤكد. يرجى التحقق من صندوق الوارد الخاص بك.',
             rememberMe: 'ذكرني',
             forgotPassword: 'هل نسيت كلمة المرور؟',
             welcomeTo: 'مرحباً بك في',
-            appName: 'محفظة مشاريع بايو-تك',
+            appName: 'بوابة محفظة المشاريع',
             typeStaff: 'موظف (Staff)',
             typePS: 'خدمات احترافية (PS)',
             typeClient: 'عميل (Client)'
@@ -64,7 +63,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
             loginTitle: 'Login',
             signupTitle: 'Create Account',
             forgotTitle: 'Reset Password',
-            forgotSubtitle: "Enter your email and we'll send you a link to get back into your account.",
+            forgotSubtitle: "Enter your email and we'll send you a new password.",
             nameLabel: 'Full Name',
             typeLabel: 'User Type',
             emailLabel: 'Email Address',
@@ -78,13 +77,13 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
             goLogin: 'Log in',
             backToLogin: 'Back to Login',
             signupSuccess: 'Sign up successful! Please check your email to confirm your account.',
-            resetSuccess: 'Password reset link sent! Please check your email.',
+            resetSuccess: 'If that email is registered, a new password has been sent to it. Please check your inbox.',
             resendLink: 'Resend confirmation link',
             emailNotConfirmed: 'Email not confirmed. Please check your inbox.',
             rememberMe: 'Remember me',
             forgotPassword: 'Forgot Password?',
             welcomeTo: 'Welcome to',
-            appName: 'Pio-Tech Project Portfolio',
+            appName: 'Projects Portfolio Portal',
             typeStaff: 'Staff Member',
             typePS: 'Professional Services (PS)',
             typeClient: 'Client'
@@ -98,30 +97,15 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
         setError('');
         setMessage('');
 
-        if (mode === 'signup') {
-            const { error } = await supabaseClient.auth.signUp({
-                email, 
-                password, 
-                options: { 
-                    data: { 
-                        name: fullName,
-                        type: userType // Passing type to auth metadata
-                    } 
-                },
-            });
-            if (error) setError(error.message);
-            else setMessage(t.signupSuccess);
-        } else { // Sign In
-            if (rememberMe) localStorage.setItem('rememberedEmail', email);
-            else localStorage.removeItem('rememberedEmail');
-            
-            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) {
-                 if (error.message.includes('Email not confirmed')) setError(t.emailNotConfirmed);
-                 else setError(error.message);
-            } else if (data.session) {
-                onLoginSuccess(data.session);
-            }
+        if (rememberMe) localStorage.setItem('rememberedEmail', email);
+        else localStorage.removeItem('rememberedEmail');
+
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) {
+             if (error.message.includes('Email not confirmed')) setError(t.emailNotConfirmed);
+             else setError(error.message);
+        } else if (data.session) {
+            onLoginSuccess(data.session);
         }
         setLoading(false);
     };
@@ -134,14 +118,11 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
         setError('');
         setMessage('');
 
-        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-             redirectTo: window.location.origin,
-        });
-
-        if (error) {
-            setError(error.message);
-        } else {
+        try {
+            await forgotPassword(email);
             setMessage(t.resetSuccess);
+        } catch (err: any) {
+            setError(err.message || 'Something went wrong.');
         }
         setLoading(false);
     };
@@ -164,6 +145,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
     return (
         <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-slate-100 dark:bg-slate-900" dir={language === 'ar' ? 'rtl' : 'ltr'}>
             <div className="text-center mb-8">
+                <img src="/logo.png" alt="Pio-Tech Solutions" className="h-16 mx-auto mb-4" />
                 <p className="text-xl font-medium text-slate-600 dark:text-slate-300">{t.welcomeTo}</p>
                 <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-violet-500 to-cyan-400 mt-1">
                     {t.appName}
@@ -206,43 +188,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
                                 {loading ? '...' : t.loginButton}
                             </button>
                         </form>
-                        <p className="text-sm text-center text-slate-500 dark:text-slate-400 mt-6">{t.noAccount}
-                            <button onClick={() => { setMode('signup'); setError(''); setMessage(''); }} className="font-bold text-violet-600 dark:text-violet-400 hover:underline mx-1 rtl:mx-1">{t.goSignup}</button>
-                        </p>
-                    </>
-                )}
-
-                {mode === 'signup' && (
-                    <>
-                         <div className="text-center mb-6"><h1 className="text-3xl font-bold text-slate-800 dark:text-white mt-2">{t.signupTitle}</h1></div>
-                         <form onSubmit={handleAuthSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.nameLabel}</label>
-                                <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className={inputClasses}/>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.typeLabel}</label>
-                                <select value={userType} onChange={(e) => setUserType(e.target.value)} className={inputClasses}>
-                                    <option value="Staff">{t.typeStaff}</option>
-                                    <option value="PS">{t.typePS}</option>
-                                    <option value="Client">{t.typeClient}</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.emailLabel}</label>
-                                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={inputClasses}/>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.passwordLabel}</label>
-                                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className={inputClasses}/>
-                            </div>
-                            <button type="submit" disabled={loading} className="w-full px-5 py-3 text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-indigo-600 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
-                                {loading ? '...' : t.signupButton}
-                            </button>
-                        </form>
-                        <p className="text-sm text-center text-slate-500 dark:text-slate-400 mt-6">{t.hasAccount}
-                            <button onClick={() => { setMode('login'); setError(''); setMessage(''); }} className="font-bold text-violet-600 dark:text-violet-400 hover:underline mx-1 rtl:mx-1">{t.goLogin}</button>
-                        </p>
                     </>
                 )}
 

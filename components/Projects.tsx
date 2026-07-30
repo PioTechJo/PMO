@@ -298,7 +298,9 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssu
                     </span>
                     <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder={t.searchByName} className="w-full pl-10 pr-4 rtl:pr-10 rtl:pl-4 py-2.5 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-violet-500 h-[40px]" />
                 </div>
-                <SearchableSelect options={managerOptions} value={selectedManagerId} onChange={setSelectedManagerId} placeholder={t.allManagers} language={language} />
+                {currentUser?.type === 'Manager' && (
+                    <SearchableSelect options={managerOptions} value={selectedManagerId} onChange={setSelectedManagerId} placeholder={t.allManagers} language={language} />
+                )}
                 <SearchableSelect options={customerOptions} value={selectedCustomerId} onChange={setSelectedCustomerId} placeholder={t.allCustomers} language={language} />
                 <SearchableSelect options={statusOptions} value={selectedStatusId} onChange={setSelectedStatusId} placeholder={t.allStatuses} language={language} />
                 <SearchableSelect options={countryOptions} value={selectedCountryId} onChange={setSelectedCountryId} placeholder={t.allCountries} language={language} />

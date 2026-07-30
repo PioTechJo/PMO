@@ -42,7 +42,8 @@ export const fetchAllData = async () => {
         id: u.id,
         name: u.name || 'Anonymous User',
         avatarUrl: u.avatar_url,
-        type: (u.role === 'Manager' || u.type === 'Manager') ? 'Manager' : (u.type || u.role || 'Staff')
+        type: (u.role === 'Manager' || u.type === 'Manager') ? 'Manager' : (u.type || u.role || 'Staff'),
+        department: u.department || null
     }));
 
     const lookups: Lookups = {
@@ -121,7 +122,9 @@ export const fetchAllData = async () => {
             reporterId: db.reporter_id, 
             createdAt: db.created_at,
             expectedDuration: db.expected_duration,
-            project: projects.find(p => p.id === db.project_id), 
+            estimatedHours: db.estimated_hours,
+            completedAt: db.completed_at,
+            project: projects.find(p => p.id === db.project_id),
             assignee: mappedUsers.find(u => u.id === db.assignee_id), 
             reporter: mappedUsers.find(u => u.id === db.reporter_id),
             comments: mappedComments.filter(c => c.issueId === db.id)
@@ -253,7 +256,8 @@ export const addIssue = async (issueData: Omit<Issue, 'id' | 'createdAt'>) => {
         milestone_id: issueData.milestoneId || null,
         assignee_id: issueData.assigneeId || null,
         reporter_id: issueData.reporterId,
-        expected_duration: issueData.expectedDuration || null
+        expected_duration: issueData.expectedDuration || null,
+        estimated_hours: issueData.estimatedHours || null
     };
 
     const { data, error } = await supabase.from('issues').insert([insertData]).select();
@@ -278,9 +282,34 @@ export const updateIssue = async (id: string, issueData: Partial<Issue>) => {
     if (issueData.status) updateData.status = issueData.status;
     if (issueData.priority) updateData.priority = issueData.priority;
     if (issueData.assigneeId !== undefined) updateData.assignee_id = issueData.assigneeId || null;
+    if (issueData.estimatedHours !== undefined) updateData.estimated_hours = issueData.estimatedHours || null;
     const { data, error } = await supabase.from('issues').update(updateData).eq('id', id).select();
     if (error) throw error;
     return data[0];
+};
+
+export const inviteUser = async (params: { email: string; name: string; type: string; department?: string | null }) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { data, error } = await supabase.functions.invoke('invite-user', { body: params });
+    if (error) throw new Error((await error.context?.json?.())?.error || error.message);
+    return data;
+};
+
+export const forgotPassword = async (email: string) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { data, error } = await supabase.functions.invoke('forgot-password', { body: { email } });
+    if (error) throw new Error((await error.context?.json?.())?.error || error.message);
+    return data;
+};
+
+export const sendPasswordReset = async (userId: string, email: string) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { data, error } = await supabase.functions.invoke('send-password-reset', { body: { userId, email } });
+    if (error) throw new Error((await error.context?.json?.())?.error || error.message);
+    return data;
 };
 
 export const addProject = async (p: any) => {

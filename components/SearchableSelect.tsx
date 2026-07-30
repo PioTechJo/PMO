@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Language } from '../types';
 
 interface SearchableSelectProps {
-    options: { value: string; label: string; }[];
+    options: { value: string; label: string; count?: number; }[];
     value: string | string[];
     onChange: (value: any) => void;
     placeholder: string;
@@ -125,7 +125,12 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
                                                     {isSelected && <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
                                                 </div>
                                             )}
-                                            <span className="truncate">{option.label}</span>
+                                            <span className="truncate flex-1">{option.label}</span>
+                                            {typeof option.count === 'number' && (
+                                                <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-black ${isSelected ? 'bg-indigo-200 dark:bg-indigo-800 text-indigo-700 dark:text-indigo-200' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'}`}>
+                                                    {option.count}
+                                                </span>
+                                            )}
                                         </button>
                                     </li>
                                 );

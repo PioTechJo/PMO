@@ -348,12 +348,13 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
             {/* Modals */}
             <AnimatePresence>
                 {isAddModalOpen && (
-                    <AddIssueModal 
-                        onClose={() => setIsAddModalOpen(false)} 
-                        projects={allProjects} 
-                        milestones={allMilestones} 
-                        users={psUsers} 
-                        language={language} 
+                    <AddIssueModal
+                        onClose={() => setIsAddModalOpen(false)}
+                        projects={allProjects}
+                        milestones={allMilestones}
+                        users={psUsers}
+                        allIssues={allIssues}
+                        language={language}
                         onSave={async (d) => { 
                             await onAddIssue({...d, reporterId: currentUser?.id || ''}); 
                             setIsAddModalOpen(false); 
@@ -385,11 +386,18 @@ const isOverdue = (dueDate: Date | null) => {
     return new Date() > dueDate;
 };
 
+const skipWeekend = (date: Date) => {
+    const day = date.getDay(); // Friday = 5, Saturday = 6
+    if (day === 5) date.setDate(date.getDate() + 2);
+    else if (day === 6) date.setDate(date.getDate() + 1);
+    return date;
+};
+
 const getDueDate = (createdAt: string, duration?: number | null) => {
     if (!duration) return null;
     const date = new Date(createdAt);
     date.setDate(date.getDate() + duration);
-    return date;
+    return skipWeekend(date);
 };
 
 // Sub-components
@@ -623,7 +631,7 @@ const IssueDetailModal: React.FC<{ issue: Issue, onClose: () => void, language: 
                         </div>
 
                         {issue.expectedDuration && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="p-6 bg-blue-50/50 dark:bg-blue-500/5 border border-blue-100 dark:border-blue-500/20 rounded-2xl shadow-sm space-y-4">
                                     <div className="flex items-center gap-2 text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">
                                         <Calendar className="w-3.5 h-3.5" /> {t.expectedDuration}
@@ -708,7 +716,7 @@ const IssueDetailModal: React.FC<{ issue: Issue, onClose: () => void, language: 
     );
 };
 
-const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milestones: Milestone[], users: User[], language: Language, onSave: (d: any) => Promise<void> }> = ({ onClose, projects, milestones, users, language, onSave }) => {
+const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milestones: Milestone[], users: User[], allIssues: Issue[], language: Language, onSave: (d: any) => Promise<void> }> = ({ onClose, projects, milestones, users, allIssues, language, onSave }) => {
     const t = translations[language];
     const [formData, setFormData] = useState({ title: '', description: '', projectId: '', milestoneId: '', assigneeId: '', priority: IssuePriority.Medium, status: IssueStatus.Open, expectedDuration: 3 });
     const [isSaving, setIsSaving] = useState(false);
@@ -717,11 +725,14 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
         if (!formData.expectedDuration) return null;
         const date = new Date();
         date.setDate(date.getDate() + formData.expectedDuration);
-        return date;
+        return skipWeekend(date);
     }, [formData.expectedDuration]);
     
     const projectOptions = useMemo(() => projects.map(p => ({ value: p.id, label: p.name })), [projects]);
-    const userOptions = useMemo(() => users.map(u => ({ value: u.id, label: u.name })), [users]);
+    const userOptions = useMemo(() => users.map(u => {
+        const activeTaskCount = allIssues.filter(i => i.assigneeId === u.id && i.status !== IssueStatus.Closed && i.status !== IssueStatus.Resolved).length;
+        return { value: u.id, label: u.name, count: activeTaskCount };
+    }), [users, allIssues]);
     const milestoneOptions = useMemo(() => [
         { value: '', label: t.selectMilestone },
         ...milestones.filter(m => m.projectId === formData.projectId).map(m => ({ value: m.id, label: m.title }))
@@ -769,9 +780,9 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
                 </div>
 
                 <div className="p-8 pt-4 overflow-y-auto max-h-[70vh] custom-scrollbar">
-                    <div className="space-y-8">
+                    <div className="space-y-5">
                         {/* Essential Identity Group */}
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                             <div className="relative group">
                                 <div className="absolute left-4 rtl:left-auto rtl:right-4 top-4 text-slate-400 group-focus-within:text-blue-500 transition-colors">
                                     <Type className="w-4 h-4" />
@@ -793,13 +804,13 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
                                     value={formData.description} 
                                     onChange={e => setFormData({...formData, description: e.target.value})} 
                                     placeholder={t.description} 
-                                    className="w-full p-4 pl-12 rtl:pl-4 rtl:pr-12 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all min-h-[120px] placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                                    className="w-full p-4 pl-12 rtl:pl-4 rtl:pr-12 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all min-h-[56px] placeholder:text-slate-300 dark:placeholder:text-slate-600"
                                 />
                             </div>
                         </div>
 
                         {/* Connection Group */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-3 font-sans">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
                                     <Layout className="w-3 h-3" /> {t.project}
@@ -827,7 +838,7 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
                         </div>
 
                         {/* Timing group */}
-                        <div className="p-6 bg-slate-50/50 dark:bg-blue-500/5 rounded-3xl border-2 border-slate-100 dark:border-blue-500/10 space-y-6">
+                        <div className="p-4 bg-slate-50/50 dark:bg-blue-500/5 rounded-3xl border-2 border-slate-100 dark:border-blue-500/10 space-y-3">
                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 px-1">
@@ -862,7 +873,7 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
                         </div>
 
                         {/* Milestone & Priority Group */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-3 font-sans">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
                                     <Layers className="w-3 h-3" /> {t.milestone}
