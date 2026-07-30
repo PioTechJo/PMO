@@ -90,7 +90,7 @@ serve(async (req) => {
         id: newUserId,
         name,
         type,
-        role: "User",
+        role: type === "Manager" ? "Manager" : "User",
         email,
         department: department || null,
       },

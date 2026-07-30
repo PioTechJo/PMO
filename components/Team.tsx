@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
 import { User, Project, Issue, Language } from '../types';
-import UserCard from './UserCard';
 import { inviteUser } from '../services/api';
 
 interface TeamProps {
@@ -27,6 +26,8 @@ const translations = {
     typePS: "خدمات احترافية (PS)",
     typeStaff: "موظف (Staff)",
     typeClient: "عميل (Client)",
+    typeManager: "Manager (صلاحية كاملة على كل النظام)",
+    typeTasksAdmin: "Tasks Admin (كل المهام بس، بدون مشاريع أو مدفوعات)",
     cancel: "إلغاء",
     send: "إرسال الدعوة",
     sending: "جارٍ الإرسال...",
@@ -35,6 +36,9 @@ const translations = {
     managedProjects: "مشاريع مدارة",
     assignedTasks: "مهام مسندة",
     noUsers: "لا يوجد مستخدمون بهذا النوع",
+    colName: "الاسم",
+    colDepartment: "القسم",
+    colMetric: "المؤشر",
     groupPM: "مديرو المشاريع",
     groupPS: "الخدمات الاحترافية",
     groupStaff: "الموظفون",
@@ -54,6 +58,8 @@ const translations = {
     typePS: "Professional Services (PS)",
     typeStaff: "Staff",
     typeClient: "Client",
+    typeManager: "Manager (full access to everything)",
+    typeTasksAdmin: "Tasks Admin (all tasks only, no projects or payments)",
     cancel: "Cancel",
     send: "Send Invite",
     sending: "Sending...",
@@ -62,6 +68,9 @@ const translations = {
     managedProjects: "Managed Projects",
     assignedTasks: "Assigned Tasks",
     noUsers: "No users of this type yet",
+    colName: "Name",
+    colDepartment: "Department",
+    colMetric: "Metric",
     groupPM: "Project Managers",
     groupPS: "Professional Services",
     groupStaff: "Staff",
@@ -134,6 +143,8 @@ const InviteUserModal: React.FC<{ language: Language; onClose: () => void; onInv
                   <option value="PS">{t.typePS}</option>
                   <option value="Staff">{t.typeStaff}</option>
                   <option value="Client">{t.typeClient}</option>
+                  <option value="Manager">{t.typeManager}</option>
+                  <option value="TasksAdmin">{t.typeTasksAdmin}</option>
                 </select>
               </div>
               <div>
@@ -155,6 +166,53 @@ const InviteUserModal: React.FC<{ language: Language; onClose: () => void; onInv
     </div>
   );
 };
+
+const UserListSection: React.FC<{
+  title: string;
+  users: User[];
+  metricLabel: string;
+  getMetric: (user: User) => number;
+  t: typeof translations['en'];
+}> = ({ title, users, metricLabel, getMetric, t }) => (
+  <div className="space-y-3">
+    <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">
+      {title} <span className="opacity-50">({users.length})</span>
+    </h2>
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+      {users.length === 0 ? (
+        <div className="py-8 text-center opacity-30 italic text-sm">{t.noUsers}</div>
+      ) : (
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+              <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.colName}</th>
+              <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.colDepartment}</th>
+              <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{metricLabel}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60">
+            {users.map(user => (
+              <tr key={user.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                <td className="px-5 py-3">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={user.avatarUrl || `https://ui-avatars.com/api/?name=${user.name}&background=8b5cf6&color=f5f3ff`}
+                      alt={user.name}
+                      className="w-8 h-8 rounded-full"
+                    />
+                    <span className="text-sm font-bold text-slate-800 dark:text-white">{user.name}</span>
+                  </div>
+                </td>
+                <td className="px-5 py-3 text-sm text-slate-500 dark:text-slate-400">{user.department || '—'}</td>
+                <td className="px-5 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 text-right">{getMetric(user)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  </div>
+);
 
 const Team: React.FC<TeamProps> = ({ allUsers, allProjects, allIssues, language, currentUser, onUserInvited }) => {
   const t = translations[language];
@@ -185,49 +243,27 @@ const Team: React.FC<TeamProps> = ({ allUsers, allProjects, allIssues, language,
         const groupUsers = allUsers.filter(u => u.type === group.typeValue);
         const isPM = group.typeValue === 'PM';
         return (
-          <div key={group.typeValue} className="space-y-4">
-            <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">
-              {t[group.key as keyof typeof t]} <span className="opacity-50">({groupUsers.length})</span>
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {groupUsers.map(user => (
-                <UserCard
-                  key={user.id}
-                  user={user}
-                  language={language}
-                  metricValue={isPM
-                    ? allProjects.filter(p => p.projectManagerId === user.id).length
-                    : allIssues.filter(i => i.assigneeId === user.id).length}
-                  metricLabel={isPM ? t.managedProjects : t.assignedTasks}
-                />
-              ))}
-              {groupUsers.length === 0 && (
-                <div className="col-span-full py-10 text-center opacity-30 italic text-sm">
-                  {t.noUsers}
-                </div>
-              )}
-            </div>
-          </div>
+          <UserListSection
+            key={group.typeValue}
+            title={t[group.key as keyof typeof t] as string}
+            users={groupUsers}
+            metricLabel={isPM ? t.managedProjects : t.assignedTasks}
+            getMetric={(user) => isPM
+              ? allProjects.filter(p => p.projectManagerId === user.id).length
+              : allIssues.filter(i => i.assigneeId === user.id).length}
+            t={t}
+          />
         );
       })}
 
       {otherUsers.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">
-            {t.groupOther} <span className="opacity-50">({otherUsers.length})</span>
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {otherUsers.map(user => (
-              <UserCard
-                key={user.id}
-                user={user}
-                language={language}
-                metricValue={allIssues.filter(i => i.assigneeId === user.id).length}
-                metricLabel={t.assignedTasks}
-              />
-            ))}
-          </div>
-        </div>
+        <UserListSection
+          title={t.groupOther}
+          users={otherUsers}
+          metricLabel={t.assignedTasks}
+          getMetric={(user) => allIssues.filter(i => i.assigneeId === user.id).length}
+          t={t}
+        />
       )}
 
       {isInviteOpen && (

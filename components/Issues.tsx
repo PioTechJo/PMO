@@ -363,13 +363,15 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
                 )}
 
                 {activeViewingIssue && (
-                    <IssueDetailModal 
-                        issue={activeViewingIssue} 
-                        onClose={() => setSelectedIssueId(null)} 
-                        language={language} 
+                    <IssueDetailModal
+                        issue={activeViewingIssue}
+                        onClose={() => setSelectedIssueId(null)}
+                        language={language}
                         currentUser={currentUser}
+                        psUsers={psUsers}
                         onUpdateStatus={async (s) => onUpdateIssue(activeViewingIssue.id, { status: s })}
-                        onAddComment={async (c) => { 
+                        onReassign={async (assigneeId) => onUpdateIssue(activeViewingIssue.id, { assigneeId })}
+                        onAddComment={async (c) => {
                             if (onAddComment && currentUser) {
                                 await onAddComment(activeViewingIssue.id, currentUser.id, c);
                             }
@@ -529,7 +531,7 @@ const IssueCard: React.FC<{ issue: Issue, onClick: () => void, currentUser?: Use
     );
 };
 
-const IssueDetailModal: React.FC<{ issue: Issue, onClose: () => void, language: Language, currentUser?: User, onUpdateStatus: (s: IssueStatus) => Promise<void>, onAddComment: (c: string) => Promise<void> }> = ({ issue, onClose, language, currentUser, onUpdateStatus, onAddComment }) => {
+const IssueDetailModal: React.FC<{ issue: Issue, onClose: () => void, language: Language, currentUser?: User, psUsers: User[], onUpdateStatus: (s: IssueStatus) => Promise<void>, onReassign: (assigneeId: string) => Promise<void>, onAddComment: (c: string) => Promise<void> }> = ({ issue, onClose, language, currentUser, psUsers, onUpdateStatus, onReassign, onAddComment }) => {
     const t = translations[language];
     const [comment, setComment] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -609,15 +611,26 @@ const IssueDetailModal: React.FC<{ issue: Issue, onClose: () => void, language: 
                                 <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                     <UserIcon className="w-3.5 h-3.5" /> {t.assignedTo}
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-xs font-black text-white uppercase shadow-lg shadow-blue-500/20">
-                                        {issue.assignee?.name?.substring(0,2)}
+                                {(currentUser?.type === 'Manager' || currentUser?.type === 'TasksAdmin') ? (
+                                    <select
+                                        value={issue.assigneeId || ''}
+                                        onChange={(e) => onReassign(e.target.value)}
+                                        className="w-full bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl text-xs font-black outline-none border border-transparent focus:border-blue-500 transition-all"
+                                    >
+                                        <option value="">{t.unassigned}</option>
+                                        {psUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                    </select>
+                                ) : (
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-xs font-black text-white uppercase shadow-lg shadow-blue-500/20">
+                                            {issue.assignee?.name?.substring(0,2)}
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-black text-slate-800 dark:text-white leading-none">{issue.assignee?.name || t.unassigned}</p>
+                                            <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">Active Member</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-xs font-black text-slate-800 dark:text-white leading-none">{issue.assignee?.name || t.unassigned}</p>
-                                        <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">Active Member</p>
-                                    </div>
-                                </div>
+                                )}
                             </div>
 
                             <div className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm space-y-4">

@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Language, Theme, User, Notification } from '../types';
 import { markNotificationRead } from '../services/api';
+import ChangePasswordModal from './ChangePasswordModal';
 
 interface HeaderProps {
     user?: User;
@@ -17,10 +18,13 @@ interface HeaderProps {
     onNotificationRead?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, language, onSearch, theme, setTheme, onToggleSidebar, notifications = [], onNotificationRead }) => {
+const Header: React.FC<HeaderProps> = ({ user, language, onSearch, theme, setTheme, onToggleSidebar, notifications = [], onNotificationRead, onLogout }) => {
   const [query, setQuery] = useState('');
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -28,6 +32,9 @@ const Header: React.FC<HeaderProps> = ({ user, language, onSearch, theme, setThe
     const handleClickOutside = (event: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setIsNotifOpen(false);
+      }
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -154,14 +161,43 @@ const Header: React.FC<HeaderProps> = ({ user, language, onSearch, theme, setThe
         
         <div className="h-8 w-[1px] bg-slate-100 dark:bg-slate-800 mx-2"></div>
 
-        <button className="flex items-center px-1 py-1 rounded-full group transition-all">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#3b82f6] to-[#6366f1] p-[2px]">
-              <div className="w-full h-full bg-white dark:bg-[#0a0f1c] rounded-[10px] flex items-center justify-center text-xs font-black text-[#3b82f6] uppercase">
-                {user?.name?.split(' ').map(n => n[0]).join('').substring(0, 2) || 'HN'}
-              </div>
-            </div>
-        </button>
+        <div className="relative" ref={profileRef}>
+            <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="flex items-center px-1 py-1 rounded-full group transition-all">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#3b82f6] to-[#6366f1] p-[2px]">
+                  <div className="w-full h-full bg-white dark:bg-[#0a0f1c] rounded-[10px] flex items-center justify-center text-xs font-black text-[#3b82f6] uppercase">
+                    {user?.name?.split(' ').map(n => n[0]).join('').substring(0, 2) || 'HN'}
+                  </div>
+                </div>
+            </button>
+
+            {isProfileOpen && (
+                <div className="absolute top-full mt-2 right-0 rtl:right-auto rtl:left-0 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden animate-in fade-in slide-in-from-top-2 z-50">
+                    <div className="p-4 border-b border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
+                        <p className="text-xs font-black text-slate-800 dark:text-white truncate">{user?.name}</p>
+                        {user?.email && <p className="text-[10px] text-slate-400 truncate mt-0.5">{user.email}</p>}
+                    </div>
+                    <button
+                        onClick={() => { setIsChangePasswordOpen(true); setIsProfileOpen(false); }}
+                        className="w-full text-left rtl:text-right px-4 py-3 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    >
+                        {language === 'ar' ? 'تغيير كلمة المرور' : 'Change Password'}
+                    </button>
+                    {onLogout && (
+                        <button
+                            onClick={onLogout}
+                            className="w-full text-left rtl:text-right px-4 py-3 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors border-t border-slate-50 dark:border-slate-800"
+                        >
+                            {language === 'ar' ? 'تسجيل الخروج' : 'Logout'}
+                        </button>
+                    )}
+                </div>
+            )}
+        </div>
       </div>
+
+      {isChangePasswordOpen && user?.email && (
+          <ChangePasswordModal language={language} userEmail={user.email} onClose={() => setIsChangePasswordOpen(false)} />
+      )}
     </header>
   );
 };

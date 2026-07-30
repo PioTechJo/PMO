@@ -63,11 +63,15 @@ const App: React.FC = () => {
             { role: 'PM', allowedViews: ['dashboard', 'tasksOverview', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'maintenanceOverview', 'system', 'issues'] },
             { role: 'PS', allowedViews: ['tasksOverview', 'issues'] },
             { role: 'Staff', allowedViews: ['dashboard', 'tasksOverview', 'projects', 'issues'] },
-            { role: 'User', allowedViews: ['dashboard', 'tasksOverview', 'projects', 'issues'] }
+            { role: 'User', allowedViews: ['dashboard', 'tasksOverview', 'projects', 'issues'] },
+            // Sees/manages every task across every project, but has no
+            // access to Projects, Milestones, Payments, etc. - a narrower
+            // admin than Manager, scoped to Tasks only.
+            { role: 'TasksAdmin', allowedViews: ['tasksOverview', 'issues'] }
         ];
         const saved = localStorage.getItem('rolePermissions');
         if (!saved) return defaultPermissions;
-        
+
         try {
             const parsed = JSON.parse(saved);
             // Check if Manager role is missing in the saved version
@@ -75,11 +79,16 @@ const App: React.FC = () => {
                 return defaultPermissions;
             }
             // Migrate: grant tasksOverview to any role that already had dashboard access
-            return parsed.map((p: any) => (
+            let migrated = parsed.map((p: any) => (
                 p.allowedViews.includes('dashboard') && !p.allowedViews.includes('tasksOverview')
                     ? { ...p, allowedViews: [...p.allowedViews, 'tasksOverview'] }
                     : p
             ));
+            // Migrate: add the new TasksAdmin role if it's missing
+            if (!migrated.some((p: any) => p.role === 'TasksAdmin')) {
+                migrated = [...migrated, { role: 'TasksAdmin', allowedViews: ['tasksOverview', 'issues'] }];
+            }
+            return migrated;
         } catch (e) {
             return defaultPermissions;
         }

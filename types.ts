@@ -16,6 +16,7 @@ export interface User {
     avatarUrl?: string;
     type?: string; // Roles: 'PM', 'PS', 'Staff', 'Client', 'Manager'
     department?: string | null;
+    email?: string | null;
 }
 
 export interface RolePermissions {

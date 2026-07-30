@@ -43,7 +43,8 @@ export const fetchAllData = async () => {
         name: u.name || 'Anonymous User',
         avatarUrl: u.avatar_url,
         type: (u.role === 'Manager' || u.type === 'Manager') ? 'Manager' : (u.type || u.role || 'Staff'),
-        department: u.department || null
+        department: u.department || null,
+        email: u.email || null
     }));
 
     const lookups: Lookups = {
