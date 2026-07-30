@@ -22,6 +22,7 @@ serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const POWER_AUTOMATE_WEBHOOK_URL = Deno.env.get("POWER_AUTOMATE_EMAIL_WEBHOOK_URL");
+    const PORTAL_URL = Deno.env.get("PORTAL_URL") || "";
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Supabase environment configuration is missing.");
     }
@@ -69,13 +70,13 @@ serve(async (req) => {
       .eq("trigger_key", "PASSWORD_RESET")
       .maybeSingle();
 
-    const vars = { email, temp_password: newPassword };
+    const vars = { email, temp_password: newPassword, portal_url: PORTAL_URL };
     const subject = template
       ? fillTemplate(template.subject_template, vars)
       : "Your Projects Portfolio password has been reset";
     const rawBody = template
       ? fillTemplate(template.body_template, vars)
-      : `Hello,\n\nYour password has been reset.\n\nEmail: ${email}\nNew Password: ${newPassword}\n\nPlease log in and change your password.`;
+      : `Hello,\n\nYour password has been reset.\n\nPortal: ${PORTAL_URL}\nEmail: ${email}\nNew Password: ${newPassword}\n\nPlease log in and change your password.`;
 
     const htmlBody = `
       <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
