@@ -16,7 +16,7 @@ interface IssuesProps {
     allMilestones: Milestone[];
     allUsers: User[];
     language: Language;
-    onAddIssue: (data: Omit<Issue, 'id' | 'createdAt'>) => Promise<void>;
+    onAddIssue: (data: Omit<Issue, 'id' | 'createdAt'> & { createdAt?: string }) => Promise<void>;
     onUpdateIssue: (id: string, data: Partial<Issue>) => Promise<void>;
     onAddComment?: (issueId: string, userId: string, content: string) => Promise<void>;
     currentUser: User | undefined;
@@ -357,9 +357,10 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
                         users={psUsers}
                         allIssues={allIssues}
                         language={language}
-                        onSave={async (d) => { 
-                            await onAddIssue({...d, reporterId: currentUser?.id || ''}); 
-                            setIsAddModalOpen(false); 
+                        currentUser={currentUser}
+                        onSave={async (d) => {
+                            await onAddIssue({...d, reporterId: currentUser?.id || ''});
+                            setIsAddModalOpen(false);
                         }}
                     />
                 )}
@@ -731,17 +732,20 @@ const IssueDetailModal: React.FC<{ issue: Issue, onClose: () => void, language: 
     );
 };
 
-const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milestones: Milestone[], users: User[], allIssues: Issue[], language: Language, onSave: (d: any) => Promise<void> }> = ({ onClose, projects, milestones, users, allIssues, language, onSave }) => {
+const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milestones: Milestone[], users: User[], allIssues: Issue[], language: Language, currentUser?: User, onSave: (d: any) => Promise<void> }> = ({ onClose, projects, milestones, users, allIssues, language, currentUser, onSave }) => {
     const t = translations[language];
-    const [formData, setFormData] = useState({ title: '', description: '', projectId: '', milestoneId: '', assigneeId: '', priority: IssuePriority.Medium, status: IssueStatus.Open, expectedDuration: 3 });
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const [formData, setFormData] = useState({ title: '', description: '', projectId: '', milestoneId: '', assigneeId: '', priority: IssuePriority.Medium, status: IssueStatus.Open, expectedDuration: 3, createdAt: todayIso });
     const [isSaving, setIsSaving] = useState(false);
+    const canEditCreatedDate = currentUser?.type === 'Manager' || currentUser?.type === 'TasksAdmin';
+    const [saveError, setSaveError] = useState('');
 
     const calculatedEndDate = useMemo(() => {
         if (!formData.expectedDuration) return null;
-        const date = new Date();
+        const date = new Date(formData.createdAt);
         date.setDate(date.getDate() + formData.expectedDuration);
         return skipWeekend(date);
-    }, [formData.expectedDuration]);
+    }, [formData.expectedDuration, formData.createdAt]);
     
     const projectOptions = useMemo(() => projects.map(p => ({ value: p.id, label: p.name })), [projects]);
     const userOptions = useMemo(() => users.map(u => {
@@ -756,8 +760,11 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
     const handleSave = async () => {
         if (!formData.title || !formData.projectId) return;
         setIsSaving(true);
+        setSaveError('');
         try {
             await onSave(formData);
+        } catch (err: any) {
+            setSaveError(err.message || (language === 'ar' ? 'حدث خطأ أثناء الحفظ.' : 'Something went wrong while saving.'));
         } finally {
             setIsSaving(false);
         }
@@ -771,10 +778,10 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
     };
 
     const fieldLabelClasses = "text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5";
-    const sectionCardClasses = "bg-slate-50/70 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 space-y-4";
+    const sectionCardClasses = "bg-slate-50/70 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 rounded-2xl p-3.5";
 
     return (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-[250] p-4 font-sans" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-[250] p-4 font-sans">
             <motion.div
                 initial={{ opacity: 0, scale: 0.97, y: 12 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -784,15 +791,12 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
                 dir={language === 'ar' ? 'rtl' : 'ltr'}
             >
                 {/* Header */}
-                <div className="px-7 py-5 flex justify-between items-center border-b border-slate-100 dark:border-slate-800 shrink-0">
-                    <div className="flex items-center gap-3.5">
-                        <div className="w-10 h-10 bg-violet-600 text-white rounded-xl flex items-center justify-center shadow-md shadow-violet-600/20">
-                            <Plus className="w-5 h-5" strokeWidth={2.5} />
+                <div className="px-6 py-3.5 flex justify-between items-center border-b border-slate-100 dark:border-slate-800 shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-violet-600 text-white rounded-lg flex items-center justify-center shadow-md shadow-violet-600/20">
+                            <Plus className="w-4 h-4" strokeWidth={2.5} />
                         </div>
-                        <div>
-                            <h2 className="text-base font-black text-slate-800 dark:text-white leading-none">{t.newIssue}</h2>
-                            <p className="text-[11px] font-medium text-slate-400 mt-1.5">{language === 'ar' ? 'إنشاء تذكرة عمل جديدة' : 'Create a new work ticket'}</p>
-                        </div>
+                        <h2 className="text-sm font-black text-slate-800 dark:text-white leading-none">{t.newIssue}</h2>
                     </div>
                     <button
                         onClick={onClose}
@@ -803,28 +807,31 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
                 </div>
 
                 {/* Body */}
-                <div className="px-7 py-6 overflow-y-auto custom-scrollbar space-y-5">
+                <div className="px-6 py-4 overflow-y-auto custom-scrollbar space-y-3">
+                    {saveError && (
+                        <div className="px-4 py-2.5 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-xl text-xs font-bold text-red-600 dark:text-red-400">
+                            {saveError}
+                        </div>
+                    )}
                     {/* Title + Description */}
-                    <div className="space-y-3">
-                        <input
-                            type="text"
-                            value={formData.title}
-                            onChange={e => setFormData({...formData, title: e.target.value})}
-                            placeholder={t.issueTitle}
-                            className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all placeholder:text-slate-400 placeholder:font-medium"
-                        />
-                        <textarea
-                            value={formData.description}
-                            onChange={e => setFormData({...formData, description: e.target.value})}
-                            placeholder={t.description}
-                            rows={2}
-                            className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all resize-none placeholder:text-slate-400"
-                        />
-                    </div>
+                    <input
+                        type="text"
+                        value={formData.title}
+                        onChange={e => setFormData({...formData, title: e.target.value})}
+                        placeholder={t.issueTitle}
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all placeholder:text-slate-400 placeholder:font-medium"
+                    />
+                    <textarea
+                        value={formData.description}
+                        onChange={e => setFormData({...formData, description: e.target.value})}
+                        placeholder={t.description}
+                        rows={1}
+                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all resize-none placeholder:text-slate-400"
+                    />
 
                     {/* Where + Who */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                             <label className={fieldLabelClasses}><Layout className="w-3.5 h-3.5" /> {t.project}</label>
                             <SearchableSelect
                                 options={projectOptions}
@@ -834,7 +841,7 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
                                 language={language}
                             />
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                             <label className={fieldLabelClasses}><UserIcon className="w-3.5 h-3.5" /> {t.assignedTo}</label>
                             <SearchableSelect
                                 options={userOptions}
@@ -846,33 +853,44 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
                         </div>
                     </div>
 
-                    {/* Timing */}
+                    {/* Timing - single compact row */}
                     <div className={sectionCardClasses}>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                            <div className="space-y-2 shrink-0">
+                        <div className="flex flex-wrap items-end gap-4">
+                            {canEditCreatedDate && (
+                                <div className="space-y-1.5">
+                                    <label className={fieldLabelClasses}><Calendar className="w-3.5 h-3.5" /> {t.createdDate}</label>
+                                    <input
+                                        type="date"
+                                        value={formData.createdAt}
+                                        onChange={e => setFormData({...formData, createdAt: e.target.value})}
+                                        className="w-36 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all"
+                                    />
+                                </div>
+                            )}
+                            <div className="space-y-1.5">
                                 <label className={fieldLabelClasses}><Calendar className="w-3.5 h-3.5" /> {t.expectedDuration}</label>
-                                <div className="relative w-full sm:w-36">
+                                <div className="relative w-28">
                                     <input
                                         type="number"
                                         min="1"
                                         value={formData.expectedDuration}
                                         onChange={e => setFormData({...formData, expectedDuration: parseInt(e.target.value) || 0})}
-                                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all"
+                                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all"
                                     />
-                                    <span className="absolute right-3.5 rtl:left-3.5 rtl:right-auto top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 uppercase pointer-events-none">
+                                    <span className="absolute right-3 rtl:left-3 rtl:right-auto top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400 uppercase pointer-events-none">
                                         {t.days}
                                     </span>
                                 </div>
                             </div>
 
                             {calculatedEndDate && (
-                                <div className="flex-1 flex items-center gap-3 min-w-0">
-                                    <div className="w-9 h-9 rounded-lg bg-violet-600 text-white flex items-center justify-center shrink-0">
-                                        <Calendar className="w-4 h-4" />
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <div className="w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center shrink-0">
+                                        <Calendar className="w-3.5 h-3.5" />
                                     </div>
                                     <div className="min-w-0">
                                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide leading-none mb-1">{t.dueDate}</p>
-                                        <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{calculatedEndDate.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'long', day: 'numeric', month: 'short' })}</p>
+                                        <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{calculatedEndDate.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
                                     </div>
                                 </div>
                             )}
@@ -881,7 +899,7 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
 
                     {/* Milestone + Priority */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                             <label className={fieldLabelClasses}><Layers className="w-3.5 h-3.5" /> {t.milestone}</label>
                             <SearchableSelect
                                 options={milestoneOptions}
@@ -892,7 +910,7 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
                             />
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                             <label className={fieldLabelClasses}><Flag className="w-3.5 h-3.5" /> {t.priority}</label>
                             <div className="grid grid-cols-4 gap-1.5">
                                 {[IssuePriority.Low, IssuePriority.Medium, IssuePriority.High, IssuePriority.Critical].map((p) => (
@@ -900,7 +918,7 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
                                         key={p}
                                         type="button"
                                         onClick={() => setFormData({...formData, priority: p})}
-                                        className={`py-2.5 rounded-lg text-[9px] font-bold uppercase transition-all border ${
+                                        className={`py-2 rounded-lg text-[9px] font-bold uppercase transition-all border ${
                                             formData.priority === p
                                                 ? `${priorityStyles[p].active} border-transparent`
                                                 : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300 dark:hover:border-slate-600'
@@ -915,7 +933,7 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
                 </div>
 
                 {/* Footer */}
-                <div className="px-7 py-5 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-3 shrink-0 bg-slate-50/50 dark:bg-slate-900/30">
+                <div className="px-6 py-3.5 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-3 shrink-0 bg-slate-50/50 dark:bg-slate-900/30">
                     <div className="flex items-center gap-2 text-slate-400">
                         <AlertCircle className="w-3.5 h-3.5" />
                         <span className="text-[11px] font-medium">{language === 'ar' ? 'تأكد من اختيار المشروع والمسؤول قبل الحفظ' : 'Select a project & assignee before saving'}</span>
@@ -945,11 +963,11 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
 const translations = {
     ar: {
         title: "إدارة المهام والعيوب", subtitle: "تتبع المهام التقنية والعيوب وإسندها للمستخدمين.", newIssue: "إضافة مهمة", allProjects: "كل المشاريع", allStatuses: "كل الحالات", allAssignees: "كل الموظفين", project: "المشروع", milestone: "المعلم", assignedTo: "المسؤول عن التنفيذ", reportedAt: "تاريخ الإنشاء", unassigned: "غير مسند", cancel: "إلغاء", saveIssue: "حفظ المهمة", issueTitle: "عنوان المهمة", description: "وصف التفاصيل", selectProject: "اختر المشروع", selectMilestone: "اختر المعلم (اختياري)", selectAssignee: "اختر الشخص المسؤول", priority: "الأولوية", myIssues: "مهامي فقط", allIssues: "عرض كل المهام", you: "أنت (المسؤول)", noIssues: "لا توجد مهام مطابقة", status: "الحالة الحالية", comments: "ملاحظات وتحديثات التنفيذ", noComments: "لا توجد ملاحظات بعد.", addCommentPlaceholder: "أضف ملاحظة أو تحديث حول التنفيذ...", assigneeOnlyNote: "فقط الشخص المسؤول عن تنفيذ هذه المهمة يمكنه إضافة ملاحظات وتحديثات.", close: "إغلاق", gridView: "عرض البطاقات", groupedView: "عرض حسب المشروع", byAssignee: "حسب المسؤول", unknownProject: "مشروع غير معروف", issuesCount: "مهمة", exportExcel: "تصدير للاكسيل",
-        expectedDuration: "المدة المتوقعة (بأيام العمل)", days: "أيام", dueDate: "تاريخ الاستحقاق", overdue: "متأخر"
+        expectedDuration: "المدة المتوقعة (بأيام العمل)", days: "أيام", dueDate: "تاريخ الاستحقاق", overdue: "متأخر", createdDate: "تاريخ الإنشاء"
     },
     en: {
         title: "Tasks & Defects Management", subtitle: "Track technical tasks, defects and assign them to users.", newIssue: "Add Task", allProjects: "All Projects", allStatuses: "All Statuses", allAssignees: "All Assignees", project: "Project", milestone: "Milestone", assignedTo: "Assigned To", reportedAt: "Created At", unassigned: "Unassigned", cancel: "Cancel", saveIssue: "Save Task", issueTitle: "Task Title", description: "Details Description", selectProject: "Select Project", selectMilestone: "Select Milestone (Optional)", selectAssignee: "Select User", priority: "Priority", myIssues: "My Assigned Tasks", allIssues: "Show All Tasks", you: "You (Assigned)", noIssues: "No tasks found", status: "Current Status", comments: "Progress Notes & Updates", noComments: "No notes yet.", addCommentPlaceholder: "Add a note or progress update...", assigneeOnlyNote: "Only the user assigned to this task can add progress notes and updates.", close: "Close", gridView: "Grid Cards", groupedView: "Group by Project", byAssignee: "By Assignee", unknownProject: "Unknown Project", issuesCount: "Tasks", exportExcel: "Export Excel",
-        expectedDuration: "Expected Duration (Work Days)", days: "Days", dueDate: "Due Date", overdue: "Overdue"
+        expectedDuration: "Expected Duration (Work Days)", days: "Days", dueDate: "Due Date", overdue: "Overdue", createdDate: "Created Date"
     }
 };
 

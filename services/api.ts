@@ -244,11 +244,11 @@ export const markNotificationRead = async (id: string) => {
     await supabase.from('notifications').update({ is_read: true }).eq('id', id);
 };
 
-export const addIssue = async (issueData: Omit<Issue, 'id' | 'createdAt'>) => {
+export const addIssue = async (issueData: Omit<Issue, 'id' | 'createdAt'> & { createdAt?: string }) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized");
-    
-    const insertData = {
+
+    const insertData: any = {
         title: issueData.title,
         description: issueData.description || null,
         status: issueData.status,
@@ -258,8 +258,15 @@ export const addIssue = async (issueData: Omit<Issue, 'id' | 'createdAt'>) => {
         assignee_id: issueData.assigneeId || null,
         reporter_id: issueData.reporterId,
         expected_duration: issueData.expectedDuration || null,
-        estimated_hours: issueData.estimatedHours || null
+        estimated_hours: issueData.estimatedHours || null,
+        task_type: 'Task'
     };
+    // Only Manager/TasksAdmin can backdate or forward-date a task via the UI
+    // (see AddIssueModal's canEditCreatedDate) - everyone else's tasks just
+    // get the DB default (now()).
+    if (issueData.createdAt) {
+        insertData.created_at = issueData.createdAt;
+    }
 
     const { data, error } = await supabase.from('issues').insert([insertData]).select();
     if (error) throw error;
