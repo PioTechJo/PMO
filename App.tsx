@@ -155,13 +155,16 @@ const App: React.FC = () => {
 
     useEffect(() => {
         // The anon key is a public, RLS-protected key (not a secret like the
-        // service role key) - baking it in here means users never have to
-        // find and paste it in themselves, same as the URL below.
-        const DEFAULT_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjYW1saW5oYXp6bWJhbGRzcmRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAzMzQwNjEsImV4cCI6MjA3NTkxMDA2MX0.Gjn3QbnmRkapXmiMaks7luZnh6xlahL9UWNoDsP06bc';
-        const key = localStorage.getItem('supabaseAnonKey') || DEFAULT_ANON_KEY;
-        const url = localStorage.getItem('supabaseUrl') || 'https://dcamlinhazzmbaldsrdo.supabase.co';
-        if (key?.trim()) setupClient(key, url);
-        else { setIsAppConfigured(false); setIsLoading(false); }
+        // service role key) - baked in as the one true value so every user
+        // just lands on the login screen. Deliberately NOT reading from
+        // localStorage here anymore: a stale/bad value saved by someone
+        // during the old manual-setup flow would otherwise permanently
+        // override the correct key on that person's browser.
+        const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjYW1saW5oYXp6bWJhbGRzcmRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAzMzQwNjEsImV4cCI6MjA3NTkxMDA2MX0.Gjn3QbnmRkapXmiMaks7luZnh6xlahL9UWNoDsP06bc';
+        const SUPABASE_URL = 'https://dcamlinhazzmbaldsrdo.supabase.co';
+        localStorage.removeItem('supabaseAnonKey');
+        localStorage.removeItem('supabaseUrl');
+        setupClient(ANON_KEY, SUPABASE_URL);
     }, [setupClient]);
 
     useEffect(() => {
