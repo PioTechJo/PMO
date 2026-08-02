@@ -761,190 +761,176 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
         }
     };
 
+    const priorityStyles: Record<string, { active: string; dot: string }> = {
+        [IssuePriority.Critical]: { active: 'bg-red-500 text-white shadow-md shadow-red-500/25', dot: 'bg-red-500' },
+        [IssuePriority.High]: { active: 'bg-orange-500 text-white shadow-md shadow-orange-500/25', dot: 'bg-orange-500' },
+        [IssuePriority.Medium]: { active: 'bg-violet-600 text-white shadow-md shadow-violet-600/25', dot: 'bg-violet-600' },
+        [IssuePriority.Low]: { active: 'bg-slate-500 text-white shadow-md shadow-slate-500/20', dot: 'bg-slate-400' },
+    };
+
+    const fieldLabelClasses = "text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5";
+    const sectionCardClasses = "bg-slate-50/70 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 space-y-4";
+
     return (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-[250] p-4 font-sans" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-            <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-[250] p-4 font-sans" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+            <motion.div
+                initial={{ opacity: 0, scale: 0.97, y: 12 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="bg-white dark:bg-[#0d1321] border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col"
+                exit={{ opacity: 0, scale: 0.97, y: 12 }}
+                transition={{ duration: 0.2 }}
+                className="bg-white dark:bg-[#0d1321] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]"
                 dir={language === 'ar' ? 'rtl' : 'ltr'}
             >
-                {/* Header Style with Gradient */}
-                <div className="p-8 pb-4 relative overflow-hidden shrink-0">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500"></div>
-                    <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center shadow-inner">
-                                <Plus className="w-6 h-6" strokeWidth={3} />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight leading-none">{t.newIssue}</h2>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase mt-2 tracking-widest">{language === 'ar' ? 'إنشاء تذكرة عمل جديدة في النظام' : 'Create a new work ticket in the system'}</p>
-                            </div>
+                {/* Header */}
+                <div className="px-7 py-5 flex justify-between items-center border-b border-slate-100 dark:border-slate-800 shrink-0">
+                    <div className="flex items-center gap-3.5">
+                        <div className="w-10 h-10 bg-violet-600 text-white rounded-xl flex items-center justify-center shadow-md shadow-violet-600/20">
+                            <Plus className="w-5 h-5" strokeWidth={2.5} />
                         </div>
-                        <button 
-                            onClick={onClose} 
-                            className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-slate-800 dark:hover:text-white transition-all hover:rotate-90"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
+                        <div>
+                            <h2 className="text-base font-black text-slate-800 dark:text-white leading-none">{t.newIssue}</h2>
+                            <p className="text-[11px] font-medium text-slate-400 mt-1.5">{language === 'ar' ? 'إنشاء تذكرة عمل جديدة' : 'Create a new work ticket'}</p>
+                        </div>
                     </div>
+                    <button
+                        onClick={onClose}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-white transition-colors"
+                    >
+                        <X className="w-4.5 h-4.5" />
+                    </button>
                 </div>
 
-                <div className="p-8 pt-4 overflow-y-auto max-h-[70vh] custom-scrollbar">
-                    <div className="space-y-5">
-                        {/* Essential Identity Group */}
-                        <div className="space-y-3">
-                            <div className="relative group">
-                                <div className="absolute left-4 rtl:left-auto rtl:right-4 top-4 text-slate-400 group-focus-within:text-blue-500 transition-colors">
-                                    <Type className="w-4 h-4" />
-                                </div>
-                                <input 
-                                    type="text" 
-                                    value={formData.title} 
-                                    onChange={e => setFormData({...formData, title: e.target.value})} 
-                                    placeholder={t.issueTitle} 
-                                    className="w-full p-4 pl-12 rtl:pl-4 rtl:pr-12 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-black outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600"
-                                />
-                            </div>
+                {/* Body */}
+                <div className="px-7 py-6 overflow-y-auto custom-scrollbar space-y-5">
+                    {/* Title + Description */}
+                    <div className="space-y-3">
+                        <input
+                            type="text"
+                            value={formData.title}
+                            onChange={e => setFormData({...formData, title: e.target.value})}
+                            placeholder={t.issueTitle}
+                            className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all placeholder:text-slate-400 placeholder:font-medium"
+                        />
+                        <textarea
+                            value={formData.description}
+                            onChange={e => setFormData({...formData, description: e.target.value})}
+                            placeholder={t.description}
+                            rows={2}
+                            className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all resize-none placeholder:text-slate-400"
+                        />
+                    </div>
 
-                            <div className="relative group">
-                                <div className="absolute left-4 rtl:left-auto rtl:right-4 top-4 text-slate-400 group-focus-within:text-blue-500 transition-colors">
-                                    <AlignLeft className="w-4 h-4" />
-                                </div>
-                                <textarea 
-                                    value={formData.description} 
-                                    onChange={e => setFormData({...formData, description: e.target.value})} 
-                                    placeholder={t.description} 
-                                    className="w-full p-4 pl-12 rtl:pl-4 rtl:pr-12 bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all min-h-[56px] placeholder:text-slate-300 dark:placeholder:text-slate-600"
-                                />
-                            </div>
+                    {/* Where + Who */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                            <label className={fieldLabelClasses}><Layout className="w-3.5 h-3.5" /> {t.project}</label>
+                            <SearchableSelect
+                                options={projectOptions}
+                                value={formData.projectId}
+                                onChange={val => setFormData({...formData, projectId: val})}
+                                placeholder={t.selectProject}
+                                language={language}
+                            />
                         </div>
-
-                        {/* Connection Group */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-3 font-sans">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
-                                    <Layout className="w-3 h-3" /> {t.project}
-                                </label>
-                                <SearchableSelect 
-                                    options={projectOptions} 
-                                    value={formData.projectId} 
-                                    onChange={val => setFormData({...formData, projectId: val})} 
-                                    placeholder={t.selectProject} 
-                                    language={language} 
-                                />
-                            </div>
-                            <div className="space-y-3 font-sans">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
-                                    <UserIcon className="w-3 h-3" /> {t.assignedTo}
-                                </label>
-                                <SearchableSelect 
-                                    options={userOptions} 
-                                    value={formData.assigneeId} 
-                                    onChange={val => setFormData({...formData, assigneeId: val})} 
-                                    placeholder={t.selectAssignee} 
-                                    language={language} 
-                                />
-                            </div>
+                        <div className="space-y-2">
+                            <label className={fieldLabelClasses}><UserIcon className="w-3.5 h-3.5" /> {t.assignedTo}</label>
+                            <SearchableSelect
+                                options={userOptions}
+                                value={formData.assigneeId}
+                                onChange={val => setFormData({...formData, assigneeId: val})}
+                                placeholder={t.selectAssignee}
+                                language={language}
+                            />
                         </div>
+                    </div>
 
-                        {/* Timing group */}
-                        <div className="p-4 bg-slate-50/50 dark:bg-blue-500/5 rounded-3xl border-2 border-slate-100 dark:border-blue-500/10 space-y-3">
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 px-1">
-                                        <Calendar className="w-3 h-3" /> {t.expectedDuration}
-                                    </label>
-                                    <div className="relative group w-full sm:w-48 mt-2">
-                                        <input 
-                                            type="number" 
-                                            min="1"
-                                            value={formData.expectedDuration} 
-                                            onChange={e => setFormData({...formData, expectedDuration: parseInt(e.target.value) || 0})} 
-                                            className="w-full p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-xs font-black outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-mono"
-                                        />
-                                        <div className="absolute right-4 rtl:left-4 rtl:right-auto top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300 uppercase pointer-events-none">
-                                            {t.days}
-                                        </div>
+                    {/* Timing */}
+                    <div className={sectionCardClasses}>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                            <div className="space-y-2 shrink-0">
+                                <label className={fieldLabelClasses}><Calendar className="w-3.5 h-3.5" /> {t.expectedDuration}</label>
+                                <div className="relative w-full sm:w-36">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={formData.expectedDuration}
+                                        onChange={e => setFormData({...formData, expectedDuration: parseInt(e.target.value) || 0})}
+                                        className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all"
+                                    />
+                                    <span className="absolute right-3.5 rtl:left-3.5 rtl:right-auto top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 uppercase pointer-events-none">
+                                        {t.days}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {calculatedEndDate && (
+                                <div className="flex-1 flex items-center gap-3 min-w-0">
+                                    <div className="w-9 h-9 rounded-lg bg-violet-600 text-white flex items-center justify-center shrink-0">
+                                        <Calendar className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide leading-none mb-1">{t.dueDate}</p>
+                                        <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{calculatedEndDate.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'long', day: 'numeric', month: 'short' })}</p>
                                     </div>
                                 </div>
+                            )}
+                        </div>
+                    </div>
 
-                                {calculatedEndDate && (
-                                    <div className="flex-1 w-full bg-white dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center gap-4 shadow-sm">
-                                        <div className="w-10 h-10 rounded-xl bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
-                                            <Calendar className="w-5 h-5" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">{t.dueDate}</p>
-                                            <p className="text-xs font-black text-blue-600 dark:text-blue-400 truncate">{calculatedEndDate.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { dateStyle: 'full' })}</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
+                    {/* Milestone + Priority */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                            <label className={fieldLabelClasses}><Layers className="w-3.5 h-3.5" /> {t.milestone}</label>
+                            <SearchableSelect
+                                options={milestoneOptions}
+                                value={formData.milestoneId}
+                                onChange={val => setFormData({...formData, milestoneId: val})}
+                                placeholder={t.selectMilestone}
+                                language={language}
+                            />
                         </div>
 
-                        {/* Milestone & Priority Group */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-3 font-sans">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
-                                    <Layers className="w-3 h-3" /> {t.milestone}
-                                </label>
-                                <SearchableSelect 
-                                    options={milestoneOptions} 
-                                    value={formData.milestoneId} 
-                                    onChange={val => setFormData({...formData, milestoneId: val})} 
-                                    placeholder={t.selectMilestone} 
-                                    language={language} 
-                                />
-                            </div>
-
-                            <div className="space-y-3 font-sans">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
-                                    <Flag className="w-3 h-3" /> {t.priority}
-                                </label>
-                                <div className="flex bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-1 rounded-xl gap-1">
-                                    {[IssuePriority.Low, IssuePriority.Medium, IssuePriority.High, IssuePriority.Critical].map((p) => (
-                                        <button
-                                            key={p}
-                                            onClick={() => setFormData({...formData, priority: p})}
-                                            className={`flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${
-                                                formData.priority === p 
-                                                ? (p === IssuePriority.Critical ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 
-                                                   p === IssuePriority.High ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' :
-                                                   p === IssuePriority.Medium ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' :
-                                                   'bg-slate-400 text-white shadow-lg shadow-slate-400/20')
-                                                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                                            }`}
-                                        >
-                                            {p}
-                                        </button>
-                                    ))}
-                                </div>
+                        <div className="space-y-2">
+                            <label className={fieldLabelClasses}><Flag className="w-3.5 h-3.5" /> {t.priority}</label>
+                            <div className="grid grid-cols-4 gap-1.5">
+                                {[IssuePriority.Low, IssuePriority.Medium, IssuePriority.High, IssuePriority.Critical].map((p) => (
+                                    <button
+                                        key={p}
+                                        type="button"
+                                        onClick={() => setFormData({...formData, priority: p})}
+                                        className={`py-2.5 rounded-lg text-[9px] font-bold uppercase transition-all border ${
+                                            formData.priority === p
+                                                ? `${priorityStyles[p].active} border-transparent`
+                                                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300 dark:hover:border-slate-600'
+                                        }`}
+                                    >
+                                        {p}
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="p-8 border-t border-slate-50 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/20 flex flex-col sm:flex-row justify-between items-center gap-4 shrink-0">
-                    <div className="flex items-center gap-2 text-amber-500 dark:text-amber-400">
-                        <AlertCircle className="w-4 h-4" />
-                        <span className="text-[9px] font-black uppercase tracking-tight">{language === 'ar' ? 'تأكد من اختيار المشروع والمسؤول قبل الحفظ' : 'Ensure project & assignee are selected'}</span>
+                {/* Footer */}
+                <div className="px-7 py-5 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-3 shrink-0 bg-slate-50/50 dark:bg-slate-900/30">
+                    <div className="flex items-center gap-2 text-slate-400">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        <span className="text-[11px] font-medium">{language === 'ar' ? 'تأكد من اختيار المشروع والمسؤول قبل الحفظ' : 'Select a project & assignee before saving'}</span>
                     </div>
-                    <div className="flex gap-4 w-full sm:w-auto">
-                        <button 
-                            onClick={onClose} 
-                            className="flex-1 sm:flex-none px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"
+                    <div className="flex gap-2.5 w-full sm:w-auto">
+                        <button
+                            onClick={onClose}
+                            className="flex-1 sm:flex-none px-5 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"
                         >
                             {t.cancel}
                         </button>
-                        <button 
-                            onClick={handleSave} 
+                        <button
+                            onClick={handleSave}
                             disabled={!formData.title || !formData.projectId || isSaving}
-                            className="flex-1 sm:flex-none px-12 py-4 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-500/30 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:scale-100 flex items-center justify-center gap-2"
+                            className="flex-1 sm:flex-none px-8 py-2.5 bg-violet-600 text-white rounded-xl text-xs font-bold shadow-md shadow-violet-600/20 hover:bg-violet-700 active:scale-[0.98] transition-all disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
                         >
-                            {isSaving ? <span className="animate-spin text-lg leading-none">◌</span> : <ShieldCheck className="w-4 h-4" />}
+                            {isSaving ? <span className="animate-spin text-sm leading-none">◌</span> : <ShieldCheck className="w-4 h-4" />}
                             {t.saveIssue}
                         </button>
                     </div>

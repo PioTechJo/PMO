@@ -22,6 +22,9 @@ interface TasksOverviewProps {
     projects: Project[];
     allUsers: User[];
     language: Language;
+    currentUser?: User;
+    onUpdateIssue?: (id: string, data: Partial<Issue>) => Promise<void>;
+    onAddComment?: (issueId: string, userId: string, content: string) => Promise<void>;
 }
 
 const translations = {
@@ -37,6 +40,8 @@ const translations = {
         productivityKpis: "مؤشرات الإنتاجية", completionRate: "نسبة الإنجاز", avgPerResource: "متوسط المهام المنجزة لكل موظف",
         riskKpis: "مؤشرات المخاطر", criticalTasks: "مهام حرجة", highPriorityTasks: "أولوية عالية", tasksWithoutOwner: "بدون مسؤول",
         avgResolutionTime: "متوسط وقت الحل",
+        overdueTasksList: "المهام المتأخرة", dayOverdue: "يوم متأخر", daysOverdue: "أيام متأخرة",
+        doubleClickHint: "دبل كليك لفتح التفاصيل", comments: "التعليقات", addComment: "أضف تعليق...", noComments: "لا توجد تعليقات بعد.", post: "إرسال", close: "إغلاق", status: "الحالة",
     },
     en: {
         taskAnalysis: "Tasks & Defects Management", teamLoadAndHealth: "Team load and execution health",
@@ -50,10 +55,12 @@ const translations = {
         productivityKpis: "Productivity KPIs", completionRate: "Completion Rate", avgPerResource: "Avg Tasks Completed / Resource",
         riskKpis: "Risk KPIs", criticalTasks: "Critical Tasks", highPriorityTasks: "High Priority Tasks", tasksWithoutOwner: "Tasks Without Owner",
         avgResolutionTime: "Avg Resolution Time",
+        overdueTasksList: "Overdue Tasks", dayOverdue: "day overdue", daysOverdue: "days overdue",
+        doubleClickHint: "Double-click to open details", comments: "Comments", addComment: "Add a comment...", noComments: "No comments yet.", post: "Post", close: "Close", status: "Status",
     }
 };
 
-const TasksOverview: React.FC<TasksOverviewProps> = ({ issues, projects, allUsers, language }) => {
+const TasksOverview: React.FC<TasksOverviewProps> = ({ issues, projects, allUsers, language, currentUser, onUpdateIssue, onAddComment }) => {
     const t = translations[language];
 
     const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>('byProject');
@@ -63,6 +70,9 @@ const TasksOverview: React.FC<TasksOverviewProps> = ({ issues, projects, allUser
     const [expandedTasksAssignees, setExpandedTasksAssignees] = useState<Record<string, boolean>>({});
     const [selectedAssigneeTasks, setSelectedAssigneeTasks] = useState<string | null>(null);
     const [selectedProjectTasks, setSelectedProjectTasks] = useState<string | null>(null);
+    const [activeIssueId, setActiveIssueId] = useState<string | null>(null);
+    const [commentText, setCommentText] = useState('');
+    const [isSavingComment, setIsSavingComment] = useState(false);
 
     const issueStats = useMemo(() => {
         const byProject: Record<string, { id: string, name: string, count: number, resourceIds: Set<string> }> = {};
@@ -163,6 +173,29 @@ const TasksOverview: React.FC<TasksOverviewProps> = ({ issues, projects, allUser
         return { total, open, inProgress, completed, dueToday, dueThisWeek, overdue, completionRate, avgPerResource, critical, highPriority, withoutOwner, avgResolutionHours };
     }, [issues]);
 
+    const overdueIssues = useMemo(() => {
+        const now = new Date();
+        const activeStatuses = [IssueStatus.Open, IssueStatus.InProgress];
+        return issues
+            .filter(i => activeStatuses.includes(i.status))
+            .map(i => ({ issue: i, dueDate: getDueDate(i.createdAt, i.expectedDuration) }))
+            .filter((x): x is { issue: Issue; dueDate: Date } => !!x.dueDate && x.dueDate < now)
+            .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+    }, [issues]);
+
+    const activeIssue = issues.find(i => i.id === activeIssueId);
+
+    const handleAddComment = async () => {
+        if (!commentText.trim() || !currentUser || !activeIssueId || !onAddComment || isSavingComment) return;
+        setIsSavingComment(true);
+        try {
+            await onAddComment(activeIssueId, currentUser.id, commentText);
+            setCommentText('');
+        } finally {
+            setIsSavingComment(false);
+        }
+    };
+
     const formatResolutionTime = (hours: number | null) => {
         if (hours === null) return '—';
         if (hours < 24) return `${hours.toFixed(1)}h`;
@@ -197,6 +230,46 @@ const TasksOverview: React.FC<TasksOverviewProps> = ({ issues, projects, allUser
                 <StatCard label={t.dueThisWeek} value={kpis.dueThisWeek} colorClass="text-orange-500" />
                 <StatCard label={t.overdueTasks} value={kpis.overdue} colorClass="text-red-500" />
             </KpiGroup>
+
+            {overdueIssues.length > 0 && (
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-red-100 dark:border-red-900/30 overflow-hidden">
+                    <div className="px-5 py-4 border-b border-red-50 dark:border-red-900/20 bg-red-50/40 dark:bg-red-900/10 flex items-center justify-between">
+                        <h3 className="text-[11px] font-black text-red-500 uppercase tracking-[0.2em]">{t.overdueTasksList}</h3>
+                        <span className="text-[10px] font-bold text-red-400">{overdueIssues.length}</span>
+                    </div>
+                    <div className="divide-y divide-slate-50 dark:divide-slate-800/60">
+                        {overdueIssues.map(({ issue, dueDate }) => {
+                            const project = projects.find(p => p.id === issue.projectId);
+                            const daysOverdue = Math.max(1, Math.floor((Date.now() - dueDate.getTime()) / 86400000));
+                            return (
+                                <div
+                                    key={issue.id}
+                                    onDoubleClick={() => setActiveIssueId(issue.id)}
+                                    title={t.doubleClickHint}
+                                    className="px-5 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors"
+                                >
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-bold text-slate-800 dark:text-white truncate">{issue.title}</p>
+                                        <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400">
+                                            <span>{project?.name || t.unknownProject}</span>
+                                            <span>•</span>
+                                            <span>{issue.assignee?.name || t.unassigned}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3 shrink-0">
+                                        <span className="text-[10px] font-bold text-slate-400">
+                                            {dueDate.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'long', day: 'numeric', month: 'short' })}
+                                        </span>
+                                        <span className="px-2 py-1 rounded-lg text-[9px] font-black uppercase bg-red-500 text-white whitespace-nowrap">
+                                            {daysOverdue} {daysOverdue === 1 ? t.dayOverdue : t.daysOverdue}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             <KpiGroup title={t.productivityKpis}>
                 <StatCard label={t.completionRate} value={`${kpis.completionRate}%`} colorClass="text-emerald-500" />
@@ -510,6 +583,69 @@ const TasksOverview: React.FC<TasksOverviewProps> = ({ issues, projects, allUser
                                     );
                                 })}
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {activeIssue && (
+                <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) setActiveIssueId(null); }}>
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+                        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-start gap-4">
+                            <div className="min-w-0">
+                                <h2 className="text-lg font-black text-slate-800 dark:text-white truncate">{activeIssue.title}</h2>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{activeIssue.description}</p>
+                            </div>
+                            <button onClick={() => setActiveIssueId(null)} className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white shrink-0">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+
+                        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.status}</span>
+                            {onUpdateIssue ? (
+                                <select
+                                    value={activeIssue.status}
+                                    onChange={(e) => onUpdateIssue(activeIssue.id, { status: e.target.value as IssueStatus })}
+                                    className="px-3 py-2 rounded-xl text-[10px] font-black uppercase outline-none border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                                >
+                                    {Object.values(IssueStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            ) : (
+                                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{activeIssue.status}</span>
+                            )}
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.comments}</h3>
+                            {(activeIssue.comments || []).length > 0 ? activeIssue.comments!.map(c => (
+                                <div key={c.id} className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl">
+                                    <p className="text-[10px] font-black text-slate-600 dark:text-slate-300">{c.user?.name}</p>
+                                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{c.content}</p>
+                                </div>
+                            )) : (
+                                <p className="text-xs text-slate-400 italic">{t.noComments}</p>
+                            )}
+                        </div>
+
+                        {onAddComment && currentUser && (
+                            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex gap-3">
+                                <input
+                                    type="text"
+                                    value={commentText}
+                                    onChange={(e) => setCommentText(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                                    placeholder={t.addComment}
+                                    className="flex-1 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-xs outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                                <button
+                                    onClick={handleAddComment}
+                                    disabled={!commentText.trim() || isSavingComment}
+                                    className="px-5 py-3 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:opacity-90 disabled:opacity-50"
+                                >
+                                    {t.post}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

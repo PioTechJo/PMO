@@ -8,7 +8,6 @@ interface HeaderProps {
     user?: User;
     language: Language;
     setLanguage: (language: Language) => void;
-    onSearch: (query: string) => void;
     onLogout: () => void;
     theme: Theme;
     setTheme: (theme: Theme) => void;
@@ -18,8 +17,7 @@ interface HeaderProps {
     onNotificationRead?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, language, onSearch, theme, setTheme, onToggleSidebar, notifications = [], onNotificationRead, onLogout }) => {
-  const [query, setQuery] = useState('');
+const Header: React.FC<HeaderProps> = ({ user, language, theme, setTheme, onToggleSidebar, notifications = [], onNotificationRead, onLogout }) => {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -80,28 +78,6 @@ const Header: React.FC<HeaderProps> = ({ user, language, onSearch, theme, setThe
           </div>
           <span className="text-slate-300">/</span>
           <span className="text-slate-800 dark:text-slate-200">Tasks & Defects</span>
-        </div>
-
-        {/* Center Search Bar */}
-        <div className="hidden lg:flex flex-1 justify-center max-w-2xl px-4">
-          <div className="relative w-full max-w-md group group-focus-within:scale-[1.02] transition-transform">
-              <span className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-[#3b82f6] transition-colors">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-              </span>
-              <input 
-                  type="text" 
-                  value={query} 
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && onSearch(query)}
-                  placeholder={language === 'ar' ? 'ابحث عن المهام، المشاريع...' : 'Search tasks, projects...'} 
-                  className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-transparent focus:border-[#3b82f6]/20 rounded-xl py-2 pl-10 pr-10 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-0 transition-all shadow-sm"
-              />
-              <span className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 border border-slate-200 dark:border-slate-800 rounded bg-white dark:bg-slate-900 text-[10px] font-medium text-slate-400 tracking-tighter">
-                      ⌘K
-                  </kbd>
-              </span>
-          </div>
         </div>
       </div>
 

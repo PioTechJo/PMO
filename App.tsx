@@ -4,6 +4,7 @@ import { Session, SupabaseClient } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import KPIDashboard from './components/KPIDashboard';
+import MyTasks from './components/MyTasks';
 import TasksOverview from './components/TasksOverview';
 import DashboardTabs from './components/DashboardTabs';
 import Projects from './components/Projects';
@@ -21,7 +22,6 @@ import EditProjectModal from './components/EditProjectModal';
 import EditMilestoneModal from './components/EditMilestoneModal';
 import MilestoneDetailModal from './components/MilestoneDetailModal';
 import ConfirmDeleteModal from './components/ConfirmDeleteModal';
-import Chatbot from './components/Chatbot';
 import { Language, Theme, View, Project, Milestone, User, Lookups, MaintenanceContract, Issue, IssueStatus, Notification, RolePermissions } from './types';
 import { 
     fetchAllData, 
@@ -38,7 +38,6 @@ import {
     addIssueComment as apiAddIssueComment,
 } from './services/api';
 import { initSupabase, getSupabase } from './services/supabaseClient';
-import { analyzeQuery } from './services/geminiService';
 
 const App: React.FC = () => {
     const [view, setView] = useState<View>(() => (localStorage.getItem('lastView') as View) || 'dashboard');
@@ -58,10 +57,13 @@ const App: React.FC = () => {
 
     // Permissions State
     const [rolePermissions, setRolePermissions] = useState<RolePermissions[]>(() => {
+        // "My Tasks" is only relevant to PS - they're the only type that
+        // actually gets issues assigned to them (see AddIssueModal's
+        // assignee list). Everyone else keeps their existing landing page.
         const defaultPermissions = [
             { role: 'Manager', allowedViews: ['dashboard', 'tasksOverview', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'maintenanceOverview', 'system', 'issues'] },
             { role: 'PM', allowedViews: ['dashboard', 'tasksOverview', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'maintenanceOverview', 'system', 'issues'] },
-            { role: 'PS', allowedViews: ['tasksOverview', 'issues'] },
+            { role: 'PS', allowedViews: ['myTasks', 'tasksOverview', 'issues'] },
             { role: 'Staff', allowedViews: ['dashboard', 'tasksOverview', 'projects', 'issues'] },
             { role: 'User', allowedViews: ['dashboard', 'tasksOverview', 'projects', 'issues'] },
             // Sees/manages every task across every project, but has no
@@ -88,6 +90,16 @@ const App: React.FC = () => {
             if (!migrated.some((p: any) => p.role === 'TasksAdmin')) {
                 migrated = [...migrated, { role: 'TasksAdmin', allowedViews: ['tasksOverview', 'issues'] }];
             }
+            // Migrate: give only PS access to the new My Tasks page; strip it
+            // from any other role that may have picked it up in a previous
+            // (broader) version of this migration.
+            migrated = migrated.map((p: any) => {
+                const shouldHave = p.role === 'PS';
+                const has = p.allowedViews.includes('myTasks');
+                if (shouldHave && !has) return { ...p, allowedViews: ['myTasks', ...p.allowedViews] };
+                if (!shouldHave && has) return { ...p, allowedViews: p.allowedViews.filter((v: string) => v !== 'myTasks') };
+                return p;
+            });
             return migrated;
         } catch (e) {
             return defaultPermissions;
@@ -98,9 +110,7 @@ const App: React.FC = () => {
     const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
     const [viewingMilestone, setViewingMilestone] = useState<Milestone | null>(null);
     const [deletingProject, setDeletingProject] = useState<Project | null>(null);
-    const [isChatbotOpen, setIsChatbotOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
 
     const [session, setSession] = useState<Session | null>(null);
     const [supabaseClient, setSupabaseClient] = useState<SupabaseClient | null>(null);
@@ -144,7 +154,11 @@ const App: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        const key = localStorage.getItem('supabaseAnonKey');
+        // The anon key is a public, RLS-protected key (not a secret like the
+        // service role key) - baking it in here means users never have to
+        // find and paste it in themselves, same as the URL below.
+        const DEFAULT_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjYW1saW5oYXp6bWJhbGRzcmRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAzMzQwNjEsImV4cCI6MjA3NTkxMDA2MX0.Gjn3QbnmRkapXmiMaks7luZnh6xlahL9UWNoDsP06bc';
+        const key = localStorage.getItem('supabaseAnonKey') || DEFAULT_ANON_KEY;
         const url = localStorage.getItem('supabaseUrl') || 'https://dcamlinhazzmbaldsrdo.supabase.co';
         if (key?.trim()) setupClient(key, url);
         else { setIsAppConfigured(false); setIsLoading(false); }
@@ -192,18 +206,6 @@ const App: React.FC = () => {
         }
     }, [session, loadData]);
 
-    const handleAiSearch = async (query: string) => {
-        if (!query.trim()) return;
-        setIsAnalyzing(true);
-        try {
-            await analyzeQuery(query, projects, milestones, users, lookups.teams);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setIsAnalyzing(false);
-        }
-    };
-
     const handleLogout = async () => {
         if (supabaseClient) {
             await supabaseClient.auth.signOut();
@@ -235,17 +237,16 @@ const App: React.FC = () => {
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 <Header 
                     user={currentUser} 
-                    language={language} setLanguage={setLanguage} onSearch={handleAiSearch} onLogout={handleLogout} 
-                    theme={theme} setTheme={setTheme} isDbConnected={!!session} 
+                    language={language} setLanguage={setLanguage} onLogout={handleLogout}
+                    theme={theme} setTheme={setTheme} isDbConnected={!!session}
                     onToggleSidebar={toggleSidebar}
                     notifications={notifications} onNotificationRead={loadData}
                 />
-                
-                {isAnalyzing && <div className="h-0.5 w-full bg-violet-600/20 overflow-hidden"><div className="h-full bg-violet-600 animate-[loading_2s_ease-in-out_infinite]" style={{ width: '30%', transformOrigin: 'left' }}></div></div>}
 
                 <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 custom-scrollbar">
+                    {view === 'myTasks' && allowedViews.includes('myTasks') && <MyTasks allIssues={issues} allProjects={projects} currentUser={currentUser} language={language} onUpdateIssue={async (id, d) => { await apiUpdateIssue(id, d); loadData(); }} onAddComment={async (id, uid, c) => { await apiAddIssueComment(id, uid, c); loadData(); }} />}
                     {view === 'dashboard' && allowedViews.includes('dashboard') && <KPIDashboard projects={projects} milestones={milestones} issues={issues} allUsers={users} projectManagers={lookups.projectManagers} language={language} />}
-                    {view === 'tasksOverview' && allowedViews.includes('tasksOverview') && <TasksOverview issues={issues} projects={projects} allUsers={users} language={language} />}
+                    {view === 'tasksOverview' && allowedViews.includes('tasksOverview') && <TasksOverview issues={issues} projects={projects} allUsers={users} language={language} currentUser={currentUser} onUpdateIssue={async (id, d) => { await apiUpdateIssue(id, d); loadData(); }} onAddComment={async (id, uid, c) => { await apiAddIssueComment(id, uid, c); loadData(); }} />}
                     {view === 'paymentsTargetsDashboard' && allowedViews.includes('paymentsTargetsDashboard') && <DashboardTabs allProjects={projects} allMilestones={milestones} allProjectManagers={lookups.projectManagers} lookups={lookups} language={language} />}
                     {view === 'projects' && allowedViews.includes('projects') && <Projects allProjects={projects} allMilestones={milestones} allIssues={issues} allUsers={users} language={language} onAddProject={async (d) => { const created = await apiAddProject(d); await loadData(); return created; }} onAddMilestones={async (d) => { await apiAddMilestones(d); loadData(); }} onOpenEditModal={setEditingProject} onOpenDeleteModal={setDeletingProject} lookups={lookups} isImportModalOpen={isImportModalOpen} onOpenImportModal={() => setIsImportModalOpen(true)} onCloseImportModal={() => setIsImportModalOpen(false)} onImportProjects={async () => {}} currentUser={currentUser} />}
                     {view === 'milestones' && allowedViews.includes('milestones') && <Milestones allMilestones={milestones} allProjects={projects} language={language} onOpenEditModal={setEditingMilestone} onViewMilestoneDetails={setViewingMilestone} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} onRefresh={loadData} lookups={lookups} currentUser={currentUser} />}
@@ -264,9 +265,6 @@ const App: React.FC = () => {
             {editingMilestone && <EditMilestoneModal milestoneToEdit={editingMilestone} allMilestones={milestones} teams={lookups.teams} projects={projects} allMilestoneUpdates={[]} allUsers={users} currentUser={currentUser} onClose={() => setEditingMilestone(null)} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} onAddMilestones={async (d) => { await apiAddMilestones(d); loadData(); }} onAddUpdate={async () => {}} language={language} />}
             {viewingMilestone && <MilestoneDetailModal milestone={viewingMilestone} projects={projects} allMilestoneUpdates={[]} allUsers={users} lookups={lookups} onClose={() => setViewingMilestone(null)} language={language} />}
             {deletingProject && <ConfirmDeleteModal project={deletingProject} onClose={() => setDeletingProject(null)} onConfirm={async () => { await apiDeleteProject(deletingProject.id); setDeletingProject(null); loadData(); }} language={language} />}
-            
-            <Chatbot isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} language={language} projects={projects} milestones={milestones} users={users} lookups={lookups} />
-            <button onClick={() => setIsChatbotOpen(true)} className="fixed bottom-6 right-6 bg-slate-900 text-white p-4 rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all z-40"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" /></svg></button>
             <style>{`@keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }`}</style>
         </div>
     );

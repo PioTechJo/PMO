@@ -1,7 +1,7 @@
 
 export type Language = 'ar' | 'en';
 export type Theme = 'light' | 'dark' | 'system';
-export type View = 'dashboard' | 'tasksOverview' | 'paymentsTargetsDashboard' | 'projects' | 'milestones' | 'team' | 'payments' | 'system' | 'maintenanceContracts' | 'maintenanceOverview' | 'filter' | 'reports' | 'issues';
+export type View = 'myTasks' | 'dashboard' | 'tasksOverview' | 'paymentsTargetsDashboard' | 'projects' | 'milestones' | 'team' | 'payments' | 'system' | 'maintenanceContracts' | 'maintenanceOverview' | 'filter' | 'reports' | 'issues';
 export type GroupingType = 'project' | 'assignee';
 export type TaskViewMode = 'byProject' | 'byAssignee';
 
@@ -22,12 +22,6 @@ export interface User {
 export interface RolePermissions {
     role: string;
     allowedViews: View[];
-}
-
-export interface ChatMessage {
-  id: string;
-  text: string;
-  sender: 'user' | 'ai';
 }
 
 export interface Notification {

@@ -286,6 +286,35 @@ export const updateIssue = async (id: string, issueData: Partial<Issue>) => {
     if (issueData.estimatedHours !== undefined) updateData.estimated_hours = issueData.estimatedHours || null;
     const { data, error } = await supabase.from('issues').update(updateData).eq('id', id).select();
     if (error) throw error;
+
+    // Reassigning an existing issue was silently notification-less - only
+    // brand new issues (via addIssue) notified their assignee. Mirror that
+    // same notification here whenever a reassign sets a real assignee.
+    if (updateData.assignee_id) {
+        await supabase.from('notifications').insert([{
+            user_id: updateData.assignee_id,
+            title: 'Task Reassigned To You',
+            message: `You have been assigned to: ${data[0].title}`,
+            type: 'issue_assigned',
+            link_id: id
+        }]);
+    }
+
+    // Let the reporter know their reported task moved - skip notifying them
+    // about their own change (e.g. a PS closing a task they filed themselves).
+    if (updateData.status && data[0].reporter_id) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id !== data[0].reporter_id) {
+            await supabase.from('notifications').insert([{
+                user_id: data[0].reporter_id,
+                title: 'Task Status Updated',
+                message: `"${data[0].title}" is now ${updateData.status}.`,
+                type: 'status_change',
+                link_id: id
+            }]);
+        }
+    }
+
     return data[0];
 };
 

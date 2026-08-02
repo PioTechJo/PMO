@@ -17,6 +17,7 @@ interface SidebarProps {
 const NavIcon: React.FC<{ view: View }> = ({ view }) => {
     const iconProps = { className: "w-5 h-5 transition-transform duration-300 group-hover:scale-110", strokeWidth: "1.75", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" };
     const icons: Record<View, React.ReactNode> = {
+        myTasks: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
         dashboard: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>,
         tasksOverview: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>,
         paymentsTargetsDashboard: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
@@ -36,8 +37,8 @@ const NavIcon: React.FC<{ view: View }> = ({ view }) => {
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language, allowedViews, onLogout, isOpen, onClose, projectsCount, openTasksCount }) => {
   const translations = {
-    ar: { dashboard: 'نظرة عامة', paymentsTargetsDashboard: 'لوحة المتابعة', reports: 'التقارير', projects: 'المشاريع', milestones: 'المعالم', payments: 'المدفوعات', tasks: 'المهام', tasksOverviewSub: 'نظرة عامة', tasksManagementSub: 'إدارة المهام', users: 'الفريق', settings: 'الإعدادات', logout: 'تسجيل الخروج', filter: 'الفلاتر المتقدمة', maintenance: 'الصيانة', maintenanceOverviewSub: 'نظرة عامة', maintenanceContractsSub: 'إدارة العقود', main: 'الرئيسية', operations: 'العمليات' },
-    en: { dashboard: 'Overview', paymentsTargetsDashboard: 'Dashboard', reports: 'Reports', projects: 'Projects', milestones: 'Milestones', payments: 'Payments', tasks: 'Tasks', tasksOverviewSub: 'Overview', tasksManagementSub: 'Tasks Management', users: 'Team', settings: 'Settings', logout: 'Logout', filter: 'Advanced Filter', maintenance: 'Maintenance', maintenanceOverviewSub: 'Overview', maintenanceContractsSub: 'Contracts Management', main: 'Main', operations: 'Operations' },
+    ar: { myTasks: 'مهامي', dashboard: 'نظرة عامة', paymentsTargetsDashboard: 'لوحة المتابعة', reports: 'التقارير', projects: 'المشاريع', milestones: 'المعالم', payments: 'المدفوعات', tasks: 'المهام', tasksOverviewSub: 'نظرة عامة', tasksManagementSub: 'إدارة المهام', users: 'الفريق', settings: 'الإعدادات', logout: 'تسجيل الخروج', filter: 'الفلاتر المتقدمة', maintenance: 'الصيانة', maintenanceOverviewSub: 'نظرة عامة', maintenanceContractsSub: 'إدارة العقود', main: 'الرئيسية', operations: 'العمليات' },
+    en: { myTasks: 'My Tasks', dashboard: 'Overview', paymentsTargetsDashboard: 'Dashboard', reports: 'Reports', projects: 'Projects', milestones: 'Milestones', payments: 'Payments', tasks: 'Tasks', tasksOverviewSub: 'Overview', tasksManagementSub: 'Tasks Management', users: 'Team', settings: 'Settings', logout: 'Logout', filter: 'Advanced Filter', maintenance: 'Maintenance', maintenanceOverviewSub: 'Overview', maintenanceContractsSub: 'Contracts Management', main: 'Main', operations: 'Operations' },
   };
   const t = translations[language];
 
@@ -48,6 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
     {
       title: t.main,
       items: [
+        { view: 'myTasks', label: t.myTasks },
         { view: 'dashboard', label: t.dashboard },
         { view: 'paymentsTargetsDashboard', label: t.paymentsTargetsDashboard },
         { view: 'projects', label: t.projects },
