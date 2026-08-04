@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Milestone, Project, Lookup, Language, PaymentStatus, MilestoneStatus, MilestoneUpdate, User, Lookups, MilestoneAuditLog } from '../types';
+import { getPaymentStatusLabel } from '../services/paymentStatusLabels';
 import { fetchMilestoneAuditLogs } from '../services/api';
 
 interface MilestoneDetailModalProps {
@@ -204,7 +205,7 @@ const MilestoneDetailModal: React.FC<MilestoneDetailModalProps> = ({ milestone, 
                                 {milestone.hasPayment ? (
                                     <div className="flex items-center gap-2">
                                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${paymentStatusColors[milestone.paymentStatus || PaymentStatus.Pending]}`}>
-                                            {t[milestone.paymentStatus || PaymentStatus.Pending]}
+                                            {getPaymentStatusLabel(milestone.paymentStatus || PaymentStatus.Pending, language)}
                                         </span>
                                         <span className="font-mono font-bold text-green-600 dark:text-green-400 text-xs">
                                             {milestone.paymentAmount.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US')}
@@ -315,12 +316,12 @@ const translations = {
     ar: {
         inProject: "في مشروع", noDescription: "لا يوجد وصف.", status: "الحالة", team: "الفريق", dueDate: "تاريخ الاستحقاق", payment: "الدفعة", updatesTitle: "تحديثات المعلم", noUpdates: "لا توجد تحديثات في هذه الفترة.", unassigned: "غير معين",
         from: "من", to: "إلى", exportPdf: "تصدير PDF", exportExcel: "تصدير Excel", milestoneReport: "تقرير المعلم", details: "التفاصيل", project: "المشروع",
-        Pending: "معلقة", Sent: "مرسلة", Paid: "مدفوعة", historyTitle: "سجل التغييرات", noHistory: "لا يوجد سجل تغييرات."
+        historyTitle: "سجل التغييرات", noHistory: "لا يوجد سجل تغييرات."
     },
     en: {
         inProject: "In project", noDescription: "No description provided.", status: "Status", team: "Team", dueDate: "Due Date", payment: "Payment", updatesTitle: "Milestone Updates", noUpdates: "No updates found for this period.", unassigned: "Unassigned",
         from: "From", to: "To", exportPdf: "Export to PDF", exportExcel: "Export to Excel", milestoneReport: "Milestone Report", details: "Details", project: "Project",
-        Pending: "Pending", Sent: "Sent", Paid: "Paid", historyTitle: "Change History", noHistory: "No change history found."
+        historyTitle: "Change History", noHistory: "No change history found."
     },
 };
 

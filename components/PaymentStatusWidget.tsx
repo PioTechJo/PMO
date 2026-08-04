@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Milestone, Project, Language, PaymentStatus } from '../types';
 import SearchableSelect from './SearchableSelect';
+import { getPaymentStatusLabel } from '../services/paymentStatusLabels';
 
 const WidgetWrapper: React.FC<{ title: string, children: React.ReactNode }> = ({ title, children }) => (
     <div className="bg-white dark:bg-gray-800/50 p-6 rounded-2xl shadow-sm dark:shadow-none h-full flex flex-col">
@@ -24,9 +25,6 @@ const translations = {
         allYears: "كل السنوات",
         allMonths: "كل الشهور",
         total: "الإجمالي",
-        Paid: "مدفوعة",
-        Sent: "مرسلة",
-        Pending: "معلقة",
         noData: "لا توجد بيانات دفع لعرضها."
     },
     en: {
@@ -36,9 +34,6 @@ const translations = {
         allYears: "All Years",
         allMonths: "All Months",
         total: "Total",
-        Paid: "Paid",
-        Sent: "Sent",
-        Pending: "Pending",
         noData: "No payment data to display."
     }
 };
@@ -147,7 +142,7 @@ const PaymentStatusWidget: React.FC<PaymentStatusWidgetProps> = ({ milestones, p
                         <div className="space-y-3 pt-2">
                             {statusData.map(({ status, amount, color }) => (
                                 <div key={status} className="flex items-center gap-4">
-                                    <span className="w-1/4 text-sm text-gray-600 dark:text-gray-300 truncate">{t[status]}</span>
+                                    <span className="w-1/4 text-sm text-gray-600 dark:text-gray-300 truncate">{getPaymentStatusLabel(status, language)}</span>
                                     <div className="w-3/4 flex items-center gap-2">
                                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4">
                                             <div

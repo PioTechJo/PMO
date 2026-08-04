@@ -5,6 +5,7 @@ import { Milestone, Project, Lookup, Language, Lookups, User, PaymentStatus, Mil
 import ActivityListItem from './ActivityListItem';
 import AddActivityModal from './AddActivityModal';
 import SearchableSelect from './SearchableSelect';
+import { getPaymentStatusLabel } from '../services/paymentStatusLabels';
 
 interface ActivitiesProps {
     // Fixed: Changed 'Activity' to 'Milestone'
@@ -65,9 +66,6 @@ const Activities: React.FC<ActivitiesProps> = ({ allActivities, allProjects, lan
             searchPaymentStatuses: "ابحث عن حالة...",
             allMonths: "كل الشهور",
             searchMonths: "ابحث عن شهر...",
-            Paid: "مدفوعة",
-            Pending: "معلقة",
-            Sent: "مرسلة",
             exportGantt: "تصدير مخطط جانت",
             start: "البداية",
             end: "النهاية",
@@ -93,9 +91,6 @@ const Activities: React.FC<ActivitiesProps> = ({ allActivities, allProjects, lan
             searchPaymentStatuses: "Search statuses...",
             allMonths: "All Months",
             searchMonths: "Search months...",
-            Paid: "Paid",
-            Pending: "Pending",
-            Sent: "Sent",
             exportGantt: "Export Gantt Chart",
             start: "Start",
             end: "End",
@@ -120,8 +115,8 @@ const Activities: React.FC<ActivitiesProps> = ({ allActivities, allProjects, lan
 
     const paymentStatusOptions = useMemo(() => [
         { value: 'all', label: t.allPaymentStatuses },
-        ...Object.values(PaymentStatus).map(s => ({ value: s, label: t[s as keyof typeof t] || s })).sort((a,b) => a.label.localeCompare(b.label))
-    ], [t]);
+        ...Object.values(PaymentStatus).map(s => ({ value: s, label: getPaymentStatusLabel(s, language) })).sort((a,b) => a.label.localeCompare(b.label))
+    ], [language]);
 
     const hasPaymentOptions = useMemo(() => [
         { value: 'all', label: t.all },

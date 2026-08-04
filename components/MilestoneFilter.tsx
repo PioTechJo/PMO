@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Project, Milestone, Lookup, Language, PaymentStatus, User } from '../types';
+import { getPaymentStatusLabel } from '../services/paymentStatusLabels';
 import { ChevronDown, ChevronUp, BarChart2, List, Grid, RotateCcw, Download, Filter } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
 import ProjectDetailModal from './ProjectDetailModal';
@@ -21,7 +22,7 @@ interface MilestoneFilterProps {
 const translations = {
     ar: {
         filter: "الفلترة المتقدمة", subtitle: "بحث وتصفية متقدمة لمعالم المشاريع والدفعات.", 
-        projectMilestones: "معالم المشاريع", noMilestones: "لا توجد معالم.", Pending: "معلقة", Sent: "مرسلة", Paid: "مدفوعة", noDueDate: "لا يوجد تاريخ استحقاق", allProjects: "كل المشاريع", allMonths: "كل الشهور", searchProjects: "ابحث عن مشروع...", searchMonths: "ابحث عن شهر...", exportToExcel: "تصدير إلى Excel", allCustomers: "كل العملاء", searchCustomers: "ابحث عن عميل...", allManagers: "كل المدراء", searchManagers: "ابحث عن مدير...", clearFilters: "مسح الفلاتر", milestoneUnit: "معالم", allPaymentStatuses: "كل حالات الدفع", searchPaymentStatuses: "ابحث عن حالة...",
+        projectMilestones: "معالم المشاريع", noMilestones: "لا توجد معالم.", noDueDate: "لا يوجد تاريخ استحقاق", allProjects: "كل المشاريع", allMonths: "كل الشهور", searchProjects: "ابحث عن مشروع...", searchMonths: "ابحث عن شهر...", exportToExcel: "تصدير إلى Excel", allCustomers: "كل العملاء", searchCustomers: "ابحث عن عميل...", allManagers: "كل المدراء", searchManagers: "ابحث عن مدير...", clearFilters: "مسح الفلاتر", milestoneUnit: "معالم", allPaymentStatuses: "كل حالات الدفع", searchPaymentStatuses: "ابحث عن حالة...",
         listView: "عرض قائمة", gridView: "عرض شبكي", projectManagerHeader: "المشروع/المدير", milestoneCountHeader: "المعالم", countryHeader: "البلد", statusHeader: "الحالة", teamHeader: "الفريق", unassigned: "غير معين", noStatus: "لا توجد حالة",
         expandAll: "توسيع الكل", collapseAll: "طي الكل",
         dataVisualization: "تصور البيانات", showVisualization: "إظهار التصور البياني", hideVisualization: "إخفاء التصور البياني", chartType: "نوع الرسم البياني", dimension: "البعد (المحور السيني)", measure: "المقياس (المحور الصادي)", barChart: "أعمدة", pieChart: "دائري", status: "حالة المشروع", customer: "العميل", manager: "مدير المشروع", country: "الدولة", team: "الفريق", project: "المشروع", projectCount: "عدد المشاريع", milestoneCount: "عدد المعالم", totalPayment: "إجمالي الدفعات",
@@ -29,7 +30,7 @@ const translations = {
     },
     en: {
         filter: "Advanced Filter", subtitle: "Advanced search and filtering for project milestones and payments.",
-        projectMilestones: "Project Milestones", noMilestones: "No milestones.", Pending: "Pending", Sent: "Sent", Paid: "Paid", noDueDate: "No Due Date", allProjects: "All Projects", allMonths: "All Months", searchProjects: "Search projects...", searchMonths: "Search months...", exportToExcel: "Export to Excel", allCustomers: "All Customers", searchCustomers: "Search customers...", allManagers: "All Managers", searchManagers: "Search managers...", clearFilters: "Clear Filters", milestoneUnit: "Milestones", allPaymentStatuses: "All Payment Statuses", searchPaymentStatuses: "Search statuses...",
+        projectMilestones: "Project Milestones", noMilestones: "No milestones.", noDueDate: "No Due Date", allProjects: "All Projects", allMonths: "All Months", searchProjects: "Search projects...", searchMonths: "Search months...", exportToExcel: "Export to Excel", allCustomers: "All Customers", searchCustomers: "Search customers...", allManagers: "All Managers", searchManagers: "Search managers...", clearFilters: "Clear Filters", milestoneUnit: "Milestones", allPaymentStatuses: "All Payment Statuses", searchPaymentStatuses: "Search statuses...",
         listView: "List View", gridView: "Grid View", projectManagerHeader: "Project/Manager", milestoneCountHeader: "Milestones", countryHeader: "Country", statusHeader: "Status", teamHeader: "Team", unassigned: "Unassigned", noStatus: "No Status",
         expandAll: "Expand All", collapseAll: "Collapse All",
         dataVisualization: "Data Visualization", showVisualization: "Show Data Visualization", hideVisualization: "Hide Data Visualization", chartType: "Chart Type", dimension: "Dimension (X-Axis)", measure: "Measure (Y-Axis)", barChart: "Bar", pieChart: "Pie", status: "Project Status", customer: "Customer", manager: "Project Manager", country: "Country", team: "Team", project: "Project", projectCount: "Number of Projects", milestoneCount: "Number of Milestones", totalPayment: "Total Payments",
@@ -98,8 +99,8 @@ const MilestoneFilter: React.FC<MilestoneFilterProps> = ({ projects, milestones,
 
     const paymentStatusOptions = useMemo(() => [
         { value: 'all', label: t.allPaymentStatuses },
-        ...Object.values(PaymentStatus).map(s => ({ value: s, label: t[s as keyof typeof t] || s })).sort((a,b) => a.label.localeCompare(b.label))
-    ], [t]);
+        ...Object.values(PaymentStatus).map(s => ({ value: s, label: getPaymentStatusLabel(s, language) })).sort((a,b) => a.label.localeCompare(b.label))
+    ], [language]);
 
     const projectsFilteredByCustomer = useMemo(() => {
         if (selectedCustomerId === 'all') return projects;

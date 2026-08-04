@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Milestone, Project, Lookup, MilestoneStatus, Language, PaymentStatus, PaymentType, MilestoneUpdate, User, MilestoneChangeRequest } from '../types';
+import { getPaymentStatusLabel } from '../services/paymentStatusLabels';
 import { requestMilestoneChange } from '../services/api';
 
 interface EditMilestoneModalProps {
@@ -124,7 +125,7 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
           editingMode: "وضع التعديل لـ: ",
           addingMode: "إضافة معلم جديد",
           doubleClickTip: "انقر نقراً مزدوجاً على معلم لتحميله للتعديل",
-          Pending: "معلق", "In Progress": "قيد التنفيذ", Completed: "مكتمل", Sent: "مرسلة", Paid: "مدفوعة",
+          Pending: "معلق", "In Progress": "قيد التنفيذ", Completed: "مكتمل",
           Downpayment: "دفعة مقدمة", Progress: "دفعة إنجاز", Final: "دفعة نهائية", Retention: "محجوزات", Other: "أخرى",
           reasonPlaceholder: "سبب تغيير التاريخ...",
           makerCheckerTip: "يجب الموافقة على تغيير التاريخ من قبل المدير"
@@ -161,7 +162,7 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
           editingMode: "Editing: ",
           addingMode: "Adding New Milestone",
           doubleClickTip: "Double-click an item to edit it",
-          Pending: "Pending", "In Progress": "In Progress", Completed: "Completed", Sent: "Sent", Paid: "Paid",
+          Pending: "Pending", "In Progress": "In Progress", Completed: "Completed",
           Downpayment: "Downpayment", Progress: "Progress Payment", Final: "Final Payment", Retention: "Retention", Other: "Other",
           reasonPlaceholder: "Reason for date change...",
           makerCheckerTip: "Date change requires Manager approval"
@@ -358,7 +359,7 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
                                     <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-1">
                                         <input type="number" name="paymentAmount" value={formData.paymentAmount} onChange={handleInputChange} className={inputClasses} placeholder="0.00" />
                                         <select name="paymentStatus" value={formData.paymentStatus || ''} onChange={handleInputChange} className={selectClasses}>
-                                            {Object.values(PaymentStatus).map(s => (<option key={s} value={s}>{t[s] || s}</option>))}
+                                            {Object.values(PaymentStatus).map(s => (<option key={s} value={s}>{getPaymentStatusLabel(s, language)}</option>))}
                                         </select>
                                         <div className="col-span-2">
                                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{t.paymentType}</label>
@@ -440,7 +441,7 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
                                         <div className="text-right shrink-0">
                                             {currentData.hasPayment && <p className="text-xs font-black text-green-600 dark:text-green-400">${currentData.paymentAmount?.toLocaleString()}</p>}
                                             <div className="flex flex-col items-end">
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase">{t[currentData.paymentStatus || 'Pending']}</p>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase">{getPaymentStatusLabel(currentData.paymentStatus || PaymentStatus.Pending, language)}</p>
                                                 {currentData.hasPayment && <p className="text-[8px] font-black text-violet-500 uppercase">{t[currentData.paymentType || 'Progress']}</p>}
                                             </div>
                                         </div>

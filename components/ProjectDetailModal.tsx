@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Project, Milestone, Lookup, Language, PaymentStatus, Issue } from '../types';
 import AddMilestoneModal from './AddMilestoneModal';
+import { getPaymentStatusLabel } from '../services/paymentStatusLabels';
 
 type ProjectWithMilestones = Project & { milestones: Milestone[], issues: Issue[] };
 
@@ -127,7 +128,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({ projectWithMile
                                                     {milestone.hasPayment ? (
                                                         <div className="flex items-center justify-center gap-2">
                                                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${paymentStatusColors[milestone.paymentStatus || PaymentStatus.Pending]}`}>
-                                                                {milestone.paymentStatus || 'Pending'}
+                                                                {getPaymentStatusLabel(milestone.paymentStatus || PaymentStatus.Pending, language)}
                                                             </span>
                                                             <span className="font-mono font-bold text-green-600 dark:text-green-400 text-xs">
                                                                 {milestone.paymentAmount.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD' })}

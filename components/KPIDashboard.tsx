@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Project, Milestone, Language, User, PaymentStatus, MilestoneStatus, Issue, TaskViewMode } from '../types';
 import SearchableSelect from './SearchableSelect';
 
@@ -19,6 +19,25 @@ const KPIDashboard: React.FC<KPIDashboardProps> = ({ projects, milestones, issue
     const [projectSearch, setProjectSearch] = useState('');
     const [selectedManager, setSelectedManager] = useState('all');
     const [selectedMonthYear, setSelectedMonthYear] = useState<string[]>(['all']);
+    // Defaults to whichever status is named "Running" once projects load,
+    // rather than showing every project (including closed ones) on first
+    // paint - '' is a "not decided yet" sentinel so eligibleProjects doesn't
+    // flash empty before that default resolves.
+    const [selectedStatus, setSelectedStatus] = useState('');
+    const hasSetDefaultStatus = useRef(false);
+
+    const statusOptions = useMemo(() => {
+        const seen = new Map<string, string>();
+        projects.forEach(p => { if (p.status) seen.set(p.status.id, p.status.name); });
+        return [{ value: 'all', label: t.allStatuses }, ...Array.from(seen.entries()).map(([id, name]) => ({ value: id, label: name }))];
+    }, [projects, t.allStatuses]);
+
+    useEffect(() => {
+        if (hasSetDefaultStatus.current || projects.length === 0) return;
+        const running = projects.map(p => p.status).find(s => s?.name?.toLowerCase() === 'running');
+        setSelectedStatus(running ? running.id : 'all');
+        hasSetDefaultStatus.current = true;
+    }, [projects]);
 
     // States for UI Expansion
     const [expandedManagers, setExpandedManagers] = useState<Record<string, boolean>>({});
@@ -90,10 +109,11 @@ const KPIDashboard: React.FC<KPIDashboardProps> = ({ projects, milestones, issue
         const hierarchy: Record<string, { manager: User | undefined, projects: Record<string, { project: Project, milestones: Milestone[] }> }> = {};
 
         const eligibleProjects = projects.filter(p => {
-            const nameMatch = p.name.toLowerCase().includes(projectSearch.toLowerCase()) || 
+            const nameMatch = p.name.toLowerCase().includes(projectSearch.toLowerCase()) ||
                              p.projectCode.toLowerCase().includes(projectSearch.toLowerCase());
             const managerMatch = selectedManager === 'all' || p.projectManagerId === selectedManager;
-            return nameMatch && managerMatch;
+            const statusMatch = selectedStatus === '' || selectedStatus === 'all' || p.statusId === selectedStatus;
+            return nameMatch && managerMatch && statusMatch;
         });
 
         const eligibleProjectIds = new Set(eligibleProjects.map(p => p.id));
@@ -119,7 +139,7 @@ const KPIDashboard: React.FC<KPIDashboardProps> = ({ projects, milestones, issue
         });
 
         return hierarchy;
-    }, [projects, filteredMilestones, projectManagers, projectSearch, selectedManager]);
+    }, [projects, filteredMilestones, projectManagers, projectSearch, selectedManager, selectedStatus]);
 
     const kpis = useMemo(() => {
         // Fix: Explicitly type managerEntries as any[] to solve "Property 'projects' does not exist on type 'unknown'"
@@ -205,6 +225,9 @@ const KPIDashboard: React.FC<KPIDashboardProps> = ({ projects, milestones, issue
                 <div className="w-full md:w-60">
                     <SearchableSelect options={[{ value: 'all', label: t.allManagers }, ...projectManagers.map(m => ({ value: m.id, label: m.name }))]} value={selectedManager} onChange={setSelectedManager} placeholder={t.projectManager} language={language} />
                 </div>
+                <div className="w-full md:w-60">
+                    <SearchableSelect options={statusOptions} value={selectedStatus} onChange={setSelectedStatus} placeholder={t.projectStatus} language={language} />
+                </div>
                 <div className="w-full md:w-80">
                     <SearchableSelect
                         isMulti={true}
@@ -218,7 +241,7 @@ const KPIDashboard: React.FC<KPIDashboardProps> = ({ projects, milestones, issue
             </div>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
                 <div className="bg-gradient-to-br from-indigo-600 to-violet-700 p-6 md:p-8 rounded-3xl md:rounded-4xl shadow-xl text-white relative overflow-hidden group">
                     <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform"></div>
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">{t.totalAmount}</p>
@@ -243,6 +266,14 @@ const KPIDashboard: React.FC<KPIDashboardProps> = ({ projects, milestones, issue
                     <div className="flex items-center gap-1.5 mt-4">
                         <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
                         <span className="text-[10px] font-bold text-slate-400 uppercase">Balance</span>
+                    </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl md:rounded-4xl border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.projectsCountKpi}</p>
+                    <p className="text-2xl md:text-3xl font-black text-violet-500">{kpis.count}</p>
+                    <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-800">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter italic">{selectedStatus === 'all' || selectedStatus === '' ? t.allStatuses : (statusOptions.find(s => s.value === selectedStatus)?.label || '')}</span>
                     </div>
                 </div>
 
@@ -389,7 +420,7 @@ const KPIDashboard: React.FC<KPIDashboardProps> = ({ projects, milestones, issue
 const translations = {
     ar: {
         totalAmount: "إجمالي القيمة المالية", collected: "المبالغ المحصلة", pending: "المبالغ المعلقة", avgProgress: "متوسط الإنجاز", 
-        projects: "مشاريع", allManagers: "كل المدراء", projectManager: "مدير المشروع", searchByProject: "اسم المشروع أو الكود...",
+        projects: "مشاريع", allManagers: "كل المدراء", projectManager: "مدير المشروع", searchByProject: "اسم المشروع أو الكود...", allStatuses: "كل الحالات", projectStatus: "حالة المشروع", projectsCountKpi: "عدد المشاريع",
         financialTrend: "الاتجاه المالي للتدفقات", monthlyBreakdown: "توزيع المبالغ حسب الأشهر والسنوات (تصاعدي)", noData: "لا توجد بيانات",
         topProjects: "أعلى المشاريع قيمة", period: "الفترة الزمنية", allTime: "كل الأوقات", timelineRoadmap: "خارطة طريق المشاريع",
         roadmapSubtitle: "هيكل شجري للمدراء والمشاريع والمعالم الزمنية", items: "معالم", progress: "الإنجاز", unassigned: "غير معين",
@@ -410,7 +441,7 @@ const translations = {
     },
     en: {
         totalAmount: "Total Financial Value", collected: "Total Collected", pending: "Pending Payments", avgProgress: "Average Progress", 
-        projects: "Projects", allManagers: "All Managers", projectManager: "Project Manager", searchByProject: "Search project name or code...",
+        projects: "Projects", allManagers: "All Managers", projectManager: "Project Manager", searchByProject: "Search project name or code...", allStatuses: "All Statuses", projectStatus: "Project Status", projectsCountKpi: "Projects Count",
         financialTrend: "Financial Cashflow Trend", monthlyBreakdown: "Payment breakdown by month/year (Asc)", noData: "No financial data",
         topProjects: "Top Projects by Value", period: "Time Period", allTime: "All Time", timelineRoadmap: "Project Roadmap Tree",
         roadmapSubtitle: "Hierarchical tracking of Managers, Projects and Milestones", items: "Items", progress: "Progress", unassigned: "Unassigned",

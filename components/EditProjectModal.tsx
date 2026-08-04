@@ -18,7 +18,7 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({ projectToEdit, look
       countryId: '',
       categoryId: '',
       teamId: '',
-      productId: '',
+      productIds: [] as string[],
       statusId: '',
       projectManagerId: '',
       customerId: '',
@@ -44,7 +44,7 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({ projectToEdit, look
             countryId: projectToEdit.countryId || '',
             categoryId: projectToEdit.categoryId || '',
             teamId: projectToEdit.teamId || '',
-            productId: projectToEdit.productId || '',
+            productIds: projectToEdit.productIds || [],
             statusId: projectToEdit.statusId || '',
             projectManagerId: projectToEdit.projectManagerId || '',
             customerId: projectToEdit.customerId || '',
@@ -130,11 +130,16 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({ projectToEdit, look
     [lookups.customers]
   );
 
-  const countryOptions = useMemo(() => 
+  const countryOptions = useMemo(() =>
     [...lookups.countries]
         .map(c => ({ value: c.id, label: c.name }))
         .sort((a, b) => a.label.localeCompare(b.label, language === 'ar' ? 'ar' : 'en')),
     [lookups.countries, language]
+  );
+
+  const productOptions = useMemo(() =>
+    lookups.products.map(p => ({ value: p.id, label: p.name })),
+    [lookups.products]
   );
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -246,6 +251,24 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({ projectToEdit, look
                       <select name="statusId" value={formData.statusId} onChange={handleChange} required disabled={isSubmitting} className={selectClasses}>
                           <option value="" disabled>{t.selectHere}</option>
                           {lookups.projectStatuses.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
+                      </select>
+                  </div>
+                  <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.product}</label>
+                      <SearchableSelect
+                          isMulti
+                          options={productOptions}
+                          value={formData.productIds}
+                          onChange={(val: string[]) => setFormData(prev => ({...prev, productIds: val}))}
+                          placeholder={t.selectHere}
+                          language={language}
+                      />
+                  </div>
+                  <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.team}</label>
+                      <select name="teamId" value={formData.teamId} onChange={handleChange} disabled={isSubmitting} className={selectClasses}>
+                          <option value="">{t.selectHere}</option>
+                          {lookups.teams.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
                       </select>
                   </div>
               </div>

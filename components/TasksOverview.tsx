@@ -35,7 +35,7 @@ const translations = {
         unassigned: "غير معين", unknownProject: "مشروع غير معروف", noIssuesFound: "لا توجد مهام حالياً",
         activeIssues: "المهام النشطة", issuesByProject: "المهام حسب المشروع",
         allAssignees: "كل المسؤولين", searchProject: "ابحث عن مشروع...", selectAssignee: "اختر المسؤول...",
-        taskStatus: "حالة المهام", totalTasks: "إجمالي المهام", openTasks: "مهام مفتوحة", inProgressTasks: "قيد التنفيذ", completedTasks: "مكتملة",
+        taskStatus: "حالة المهام", totalTasks: "إجمالي المهام", totalProjects: "عدد المشاريع", openTasks: "مهام مفتوحة", inProgressTasks: "قيد التنفيذ", completedTasks: "مكتملة",
         scheduleKpis: "مؤشرات الجدول الزمني", dueToday: "مستحقة اليوم", dueThisWeek: "مستحقة هذا الأسبوع", overdueTasks: "متأخرة",
         productivityKpis: "مؤشرات الإنتاجية", completionRate: "نسبة الإنجاز", avgPerResource: "متوسط المهام المنجزة لكل موظف",
         riskKpis: "مؤشرات المخاطر", criticalTasks: "مهام حرجة", highPriorityTasks: "أولوية عالية", tasksWithoutOwner: "بدون مسؤول",
@@ -50,7 +50,7 @@ const translations = {
         unassigned: "Unassigned", unknownProject: "Unknown Project", noIssuesFound: "No tasks reported",
         activeIssues: "Active Tasks", issuesByProject: "Tasks by Project",
         allAssignees: "All Assignees", searchProject: "Search project...", selectAssignee: "Select Assignee...",
-        taskStatus: "Task Status", totalTasks: "Total Tasks", openTasks: "Open Tasks", inProgressTasks: "In Progress", completedTasks: "Completed",
+        taskStatus: "Task Status", totalTasks: "Total Tasks", totalProjects: "Projects Count", openTasks: "Open Tasks", inProgressTasks: "In Progress", completedTasks: "Completed",
         scheduleKpis: "Schedule KPIs", dueToday: "Due Today", dueThisWeek: "Due This Week", overdueTasks: "Overdue Tasks",
         productivityKpis: "Productivity KPIs", completionRate: "Completion Rate", avgPerResource: "Avg Tasks Completed / Resource",
         riskKpis: "Risk KPIs", criticalTasks: "Critical Tasks", highPriorityTasks: "High Priority Tasks", tasksWithoutOwner: "Tasks Without Owner",
@@ -138,6 +138,7 @@ const TasksOverview: React.FC<TasksOverviewProps> = ({ issues, projects, allUser
         const endOfWeek = new Date(startOfToday); endOfWeek.setDate(endOfWeek.getDate() + 7);
 
         const total = issues.length;
+        const projectsCount = new Set(issues.map(i => i.projectId).filter(Boolean)).size;
         const open = issues.filter(i => i.status === IssueStatus.Open).length;
         const inProgress = issues.filter(i => i.status === IssueStatus.InProgress).length;
         const completed = issues.filter(i => i.status === IssueStatus.Resolved || i.status === IssueStatus.Closed).length;
@@ -170,7 +171,7 @@ const TasksOverview: React.FC<TasksOverviewProps> = ({ issues, projects, allUser
             }, 0) / resolvedIssues.length
             : null;
 
-        return { total, open, inProgress, completed, dueToday, dueThisWeek, overdue, completionRate, avgPerResource, critical, highPriority, withoutOwner, avgResolutionHours };
+        return { total, projectsCount, open, inProgress, completed, dueToday, dueThisWeek, overdue, completionRate, avgPerResource, critical, highPriority, withoutOwner, avgResolutionHours };
     }, [issues]);
 
     const overdueIssues = useMemo(() => {
@@ -220,6 +221,7 @@ const TasksOverview: React.FC<TasksOverviewProps> = ({ issues, projects, allUser
         <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-20" dir={language === 'ar' ? 'rtl' : 'ltr'}>
             <KpiGroup title={t.taskStatus}>
                 <StatCard label={t.totalTasks} value={kpis.total} />
+                <StatCard label={t.totalProjects} value={kpis.projectsCount} colorClass="text-violet-500" />
                 <StatCard label={t.openTasks} value={kpis.open} colorClass="text-blue-500" />
                 <StatCard label={t.inProgressTasks} value={kpis.inProgress} colorClass="text-indigo-500" />
                 <StatCard label={t.completedTasks} value={kpis.completed} colorClass="text-emerald-500" />

@@ -19,10 +19,11 @@ interface IssuesProps {
     onAddIssue: (data: Omit<Issue, 'id' | 'createdAt'> & { createdAt?: string }) => Promise<void>;
     onUpdateIssue: (id: string, data: Partial<Issue>) => Promise<void>;
     onAddComment?: (issueId: string, userId: string, content: string) => Promise<void>;
+    onDeleteIssue?: (id: string) => Promise<void>;
     currentUser: User | undefined;
 }
 
-const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, allUsers, language, onAddIssue, onUpdateIssue, onAddComment, currentUser }) => {
+const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, allUsers, language, onAddIssue, onUpdateIssue, onAddComment, onDeleteIssue, currentUser }) => {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
     const [selectedProjectId, setSelectedProjectId] = useState('all');
@@ -89,6 +90,14 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
     [allIssues, selectedIssueId]);
 
     const psUsers = useMemo(() => allUsers.filter(u => u.type === 'PS'), [allUsers]);
+    const canDelete = currentUser?.type === 'Manager' || currentUser?.type === 'TasksAdmin';
+
+    const handleDeleteIssue = async (id: string, title: string) => {
+        if (!onDeleteIssue) return;
+        const confirmMsg = language === 'ar' ? `حذف المهمة "${title}" نهائياً؟` : `Permanently delete "${title}"?`;
+        if (!window.confirm(confirmMsg)) return;
+        await onDeleteIssue(id);
+    };
 
     const filteredIssues = useMemo(() => {
         return allIssues.filter(i => {
@@ -306,7 +315,7 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 font-sans">
                                 {groupBy === 'none' ? (
-                                    filteredIssues.map(issue => <IssueRowComponent key={issue.id} issue={issue} allProjects={allProjects} t={t} statusColors={statusColors} onClick={() => setSelectedIssueId(issue.id)} language={language} visibleColumns={visibleColumns} />)
+                                    filteredIssues.map(issue => <IssueRowComponent key={issue.id} issue={issue} allProjects={allProjects} t={t} statusColors={statusColors} onClick={() => setSelectedIssueId(issue.id)} language={language} visibleColumns={visibleColumns} canDelete={canDelete} onDelete={handleDeleteIssue} />)
                                 ) : (
                                     (Object.entries(
                                         filteredIssues.reduce((acc, issue) => {
@@ -322,7 +331,7 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
                                             <tr className="bg-slate-50 dark:bg-slate-900/50">
                                                 <td colSpan={visibleColumns.length + 1} className="px-6 py-2 text-[10px] font-black text-[#3b82f6] uppercase tracking-[0.25em]">{groupName} <span className="opacity-40">({groupIssues.length})</span></td>
                                             </tr>
-                                            {groupIssues.map(issue => <IssueRowComponent key={issue.id} issue={issue} allProjects={allProjects} t={t} statusColors={statusColors} onClick={() => setSelectedIssueId(issue.id)} language={language} visibleColumns={visibleColumns} />)}
+                                            {groupIssues.map(issue => <IssueRowComponent key={issue.id} issue={issue} allProjects={allProjects} t={t} statusColors={statusColors} onClick={() => setSelectedIssueId(issue.id)} language={language} visibleColumns={visibleColumns} canDelete={canDelete} onDelete={handleDeleteIssue} />)}
                                         </React.Fragment>
                                     ))
                                 )}
@@ -406,7 +415,7 @@ const getDueDate = (createdAt: string, duration?: number | null) => {
 };
 
 // Sub-components
-const IssueRowComponent: React.FC<{ issue: Issue, allProjects: Project[], t: any, statusColors: any, onClick: () => void, language: Language, visibleColumns: string[] }> = ({ issue, allProjects, t, statusColors, onClick, language, visibleColumns }) => {
+const IssueRowComponent: React.FC<{ issue: Issue, allProjects: Project[], t: any, statusColors: any, onClick: () => void, language: Language, visibleColumns: string[], canDelete?: boolean, onDelete?: (id: string, title: string) => void }> = ({ issue, allProjects, t, statusColors, onClick, language, visibleColumns, canDelete, onDelete }) => {
     const dueDate = getDueDate(issue.createdAt, issue.expectedDuration);
     const overdue = isOverdue(dueDate) && issue.status !== IssueStatus.Closed && issue.status !== IssueStatus.Resolved;
 
@@ -482,10 +491,16 @@ const IssueRowComponent: React.FC<{ issue: Issue, allProjects: Project[], t: any
                 </td>
             )}
             <td className="px-6 py-5 text-right">
-                <div className="flex items-center gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-blue-500 transition-all"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
-                    <button className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" /></svg></button>
-                </div>
+                {canDelete && onDelete && (
+                    <div className="flex items-center gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onDelete(issue.id, issue.title); }}
+                            className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg text-slate-400 hover:text-red-500 transition-all"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                    </div>
+                )}
             </td>
         </tr>
     );
@@ -735,18 +750,29 @@ const IssueDetailModal: React.FC<{ issue: Issue, onClose: () => void, language: 
 const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milestones: Milestone[], users: User[], allIssues: Issue[], language: Language, currentUser?: User, onSave: (d: any) => Promise<void> }> = ({ onClose, projects, milestones, users, allIssues, language, currentUser, onSave }) => {
     const t = translations[language];
     const todayIso = new Date().toISOString().slice(0, 10);
-    const [formData, setFormData] = useState({ title: '', description: '', projectId: '', milestoneId: '', assigneeId: '', priority: IssuePriority.Medium, status: IssueStatus.Open, expectedDuration: 3, createdAt: todayIso });
+    const [formData, setFormData] = useState({ title: '', description: '', projectId: '', milestoneId: '', priority: IssuePriority.Medium, status: IssueStatus.Open, createdAt: todayIso, productId: '' });
+    // Multiple resources can work the same task, each on their own timeline
+    // (e.g. one needs 5 days, another 10) - this creates one issue per row
+    // on save rather than a single multi-assignee issue, since the data
+    // model stays untouched (still one assignee per issue row).
+    const [resources, setResources] = useState([{ assigneeId: '', expectedDuration: 3 }]);
     const [isSaving, setIsSaving] = useState(false);
     const canEditCreatedDate = currentUser?.type === 'Manager' || currentUser?.type === 'TasksAdmin';
     const [saveError, setSaveError] = useState('');
 
-    const calculatedEndDate = useMemo(() => {
-        if (!formData.expectedDuration) return null;
+    const getDueDateFor = (duration: number) => {
+        if (!duration) return null;
         const date = new Date(formData.createdAt);
-        date.setDate(date.getDate() + formData.expectedDuration);
+        date.setDate(date.getDate() + duration);
         return skipWeekend(date);
-    }, [formData.expectedDuration, formData.createdAt]);
-    
+    };
+
+    const addResourceRow = () => setResources(prev => [...prev, { assigneeId: '', expectedDuration: 3 }]);
+    const removeResourceRow = (index: number) => setResources(prev => prev.filter((_, i) => i !== index));
+    const updateResourceRow = (index: number, patch: Partial<{ assigneeId: string; expectedDuration: number }>) => {
+        setResources(prev => prev.map((r, i) => i === index ? { ...r, ...patch } : r));
+    };
+
     const projectOptions = useMemo(() => projects.map(p => ({ value: p.id, label: p.name })), [projects]);
     const userOptions = useMemo(() => users.map(u => {
         const activeTaskCount = allIssues.filter(i => i.assigneeId === u.id && i.status !== IssueStatus.Closed && i.status !== IssueStatus.Resolved).length;
@@ -757,12 +783,24 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
         ...milestones.filter(m => m.projectId === formData.projectId).map(m => ({ value: m.id, label: m.title }))
     ], [milestones, formData.projectId, t.selectMilestone]);
 
+    const selectedProject = useMemo(() => projects.find(p => p.id === formData.projectId), [projects, formData.projectId]);
+    const productOptions = useMemo(() => [
+        { value: '', label: t.selectProduct },
+        ...(selectedProject?.products || []).map(pr => ({ value: pr.id, label: pr.name }))
+    ], [selectedProject, t.selectProduct]);
+
+    const handleProjectChange = (val: string) => {
+        setFormData(prev => ({ ...prev, projectId: val, milestoneId: '', productId: '' }));
+    };
+
     const handleSave = async () => {
         if (!formData.title || !formData.projectId) return;
         setIsSaving(true);
         setSaveError('');
         try {
-            await onSave(formData);
+            for (const r of resources) {
+                await onSave({ ...formData, assigneeId: r.assigneeId, expectedDuration: r.expectedDuration });
+            }
         } catch (err: any) {
             setSaveError(err.message || (language === 'ar' ? 'حدث خطأ أثناء الحفظ.' : 'Something went wrong while saving.'));
         } finally {
@@ -829,72 +867,98 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
                         className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all resize-none placeholder:text-slate-400"
                     />
 
-                    {/* Where + Who */}
+                    {/* Where + What */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                             <label className={fieldLabelClasses}><Layout className="w-3.5 h-3.5" /> {t.project}</label>
                             <SearchableSelect
                                 options={projectOptions}
                                 value={formData.projectId}
-                                onChange={val => setFormData({...formData, projectId: val})}
+                                onChange={handleProjectChange}
                                 placeholder={t.selectProject}
                                 language={language}
                             />
                         </div>
-                        <div className="space-y-1.5">
-                            <label className={fieldLabelClasses}><UserIcon className="w-3.5 h-3.5" /> {t.assignedTo}</label>
-                            <SearchableSelect
-                                options={userOptions}
-                                value={formData.assigneeId}
-                                onChange={val => setFormData({...formData, assigneeId: val})}
-                                placeholder={t.selectAssignee}
-                                language={language}
-                            />
-                        </div>
+                        {canEditCreatedDate && (
+                            <div className="space-y-1.5">
+                                <label className={fieldLabelClasses}><Calendar className="w-3.5 h-3.5" /> {t.createdDate}</label>
+                                <input
+                                    type="date"
+                                    value={formData.createdAt}
+                                    onChange={e => setFormData({...formData, createdAt: e.target.value})}
+                                    className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all"
+                                />
+                            </div>
+                        )}
+                        {formData.projectId && (selectedProject?.products || []).length > 0 && (
+                            <div className="space-y-1.5">
+                                <label className={fieldLabelClasses}><Layers className="w-3.5 h-3.5" /> {t.product}</label>
+                                <SearchableSelect
+                                    options={productOptions}
+                                    value={formData.productId}
+                                    onChange={val => setFormData({...formData, productId: val})}
+                                    placeholder={t.selectProduct}
+                                    language={language}
+                                />
+                            </div>
+                        )}
                     </div>
 
-                    {/* Timing - single compact row */}
+                    {/* Resources - one row per person working this task, each
+                        on their own timeline. Saving creates one issue per row. */}
                     <div className={sectionCardClasses}>
-                        <div className="flex flex-wrap items-end gap-4">
-                            {canEditCreatedDate && (
-                                <div className="space-y-1.5">
-                                    <label className={fieldLabelClasses}><Calendar className="w-3.5 h-3.5" /> {t.createdDate}</label>
-                                    <input
-                                        type="date"
-                                        value={formData.createdAt}
-                                        onChange={e => setFormData({...formData, createdAt: e.target.value})}
-                                        className="w-36 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all"
-                                    />
-                                </div>
-                            )}
-                            <div className="space-y-1.5">
-                                <label className={fieldLabelClasses}><Calendar className="w-3.5 h-3.5" /> {t.expectedDuration}</label>
-                                <div className="relative w-28">
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        value={formData.expectedDuration}
-                                        onChange={e => setFormData({...formData, expectedDuration: parseInt(e.target.value) || 0})}
-                                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all"
-                                    />
-                                    <span className="absolute right-3 rtl:left-3 rtl:right-auto top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400 uppercase pointer-events-none">
-                                        {t.days}
-                                    </span>
-                                </div>
-                            </div>
-
-                            {calculatedEndDate && (
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <div className="w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center shrink-0">
-                                        <Calendar className="w-3.5 h-3.5" />
+                        <label className={`${fieldLabelClasses} mb-2`}><UserIcon className="w-3.5 h-3.5" /> {t.resources}</label>
+                        <div className="space-y-2">
+                            {resources.map((r, idx) => {
+                                const dueDate = getDueDateFor(r.expectedDuration);
+                                return (
+                                    <div key={idx} className="flex flex-wrap items-end gap-2">
+                                        <div className="flex-1 min-w-[140px]">
+                                            <SearchableSelect
+                                                options={userOptions}
+                                                value={r.assigneeId}
+                                                onChange={val => updateResourceRow(idx, { assigneeId: val })}
+                                                placeholder={t.selectAssignee}
+                                                language={language}
+                                            />
+                                        </div>
+                                        <div className="relative w-24">
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={r.expectedDuration}
+                                                onChange={e => updateResourceRow(idx, { expectedDuration: parseInt(e.target.value) || 0 })}
+                                                className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all"
+                                            />
+                                            <span className="absolute right-3 rtl:left-3 rtl:right-auto top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400 uppercase pointer-events-none">
+                                                {t.days}
+                                            </span>
+                                        </div>
+                                        {dueDate && (
+                                            <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap pb-2.5">
+                                                {t.dueDate}: {dueDate.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                            </span>
+                                        )}
+                                        {resources.length > 1 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => removeResourceRow(idx)}
+                                                className="p-2.5 text-slate-400 hover:text-red-500 transition-colors"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        )}
                                     </div>
-                                    <div className="min-w-0">
-                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide leading-none mb-1">{t.dueDate}</p>
-                                        <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{calculatedEndDate.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
-                                    </div>
-                                </div>
-                            )}
+                                );
+                            })}
                         </div>
+                        <button
+                            type="button"
+                            onClick={addResourceRow}
+                            className="mt-3 text-[11px] font-bold text-violet-600 hover:text-violet-700 flex items-center gap-1"
+                        >
+                            <Plus className="w-3.5 h-3.5" /> {t.addResource}
+                        </button>
                     </div>
 
                     {/* Milestone + Priority */}
@@ -963,11 +1027,13 @@ const AddIssueModal: React.FC<{ onClose: () => void, projects: Project[], milest
 const translations = {
     ar: {
         title: "إدارة المهام والعيوب", subtitle: "تتبع المهام التقنية والعيوب وإسندها للمستخدمين.", newIssue: "إضافة مهمة", allProjects: "كل المشاريع", allStatuses: "كل الحالات", allAssignees: "كل الموظفين", project: "المشروع", milestone: "المعلم", assignedTo: "المسؤول عن التنفيذ", reportedAt: "تاريخ الإنشاء", unassigned: "غير مسند", cancel: "إلغاء", saveIssue: "حفظ المهمة", issueTitle: "عنوان المهمة", description: "وصف التفاصيل", selectProject: "اختر المشروع", selectMilestone: "اختر المعلم (اختياري)", selectAssignee: "اختر الشخص المسؤول", priority: "الأولوية", myIssues: "مهامي فقط", allIssues: "عرض كل المهام", you: "أنت (المسؤول)", noIssues: "لا توجد مهام مطابقة", status: "الحالة الحالية", comments: "ملاحظات وتحديثات التنفيذ", noComments: "لا توجد ملاحظات بعد.", addCommentPlaceholder: "أضف ملاحظة أو تحديث حول التنفيذ...", assigneeOnlyNote: "فقط الشخص المسؤول عن تنفيذ هذه المهمة يمكنه إضافة ملاحظات وتحديثات.", close: "إغلاق", gridView: "عرض البطاقات", groupedView: "عرض حسب المشروع", byAssignee: "حسب المسؤول", unknownProject: "مشروع غير معروف", issuesCount: "مهمة", exportExcel: "تصدير للاكسيل",
-        expectedDuration: "المدة المتوقعة (بأيام العمل)", days: "أيام", dueDate: "تاريخ الاستحقاق", overdue: "متأخر", createdDate: "تاريخ الإنشاء"
+        expectedDuration: "المدة المتوقعة (بأيام العمل)", days: "أيام", dueDate: "تاريخ الاستحقاق", overdue: "متأخر", createdDate: "تاريخ البدء",
+        product: "المنتج", selectProduct: "اختر المنتج (اختياري)", resources: "المسؤولون عن التنفيذ", addResource: "إضافة شخص آخر"
     },
     en: {
         title: "Tasks & Defects Management", subtitle: "Track technical tasks, defects and assign them to users.", newIssue: "Add Task", allProjects: "All Projects", allStatuses: "All Statuses", allAssignees: "All Assignees", project: "Project", milestone: "Milestone", assignedTo: "Assigned To", reportedAt: "Created At", unassigned: "Unassigned", cancel: "Cancel", saveIssue: "Save Task", issueTitle: "Task Title", description: "Details Description", selectProject: "Select Project", selectMilestone: "Select Milestone (Optional)", selectAssignee: "Select User", priority: "Priority", myIssues: "My Assigned Tasks", allIssues: "Show All Tasks", you: "You (Assigned)", noIssues: "No tasks found", status: "Current Status", comments: "Progress Notes & Updates", noComments: "No notes yet.", addCommentPlaceholder: "Add a note or progress update...", assigneeOnlyNote: "Only the user assigned to this task can add progress notes and updates.", close: "Close", gridView: "Grid Cards", groupedView: "Group by Project", byAssignee: "By Assignee", unknownProject: "Unknown Project", issuesCount: "Tasks", exportExcel: "Export Excel",
-        expectedDuration: "Expected Duration (Work Days)", days: "Days", dueDate: "Due Date", overdue: "Overdue", createdDate: "Created Date"
+        expectedDuration: "Expected Duration (Work Days)", days: "Days", dueDate: "Due Date", overdue: "Overdue", createdDate: "Start Date",
+        product: "Product", selectProduct: "Select Product (Optional)", resources: "Assigned To", addResource: "Add another resource"
     }
 };
 

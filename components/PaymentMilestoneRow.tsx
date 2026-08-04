@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Milestone, Lookup, Language, PaymentStatus } from '../types';
+import { getPaymentStatusLabel } from '../services/paymentStatusLabels';
 
 interface PaymentMilestoneRowProps {
     milestone: Milestone;
@@ -58,13 +59,13 @@ const PaymentMilestoneRow: React.FC<PaymentMilestoneRowProps> = ({ milestone, te
                         onClick={() => setPaymentMenuOpen(prev => !prev)}
                         className={`flex items-center justify-center gap-1 text-xs font-bold px-3 py-1 rounded-full cursor-pointer w-24 ${paymentStatusColors[milestone.paymentStatus || PaymentStatus.Pending]}`}
                     >
-                        {t[milestone.paymentStatus || PaymentStatus.Pending]}
+                        {getPaymentStatusLabel(milestone.paymentStatus || PaymentStatus.Pending, language)}
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
                     </button>
                     {paymentMenuOpen && (
                         <div className="absolute top-full right-0 mt-1 w-32 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] z-[100] overflow-hidden">
                             {Object.values(PaymentStatus)
-                                .map(status => ({ value: status, label: t[status as keyof typeof t] || status }))
+                                .map(status => ({ value: status, label: getPaymentStatusLabel(status, language) }))
                                 .sort((a, b) => a.label.localeCompare(b.label))
                                 .map(s => (
                                 <button
@@ -87,16 +88,10 @@ const translations = {
     ar: {
         unassigned: "غير معين",
         noDueDate: "لا يوجد تاريخ",
-        Pending: "معلقة",
-        Sent: "مرسلة",
-        Paid: "مدفوعة",
     },
     en: {
         unassigned: "Unassigned",
         noDueDate: "No date",
-        Pending: "Pending",
-        Sent: "Sent",
-        Paid: "Paid",
     },
 };
 

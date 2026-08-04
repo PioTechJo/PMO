@@ -35,6 +35,7 @@ import {
     updateMaintenanceContract as apiUpdateContract,
     addIssue as apiAddIssue,
     updateIssue as apiUpdateIssue,
+    deleteIssue as apiDeleteIssue,
     addIssueComment as apiAddIssueComment,
 } from './services/api';
 import { initSupabase, getSupabase } from './services/supabaseClient';
@@ -62,7 +63,7 @@ const App: React.FC = () => {
         // assignee list). Everyone else keeps their existing landing page.
         const defaultPermissions = [
             { role: 'Manager', allowedViews: ['dashboard', 'tasksOverview', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'maintenanceOverview', 'system', 'issues'] },
-            { role: 'PM', allowedViews: ['dashboard', 'tasksOverview', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'maintenanceOverview', 'system', 'issues'] },
+            { role: 'PM', allowedViews: ['dashboard', 'tasksOverview', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'maintenanceOverview', 'issues'] },
             { role: 'PS', allowedViews: ['myTasks', 'tasksOverview', 'issues'] },
             { role: 'Staff', allowedViews: ['dashboard', 'tasksOverview', 'projects', 'issues'] },
             { role: 'User', allowedViews: ['dashboard', 'tasksOverview', 'projects', 'issues'] },
@@ -100,6 +101,14 @@ const App: React.FC = () => {
                 if (!shouldHave && has) return { ...p, allowedViews: p.allowedViews.filter((v: string) => v !== 'myTasks') };
                 return p;
             });
+            // Migrate: System Management is Admin-only (Manager role) -
+            // strip it from any other role that may have picked it up in a
+            // previous (broader) version of this migration.
+            migrated = migrated.map((p: any) => (
+                p.role !== 'Manager' && p.allowedViews.includes('system')
+                    ? { ...p, allowedViews: p.allowedViews.filter((v: string) => v !== 'system') }
+                    : p
+            ));
             return migrated;
         } catch (e) {
             return defaultPermissions;
@@ -257,7 +266,7 @@ const App: React.FC = () => {
                     {view === 'payments' && allowedViews.includes('payments') && <Payments allProjects={projects} allMilestones={milestones} allTeams={lookups.teams} language={language} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} />}
                     {view === 'maintenanceContracts' && allowedViews.includes('maintenanceContracts') && <MaintenanceContracts contracts={maintenanceContracts} customers={lookups.customers} language={language} onAddContract={async (d) => { await apiAddContract(d); loadData(); }} onUpdateContract={async (id, d) => { await apiUpdateContract(id, d); loadData(); }} />}
                     {view === 'maintenanceOverview' && allowedViews.includes('maintenanceOverview') && <MaintenanceOverview maintenanceContracts={maintenanceContracts} customers={lookups.customers} language={language} />}
-                    {view === 'issues' && allowedViews.includes('issues') && <Issues allIssues={issues} allProjects={projects} allMilestones={milestones} allUsers={users} language={language} onAddIssue={async (d) => { await apiAddIssue(d); loadData(); }} onUpdateIssue={async (id, d) => { await apiUpdateIssue(id, d); loadData(); }} onAddComment={async (id, uid, c) => { await apiAddIssueComment(id, uid, c); loadData(); }} currentUser={currentUser} />}
+                    {view === 'issues' && allowedViews.includes('issues') && <Issues allIssues={issues} allProjects={projects} allMilestones={milestones} allUsers={users} language={language} onAddIssue={async (d) => { await apiAddIssue(d); loadData(); }} onUpdateIssue={async (id, d) => { await apiUpdateIssue(id, d); loadData(); }} onAddComment={async (id, uid, c) => { await apiAddIssueComment(id, uid, c); loadData(); }} onDeleteIssue={async (id) => { await apiDeleteIssue(id); setIssues(prev => prev.filter(i => i.id !== id)); loadData(); }} currentUser={currentUser} />}
                     {view === 'system' && allowedViews.includes('system') && <SystemManagement lookups={lookups} onUpdate={apiUpdateLookups} language={language} onSaveConfig={(k, u) => { localStorage.setItem('supabaseAnonKey', k); localStorage.setItem('supabaseUrl', u); setupClient(k, u); }} rolePermissions={rolePermissions} onUpdatePermissions={(p) => { setRolePermissions(p); localStorage.setItem('rolePermissions', JSON.stringify(p)); }} />}
                     {view === 'filter' && allowedViews.includes('filter') && <MilestoneFilter projects={projects} milestones={milestones} teams={lookups.teams} customers={lookups.customers} projectManagers={lookups.projectManagers} language={language} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} />}
                     {view === 'reports' && allowedViews.includes('reports') && <ReportsBuilder projects={projects} milestones={milestones} issues={issues} users={users} teams={lookups.teams} language={language} />}

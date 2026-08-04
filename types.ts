@@ -157,10 +157,12 @@ export interface Issue {
     expectedDuration?: number | null;
     estimatedHours?: number | null;
     completedAt?: string | null;
+    productId?: string | null;
     project?: Project;
     milestone?: Milestone;
     assignee?: User;
     reporter?: User;
+    product?: Lookup;
     comments?: IssueComment[];
 }
 
@@ -173,6 +175,7 @@ export interface Project {
     categoryId: string | null;
     teamId: string | null;
     productId: string | null;
+    productIds?: string[];
     statusId: string | null;
     projectManagerId: string | null;
     customerId: string | null;
@@ -189,6 +192,7 @@ export interface Project {
     category?: Lookup;
     team?: Lookup;
     product?: Lookup;
+    products?: Lookup[];
     status?: Lookup;
     projectManager?: User;
     customer?: Lookup;

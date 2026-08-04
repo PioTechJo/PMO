@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 // Fixed: Changed 'Activity' to 'Milestone'
 import { Milestone, Lookup, Language, PaymentStatus } from '../types';
+import { getPaymentStatusLabel } from '../services/paymentStatusLabels';
 
 interface PaymentActivityRowProps {
     // Fixed: Changed 'Activity' to 'Milestone'
@@ -61,13 +62,13 @@ const PaymentActivityRow: React.FC<PaymentActivityRowProps> = ({ activity, team,
                         onClick={() => setPaymentMenuOpen(prev => !prev)}
                         className={`flex items-center justify-center gap-1 text-xs font-bold px-3 py-1 rounded-full cursor-pointer w-24 ${paymentStatusColors[activity.paymentStatus || PaymentStatus.Pending]}`}
                     >
-                        {t[activity.paymentStatus || PaymentStatus.Pending]}
+                        {getPaymentStatusLabel(activity.paymentStatus || PaymentStatus.Pending, language)}
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                     </button>
                     {paymentMenuOpen && (
                         <div className="absolute top-full right-1/2 translate-x-1/2 mt-1 w-32 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-20">
                             {Object.values(PaymentStatus)
-                                .map(status => ({ value: status, label: t[status as keyof typeof t] || status }))
+                                .map(status => ({ value: status, label: getPaymentStatusLabel(status, language) }))
                                 .sort((a, b) => a.label.localeCompare(b.label))
                                 .map(s => (
                                 <button
@@ -90,16 +91,10 @@ const translations = {
     ar: {
         unassigned: "غير معين",
         noDueDate: "لا يوجد تاريخ",
-        Pending: "معلقة",
-        Sent: "مرسلة",
-        Paid: "مدفوعة",
     },
     en: {
         unassigned: "Unassigned",
         noDueDate: "No date",
-        Pending: "Pending",
-        Sent: "Sent",
-        Paid: "Paid",
     },
 };
 

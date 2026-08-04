@@ -32,11 +32,19 @@ export const fetchAllData = async () => {
         supabase.from('maintenance_contracts').select('*'),
         supabase.from('issues').select('*'),
         supabase.from('issue_comments').select('*').order('created_at', { ascending: true }),
-        session ? supabase.from('notifications').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false }).limit(10) : Promise.resolve({ data: [] })
+        session ? supabase.from('notifications').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false }).limit(10) : Promise.resolve({ data: [] }),
+        supabase.from('project_products').select('*')
     ]);
 
     const results = fetchRes.map(r => r.data || []);
-    const [prj, mls, usr, cnt, cat, tm, prd, st, cst, mnt, iss, cmts, ntf] = results;
+    const [prj, mls, usr, cnt, cat, tm, prd, st, cst, mnt, iss, cmts, ntf, prjPrd] = results;
+
+    const productIdsByProject = new Map<string, string[]>();
+    (prjPrd as any[]).forEach(row => {
+        const list = productIdsByProject.get(row.project_id) || [];
+        list.push(row.product_id);
+        productIdsByProject.set(row.project_id, list);
+    });
 
     const mappedUsers: User[] = (usr as any[] || []).map(u => ({
         id: u.id,
@@ -80,8 +88,10 @@ export const fetchAllData = async () => {
             customerPressure: db.customer_pressure || 1,
             resourceLoad: db.resource_load || 1,
         } as Project;
+        const productIds = productIdsByProject.get(p.id) || [];
         return {
             ...p,
+            productIds,
             status: lookups.projectStatuses.find(l => l.id === p.statusId),
             projectManager: mappedUsers.find(l => l.id === p.projectManagerId),
             customer: lookups.customers.find(l => l.id === p.customerId),
@@ -89,6 +99,7 @@ export const fetchAllData = async () => {
             category: lookups.categories.find(l => l.id === p.categoryId),
             team: lookups.teams.find(l => l.id === p.teamId),
             product: lookups.products.find(l => l.id === p.productId),
+            products: lookups.products.filter(l => productIds.includes(l.id)),
         };
     });
 
@@ -125,9 +136,11 @@ export const fetchAllData = async () => {
             expectedDuration: db.expected_duration,
             estimatedHours: db.estimated_hours,
             completedAt: db.completed_at,
+            productId: db.product_id,
             project: projects.find(p => p.id === db.project_id),
-            assignee: mappedUsers.find(u => u.id === db.assignee_id), 
+            assignee: mappedUsers.find(u => u.id === db.assignee_id),
             reporter: mappedUsers.find(u => u.id === db.reporter_id),
+            product: lookups.products.find(l => l.id === db.product_id),
             comments: mappedComments.filter(c => c.issueId === db.id)
         })),
         notifications: ntf.map(mapDbToNotification)
@@ -259,6 +272,7 @@ export const addIssue = async (issueData: Omit<Issue, 'id' | 'createdAt'> & { cr
         reporter_id: issueData.reporterId,
         expected_duration: issueData.expectedDuration || null,
         estimated_hours: issueData.estimatedHours || null,
+        product_id: issueData.productId || null,
         task_type: 'Task'
     };
     // Only Manager/TasksAdmin can backdate or forward-date a task via the UI
@@ -325,6 +339,13 @@ export const updateIssue = async (id: string, issueData: Partial<Issue>) => {
     return data[0];
 };
 
+export const deleteIssue = async (id: string) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { error } = await supabase.from('issues').delete().eq('id', id);
+    if (error) throw error;
+};
+
 export const inviteUser = async (params: { email: string; name: string; type: string; department?: string | null }) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized");
@@ -377,6 +398,15 @@ export const addProject = async (p: any) => {
         resource_load: p.resourceLoad
     }]).select().single();
     if (error) throw error;
+
+    const productIds: string[] = p.productIds || [];
+    if (productIds.length > 0) {
+        const { error: linkError } = await supabase.from('project_products').insert(
+            productIds.map(product_id => ({ project_id: data.id, product_id }))
+        );
+        if (linkError) throw linkError;
+    }
+
     return data;
 };
 
@@ -404,6 +434,21 @@ export const updateProject = async (id: string, p: any) => {
         resource_load: p.resourceLoad
     }).eq('id', id);
     if (error) throw error;
+
+    if (p.productIds !== undefined) {
+        const productIds: string[] = p.productIds || [];
+        // Replace the full set rather than diffing - same delete+upsert
+        // pattern as replace_lookup_items(), simplest way to keep this in
+        // sync with a multi-select in the UI.
+        const { error: deleteError } = await supabase.from('project_products').delete().eq('project_id', id);
+        if (deleteError) throw deleteError;
+        if (productIds.length > 0) {
+            const { error: insertError } = await supabase.from('project_products').insert(
+                productIds.map(product_id => ({ project_id: id, product_id }))
+            );
+            if (insertError) throw insertError;
+        }
+    }
 };
 
 export const deleteProject = async (id: string) => {

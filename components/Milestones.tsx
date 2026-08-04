@@ -4,6 +4,7 @@ import MilestoneListItem from './MilestoneListItem';
 import SearchableSelect from './SearchableSelect';
 import MilestonePendingChanges from './MilestonePendingChanges';
 import MilestoneHistory from './MilestoneHistory';
+import { getPaymentStatusLabel } from '../services/paymentStatusLabels';
 import { History, List } from 'lucide-react';
 
 interface MilestonesProps {
@@ -59,9 +60,6 @@ const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, lan
             searchPaymentStatuses: "ابحث عن حالة...",
             allMonths: "كل الشهور",
             searchMonths: "ابحث عن شهر...",
-            Paid: "مدفوعة",
-            Pending: "معلقة",
-            Sent: "مرسلة",
             exportGantt: "تصدير مخطط جانت",
             history: "سجل التغييرات",
             backToList: "العودة للقائمة",
@@ -88,9 +86,6 @@ const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, lan
             searchPaymentStatuses: "Search statuses...",
             allMonths: "All Months",
             searchMonths: "Search months...",
-            Paid: "Paid",
-            Pending: "Pending",
-            Sent: "Sent",
             exportGantt: "Export Gantt Chart",
             history: "Changes History",
             backToList: "Back to List",
@@ -117,8 +112,8 @@ const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, lan
 
     const paymentStatusOptions = useMemo(() => [
         { value: 'all', label: t.allPaymentStatuses },
-        ...Object.values(PaymentStatus).map(s => ({ value: s, label: t[s] || s })).sort((a,b) => a.label.localeCompare(b.label))
-    ], [t]);
+        ...Object.values(PaymentStatus).map(s => ({ value: s, label: getPaymentStatusLabel(s, language) })).sort((a,b) => a.label.localeCompare(b.label))
+    ], [language]);
 
     const hasPaymentOptions = useMemo(() => [
         { value: 'all', label: t.all },

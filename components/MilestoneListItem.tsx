@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Milestone, Project, Lookup, Language, MilestoneStatus, PaymentStatus } from '../types';
+import { getPaymentStatusLabel } from '../services/paymentStatusLabels';
 
 interface MilestoneListItemProps {
     milestone: Milestone;
@@ -36,8 +37,8 @@ const MilestoneListItem: React.FC<MilestoneListItemProps> = ({ milestone, projec
     };
 
     const translations = {
-        ar: { edit: "تعديل", options: "خيارات", Pending: "معلق", "In Progress": "قيد التنفيذ", Completed: "مكتمل", Sent: "مرسلة", Paid: "مدفوعة", noDueDate: "لا يوجد تاريخ", unassigned: "غير معين", Downpayment: "دفعة مقدمة", Progress: "دفعة إنجاز", Final: "دفعة نهائية", Retention: "محجوزات", Other: "أخرى" },
-        en: { edit: "Edit", options: "Options", Pending: "Pending", "In Progress": "In Progress", Completed: "Completed", Sent: "Sent", Paid: "Paid", noDueDate: "No date", unassigned: "Unassigned", Downpayment: "Downpayment", Progress: "Progress Payment", Final: "Final Payment", Retention: "Retention", Other: "Other" },
+        ar: { edit: "تعديل", options: "خيارات", Pending: "معلق", "In Progress": "قيد التنفيذ", Completed: "مكتمل", noDueDate: "لا يوجد تاريخ", unassigned: "غير معين", Downpayment: "دفعة مقدمة", Progress: "دفعة إنجاز", Final: "دفعة نهائية", Retention: "محجوزات", Other: "أخرى" },
+        en: { edit: "Edit", options: "Options", Pending: "Pending", "In Progress": "In Progress", Completed: "Completed", noDueDate: "No date", unassigned: "Unassigned", Downpayment: "Downpayment", Progress: "Progress Payment", Final: "Final Payment", Retention: "Retention", Other: "Other" },
     };
     const t = translations[language];
     
@@ -67,13 +68,13 @@ const MilestoneListItem: React.FC<MilestoneListItemProps> = ({ milestone, projec
                         <span className="text-green-600 dark:text-green-400 font-mono text-[10px] font-black">{milestone.paymentAmount.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD' })}</span>
                         <div className="relative" ref={paymentMenuRef}>
                             <button onClick={(e) => { e.stopPropagation(); setPaymentMenuOpen(p => !p); }} className={`flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full cursor-pointer shadow-sm ${paymentStatusColors[milestone.paymentStatus || PaymentStatus.Pending]}`}>
-                                {t[milestone.paymentStatus || PaymentStatus.Pending]}
+                                {getPaymentStatusLabel(milestone.paymentStatus || PaymentStatus.Pending, language)}
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
                             </button>
                             {paymentMenuOpen && (
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-32 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
                                     {Object.values(PaymentStatus).map(status => (
-                                        <button key={status} onClick={(e) => {e.stopPropagation(); handlePaymentStatusChange(status)}} className="w-full text-start px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">{t[status]}</button>
+                                        <button key={status} onClick={(e) => {e.stopPropagation(); handlePaymentStatusChange(status)}} className="w-full text-start px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">{getPaymentStatusLabel(status, language)}</button>
                                     ))}
                                 </div>
                             )}

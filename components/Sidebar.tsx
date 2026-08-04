@@ -37,8 +37,8 @@ const NavIcon: React.FC<{ view: View }> = ({ view }) => {
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language, allowedViews, onLogout, isOpen, onClose, projectsCount, openTasksCount }) => {
   const translations = {
-    ar: { myTasks: 'مهامي', dashboard: 'نظرة عامة', paymentsTargetsDashboard: 'لوحة المتابعة', reports: 'التقارير', projects: 'المشاريع', milestones: 'المعالم', payments: 'المدفوعات', tasks: 'المهام', tasksOverviewSub: 'نظرة عامة', tasksManagementSub: 'إدارة المهام', users: 'الفريق', settings: 'الإعدادات', logout: 'تسجيل الخروج', filter: 'الفلاتر المتقدمة', maintenance: 'الصيانة', maintenanceOverviewSub: 'نظرة عامة', maintenanceContractsSub: 'إدارة العقود', main: 'الرئيسية', operations: 'العمليات' },
-    en: { myTasks: 'My Tasks', dashboard: 'Overview', paymentsTargetsDashboard: 'Dashboard', reports: 'Reports', projects: 'Projects', milestones: 'Milestones', payments: 'Payments', tasks: 'Tasks', tasksOverviewSub: 'Overview', tasksManagementSub: 'Tasks Management', users: 'Team', settings: 'Settings', logout: 'Logout', filter: 'Advanced Filter', maintenance: 'Maintenance', maintenanceOverviewSub: 'Overview', maintenanceContractsSub: 'Contracts Management', main: 'Main', operations: 'Operations' },
+    ar: { myTasks: 'مهامي', dashboard: 'نظرة عامة', paymentsTargetsDashboard: 'لوحة المتابعة', reports: 'التقارير', projects: 'المشاريع', milestones: 'المعالم', payments: 'المدفوعات', tasks: 'المهام', tasksOverviewSub: 'نظرة عامة', tasksManagementSub: 'إدارة المهام', users: 'الفريق', settings: 'الإعدادات', system: 'إدارة النظام', logout: 'تسجيل الخروج', filter: 'الفلاتر المتقدمة', maintenance: 'الصيانة', maintenanceOverviewSub: 'نظرة عامة', maintenanceContractsSub: 'إدارة العقود', main: 'الرئيسية', operations: 'العمليات' },
+    en: { myTasks: 'My Tasks', dashboard: 'Overview', paymentsTargetsDashboard: 'Dashboard', reports: 'Reports', projects: 'Projects', milestones: 'Milestones', payments: 'Payments', tasks: 'Tasks', tasksOverviewSub: 'Overview', tasksManagementSub: 'Tasks Management', users: 'Team', settings: 'Settings', system: 'System Management', logout: 'Logout', filter: 'Advanced Filter', maintenance: 'Maintenance', maintenanceOverviewSub: 'Overview', maintenanceContractsSub: 'Contracts Management', main: 'Main', operations: 'Operations' },
   };
   const t = translations[language];
 
@@ -78,6 +78,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
         },
         { view: 'team', label: t.users },
         { view: 'reports', label: t.reports },
+        { view: 'system', label: t.system },
       ]
     }
   ];

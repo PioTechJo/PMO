@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 // Fixed: Changed 'Activity' and 'ActivityStatus' to 'Milestone' and 'MilestoneStatus'
 import { Milestone, Project, Lookup, Language, MilestoneStatus, PaymentStatus } from '../types';
+import { getPaymentStatusLabel } from '../services/paymentStatusLabels';
 
 interface ActivityListItemProps {
     // Fixed: Changed 'Activity' to 'Milestone'
@@ -40,8 +41,8 @@ const ActivityListItem: React.FC<ActivityListItemProps> = ({ activity, project, 
     };
 
     const translations = {
-        ar: { edit: "تعديل", options: "خيارات النشاط", Pending: "معلقة", Sent: "مرسلة", Paid: "مدفوعة", noDueDate: "لا يوجد تاريخ", unassigned: "غير معين" },
-        en: { edit: "Edit", options: "Activity options", Pending: "Pending", Sent: "Sent", Paid: "Paid", noDueDate: "No date", unassigned: "Unassigned" },
+        ar: { edit: "تعديل", options: "خيارات النشاط", noDueDate: "لا يوجد تاريخ", unassigned: "غير معين" },
+        en: { edit: "Edit", options: "Activity options", noDueDate: "No date", unassigned: "Unassigned" },
     };
     const t = translations[language];
     
@@ -71,13 +72,13 @@ const ActivityListItem: React.FC<ActivityListItemProps> = ({ activity, project, 
                         <span className="text-green-600 dark:text-green-400 font-mono text-xs">{activity.paymentAmount.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD' })}</span>
                         <div className="relative" ref={paymentMenuRef}>
                             <button onClick={(e) => { e.stopPropagation(); setPaymentMenuOpen(p => !p); }} className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full cursor-pointer ${paymentStatusColors[activity.paymentStatus || PaymentStatus.Pending]}`}>
-                                {t[activity.paymentStatus || PaymentStatus.Pending]}
+                                {getPaymentStatusLabel(activity.paymentStatus || PaymentStatus.Pending, language)}
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                             </button>
                             {paymentMenuOpen && (
                                 <div className="absolute top-full right-0 rtl:left-0 rtl:right-auto mt-1 w-32 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-20">
                                     {Object.values(PaymentStatus).map(status => (
-                                        <button key={status} onClick={(e) => {e.stopPropagation(); handlePaymentStatusChange(status)}} className="w-full text-start px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">{t[status]}</button>
+                                        <button key={status} onClick={(e) => {e.stopPropagation(); handlePaymentStatusChange(status)}} className="w-full text-start px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">{getPaymentStatusLabel(status, language)}</button>
                                     ))}
                                 </div>
                             )}

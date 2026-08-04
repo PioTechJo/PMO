@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 // Fixed: Changed 'Activity', 'ActivityStatus', and 'ActivityUpdate' to 'Milestone', 'MilestoneStatus', and 'MilestoneUpdate'
 import { Milestone, Project, Lookup, Language, PaymentStatus, MilestoneStatus, MilestoneUpdate, User, Lookups } from '../types';
+import { getPaymentStatusLabel } from '../services/paymentStatusLabels';
 
 interface ActivityDetailModalProps {
     // Fixed: Changed 'Activity' to 'Milestone'
@@ -187,7 +188,7 @@ const ActivityDetailModal: React.FC<ActivityDetailModalProps> = ({ activity, pro
                                 {activity.hasPayment ? (
                                     <div className="flex items-center gap-2">
                                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${paymentStatusColors[activity.paymentStatus || PaymentStatus.Pending]}`}>
-                                            {t[activity.paymentStatus || PaymentStatus.Pending]}
+                                            {getPaymentStatusLabel(activity.paymentStatus || PaymentStatus.Pending, language)}
                                         </span>
                                         <span className="font-mono font-bold text-green-600 dark:text-green-400 text-xs">
                                             {activity.paymentAmount.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US')}
@@ -253,12 +254,10 @@ const translations = {
     ar: {
         inProject: "في مشروع", noDescription: "لا يوجد وصف.", status: "الحالة", team: "الفريق", dueDate: "تاريخ الاستحقاق", payment: "الدفعة", updatesTitle: "تحديثات النشاط", noUpdates: "لا توجد تحديثات في هذه الفترة.", unassigned: "غير معين",
         from: "من", to: "إلى", exportPdf: "تصدير PDF", exportExcel: "تصدير Excel", activityReport: "تقرير النشاط", details: "التفاصيل", project: "المشروع",
-        Pending: "معلقة", Sent: "مرسلة", Paid: "مدفوعة",
     },
     en: {
         inProject: "In project", noDescription: "No description provided.", status: "Status", team: "Team", dueDate: "Due Date", payment: "Payment", updatesTitle: "Activity Updates", noUpdates: "No updates found for this period.", unassigned: "Unassigned",
         from: "From", to: "To", exportPdf: "Export to PDF", exportExcel: "Export to Excel", activityReport: "Activity Report", details: "Details", project: "Project",
-        Pending: "Pending", Sent: "Sent", Paid: "Paid",
     },
 };
 

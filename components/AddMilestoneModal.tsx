@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Milestone, Project, Lookup, MilestoneStatus, Language, PaymentStatus, PaymentType } from '../types';
 import SearchableSelect from './SearchableSelect';
+import { getPaymentStatusLabel } from '../services/paymentStatusLabels';
 
 interface AddMilestoneModalProps {
   teams: Lookup[];
@@ -22,9 +23,8 @@ const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, 
   const [error, setError] = useState<string | null>(null);
 
   const [currentMilestone, setCurrentMilestone] = useState({
-      title: '', 
-      description: '', 
-      teamId: '', 
+      title: '',
+      description: '',
       dueDate: '',
       status: MilestoneStatus.Pending, 
       hasPayment: true, 
@@ -35,6 +35,11 @@ const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, 
 
   const t = translations[language];
   const projectOptions = useMemo(() => projects.map(p => ({ value: p.id, label: p.name })), [projects]);
+  // Team now lives on the project (set once when the project is created),
+  // not re-picked per milestone - derive it from whichever project is
+  // active in this modal.
+  const activeProjectId = fixedProjectId || selectedProjectId;
+  const activeProjectTeamId = useMemo(() => projects.find(p => p.id === activeProjectId)?.teamId || '', [projects, activeProjectId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -47,26 +52,26 @@ const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, 
 
   const addMilestoneToList = () => {
     if (!fixedProjectId && !selectedProjectId) { setError(t.noProjectSelected); return; }
-    if (!currentMilestone.title || !currentMilestone.teamId) { setError(t.validationErrorFields); return; }
-    
+    if (!currentMilestone.title) { setError(t.validationErrorFields); return; }
+
     const newItem: Omit<Milestone, 'id'> = {
       ...currentMilestone,
       projectId: fixedProjectId || selectedProjectId,
+      teamId: activeProjectTeamId || null,
       dueDate: currentMilestone.dueDate ? new Date(currentMilestone.dueDate).toISOString() : null,
       paymentAmount: currentMilestone.hasPayment ? Number(currentMilestone.paymentAmount) : 0,
       paymentStatus: currentMilestone.hasPayment ? currentMilestone.paymentStatus : null,
       paymentType: currentMilestone.hasPayment ? currentMilestone.paymentType : null,
     };
-    
+
     setMilestonesList(prev => [...prev, newItem]);
-    setCurrentMilestone({ 
-        title: '', 
-        description: '', 
-        teamId: currentMilestone.teamId, 
-        dueDate: '', 
-        status: MilestoneStatus.Pending, 
-        hasPayment: true, 
-        paymentAmount: 0, 
+    setCurrentMilestone({
+        title: '',
+        description: '',
+        dueDate: '',
+        status: MilestoneStatus.Pending,
+        hasPayment: true,
+        paymentAmount: 0,
         paymentStatus: PaymentStatus.Pending,
         paymentType: PaymentType.Progress
     });
@@ -122,18 +127,9 @@ const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, 
                             <input type="text" name="title" value={currentMilestone.title} onChange={handleInputChange} placeholder={t.milestoneTitle} className={inputClasses} />
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className={labelClasses}>{t.team}</label>
-                                <select name="teamId" value={currentMilestone.teamId} onChange={handleInputChange} className={inputClasses}>
-                                    <option value="">{t.selectTeam}</option>
-                                    {teams.map(tm => <option key={tm.id} value={tm.id}>{tm.name}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label className={labelClasses}>{t.dueDate}</label>
-                                <input type="date" name="dueDate" value={currentMilestone.dueDate} onChange={handleInputChange} className={inputClasses} />
-                            </div>
+                        <div>
+                            <label className={labelClasses}>{t.dueDate}</label>
+                            <input type="date" name="dueDate" value={currentMilestone.dueDate} onChange={handleInputChange} className={inputClasses} />
                         </div>
 
                         <div className="grid grid-cols-2 gap-3 items-center">
@@ -158,13 +154,7 @@ const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, 
                                 <div>
                                     <label className={labelClasses}>{t.paymentStatus}</label>
                                     <select name="paymentStatus" value={currentMilestone.paymentStatus} onChange={handleInputChange} className={inputClasses}>
-                                        {Object.values(PaymentStatus).map(s => <option key={s} value={s}>{t[s] || s}</option>)}
-                                    </select>
-                                </div>
-                                <div className="col-span-2">
-                                    <label className={labelClasses}>{t.paymentType}</label>
-                                    <select name="paymentType" value={currentMilestone.paymentType} onChange={handleInputChange} className={inputClasses}>
-                                        {Object.values(PaymentType).map(s => <option key={s} value={s}>{t[s] || s}</option>)}
+                                        {Object.values(PaymentStatus).map(s => <option key={s} value={s}>{getPaymentStatusLabel(s, language)}</option>)}
                                     </select>
                                 </div>
                             </div>
@@ -216,24 +206,24 @@ const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, 
 const translations = {
     ar: { 
         title: "معالم المشروع", project: "المشروع", selectHere: "اختر المشروع...", milestoneTitle: "اسم المعلم", 
-        team: "الفريق", selectTeam: "اختر الفريق...", dueDate: "التاريخ", status: "الحالة",
-        hasPayment: "يوجد دفعة", paymentAmount: "المبلغ", paymentStatus: "الحالة", paymentType: "نوع الدفعة",
+        team: "الفريق", selectTeam: "اختر الفريق...", noTeamOnProject: "لم يُحدد فريق لهذا المشروع", dueDate: "تاريخ الإغلاق المتوقع للمعلم", status: "الحالة",
+        hasPayment: "يوجد دفعة", paymentAmount: "المبلغ", paymentStatus: "حالة الدفعة", paymentType: "نوع الدفعة",
         addToList: "إضافة للقائمة", listTitle: "قائمة الحفظ", noItems: "فارغة", 
         saveAll: "حفظ الكل", cancel: "إلغاء", noProjectSelected: "اختر مشروعاً.", 
-        validationErrorFields: "الاسم والفريق مطلوبان.", submitting: "حفظ...",
+        validationErrorFields: "اسم المعلم مطلوب.", submitting: "حفظ...",
         successMsg: "تم الحفظ!", successLabel: "تم",
-        Pending: "معلق", "In Progress": "قيد التنفيذ", Completed: "مكتمل", Sent: "مرسلة", Paid: "مدفوعة",
+        Pending: "معلق", "In Progress": "قيد التنفيذ", Completed: "مكتمل",
         Downpayment: "دفعة مقدمة", Progress: "دفعة إنجاز", Final: "دفعة نهائية", Retention: "محجوزات", Other: "أخرى"
     },
     en: { 
         title: "Milestones Mgt", project: "Project", selectHere: "Select...", milestoneTitle: "Title", 
-        team: "Team", selectTeam: "Select...", dueDate: "Date", status: "Status",
-        hasPayment: "Payment", paymentAmount: "Amount", paymentStatus: "Status", paymentType: "Payment Type",
+        team: "Team", selectTeam: "Select...", noTeamOnProject: "No team set on this project", dueDate: "Milestone Expected Closure Date", status: "Status",
+        hasPayment: "Payment", paymentAmount: "Amount", paymentStatus: "Payment Status", paymentType: "Payment Type",
         addToList: "Add to Queue", listTitle: "Batch Queue", noItems: "Empty", 
         saveAll: "Save Batch", cancel: "Cancel", noProjectSelected: "Select project.", 
-        validationErrorFields: "Required fields missing.", submitting: "Saving...",
+        validationErrorFields: "Milestone title is required.", submitting: "Saving...",
         successMsg: "Saved successfully!", successLabel: "Done",
-        Pending: "Pending", "In Progress": "In Progress", Completed: "Completed", Sent: "Sent", Paid: "Paid",
+        Pending: "Pending", "In Progress": "In Progress", Completed: "Completed",
         Downpayment: "Downpayment", Progress: "Progress Payment", Final: "Final Payment", Retention: "Retention", Other: "Other"
     }
 };

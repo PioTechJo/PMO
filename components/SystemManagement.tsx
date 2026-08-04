@@ -16,10 +16,10 @@ interface SystemManagementProps {
 const SystemManagement: React.FC<SystemManagementProps> = ({ lookups, onUpdate, language, onSaveConfig, isSetupMode = false, rolePermissions, onUpdatePermissions }) => {
     const [supabaseKey, setSupabaseKey] = useState('');
     const [supabaseUrl, setSupabaseUrl] = useState('https://dcamlinhazzmbaldsrdo.supabase.co');
-    const [activeTab, setActiveTab] = useState<'config' | 'lookups' | 'permissions'>('config');
+    const [activeTab, setActiveTab] = useState<'lookups' | 'permissions'>('lookups');
 
     useEffect(() => {
-        if (!isSetupMode) {
+        if (isSetupMode) {
             setSupabaseKey(localStorage.getItem('supabaseAnonKey') || '');
             setSupabaseUrl(localStorage.getItem('supabaseUrl') || 'https://dcamlinhazzmbaldsrdo.supabase.co');
         }
@@ -85,13 +85,12 @@ const SystemManagement: React.FC<SystemManagementProps> = ({ lookups, onUpdate, 
 
             {!isSetupMode && (
                 <div className="flex gap-2 p-1 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl w-max">
-                    <button onClick={() => setActiveTab('config')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'config' ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20' : 'text-slate-400 hover:text-slate-600'}`}>{t.config}</button>
                     <button onClick={() => setActiveTab('lookups')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'lookups' ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20' : 'text-slate-400 hover:text-slate-600'}`}>{t.lookups}</button>
                     <button onClick={() => setActiveTab('permissions')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'permissions' ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20' : 'text-slate-400 hover:text-slate-600'}`}>{t.permissions}</button>
                 </div>
             )}
 
-            {activeTab === 'config' && (
+            {isSetupMode && (
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-[2.5rem] shadow-xl animate-in fade-in slide-in-from-top-4">
                     <h2 className="text-lg font-black text-slate-800 dark:text-white uppercase mb-1">{t.configTitle}</h2>
                     <p className="text-xs text-slate-400 mb-8">{t.configSubtitle}</p>

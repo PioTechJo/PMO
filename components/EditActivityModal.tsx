@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 // Fixed: Changed 'Activity', 'ActivityStatus', and 'ActivityUpdate' to 'Milestone', 'MilestoneStatus', and 'MilestoneUpdate'
 import { Milestone, Project, Lookup, MilestoneStatus, Language, PaymentStatus, MilestoneUpdate, User } from '../types';
+import { getPaymentStatusLabel } from '../services/paymentStatusLabels';
 
 interface EditActivityModalProps {
   // Fixed: Changed 'Activity' to 'Milestone'
@@ -50,12 +51,12 @@ const EditActivityModal: React.FC<EditActivityModalProps> = ({ activityToEdit, t
 
     const translations = {
       ar: {
-          title: "تعديل النشاط", activityTitle: "اسم النشاط", description: "الوصف", project: "المشروع", team: "الفريق المسؤول", dueDate: "تاريخ الاستحقاق", status: "الحالة", hasPayment: "عليه دفعة", paymentAmount: "مبلغ الدفعة", paymentStatus: "حالة الدفع", update: "تحديث النشاط", cancel: "إلغاء", Pending: "معلقة", Sent: "مرسلة", Paid: "مدفوعة", submitting: "جاري التحديث...", validationError: "يرجى ملء جميع الحقول المطلوبة.", successMessage: "تم التحديث بنجاح!",
+          title: "تعديل النشاط", activityTitle: "اسم النشاط", description: "الوصف", project: "المشروع", team: "الفريق المسؤول", dueDate: "تاريخ الاستحقاق", status: "الحالة", hasPayment: "عليه دفعة", paymentAmount: "مبلغ الدفعة", paymentStatus: "حالة الدفع", update: "تحديث النشاط", cancel: "إلغاء", submitting: "جاري التحديث...", validationError: "يرجى ملء جميع الحقول المطلوبة.", successMessage: "تم التحديث بنجاح!",
           updatesTitle: "سجل التحديثات", noUpdates: "لا توجد تحديثات لهذا النشاط بعد.", addUpdatePlaceholder: "أضف تحديثًا...", post: "نشر",
           selectHere: "اختر من هنا...",
       },
       en: {
-          title: "Edit Activity", activityTitle: "Activity Title", description: "Description", project: "Project", team: "Assigned Team", dueDate: "Due Date", status: "Status", hasPayment: "Has Payment", paymentAmount: "Payment Amount", paymentStatus: "Payment Status", update: "Update Activity", cancel: "Cancel", Pending: "Pending", Sent: "Sent", Paid: "Paid", submitting: "Updating...", validationError: "Please fill all required fields.", successMessage: "Updated successfully!",
+          title: "Edit Activity", activityTitle: "Activity Title", description: "Description", project: "Project", team: "Assigned Team", dueDate: "Due Date", status: "Status", hasPayment: "Has Payment", paymentAmount: "Payment Amount", paymentStatus: "Payment Status", update: "Update Activity", cancel: "Cancel", submitting: "Updating...", validationError: "Please fill all required fields.", successMessage: "Updated successfully!",
           updatesTitle: "Activity Updates", noUpdates: "No updates for this activity yet.", addUpdatePlaceholder: "Add an update...", post: "Post",
           selectHere: "Select from here...",
       },
@@ -189,7 +190,7 @@ const EditActivityModal: React.FC<EditActivityModalProps> = ({ activityToEdit, t
                         <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.paymentStatus}</label>
                         <select name="paymentStatus" value={formData.paymentStatus || ''} onChange={handleChange} required className={selectClasses}>
                             {Object.values(PaymentStatus)
-                                .map(s => ({ value: s, label: t[s as keyof typeof t] || s }))
+                                .map(s => ({ value: s, label: getPaymentStatusLabel(s, language) }))
                                 .sort((a, b) => a.label.localeCompare(b.label))
                                 .map(s => (<option key={s.value} value={s.value}>{s.label}</option>))}
                         </select>
