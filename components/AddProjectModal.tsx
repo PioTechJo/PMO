@@ -12,6 +12,8 @@ interface AddProjectModalProps {
   language: Language;
 }
 
+const todayDateString = () => new Date().toISOString().split('T')[0];
+
 const AddProjectModal: React.FC<AddProjectModalProps> = ({ lookups, onClose, onAddProject, onAddMilestones, language }) => {
   const [createdProject, setCreatedProject] = useState<Project | null>(null);
   const [formData, setFormData] = useState({
@@ -24,8 +26,8 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ lookups, onClose, onA
       statusId: '',
       projectManagerId: '',
       customerId: '',
-      launchDate: '',
-      actualStartDate: '',
+      launchDate: todayDateString(),
+      actualStartDate: todayDateString(),
       expectedClosureDate: '',
       progress: 0,
       revenueImpact: 1,
@@ -53,8 +55,8 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ lookups, onClose, onA
           status: "الحالة",
           projectManager: "مدير المشروع",
           customer: "العميل",
-          launchDate: "الإطلاق",
-          actualStartDate: "البدء الفعلي",
+          launchDate: "تاريخ الإطلاق",
+          actualStartDate: "تاريخ البدء الفعلي",
           expectedClosureDate: "الإغلاق المتوقع",
           progress: "التقدم",
           weightTitle: "الأوزان (1-5)",
@@ -85,8 +87,8 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ lookups, onClose, onA
           status: "Status",
           projectManager: "Manager",
           customer: "Customer",
-          launchDate: "Launch",
-          actualStartDate: "Actual Start",
+          launchDate: "Launch Date",
+          actualStartDate: "Actual Start Date",
           expectedClosureDate: "Expected Closure",
           progress: "Progress",
           weightTitle: "Weights (1–5)",
@@ -124,6 +126,21 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ lookups, onClose, onA
     [lookups.products]
   );
 
+  const projectManagerOptions = useMemo(() =>
+    lookups.projectManagers.map(m => ({ value: m.id, label: m.name })),
+    [lookups.projectManagers]
+  );
+
+  const statusOptions = useMemo(() =>
+    lookups.projectStatuses.map(s => ({ value: s.id, label: s.name })),
+    [lookups.projectStatuses]
+  );
+
+  const teamOptions = useMemo(() =>
+    lookups.teams.map(t => ({ value: t.id, label: t.name })),
+    [lookups.teams]
+  );
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       const { name, value } = e.target;
       setFormData(prev => ({...prev, [name]: value}));
@@ -135,6 +152,18 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ lookups, onClose, onA
 
   const handleCountryChange = (val: string) => {
     setFormData(prev => ({ ...prev, countryId: val }));
+  };
+
+  const handleManagerChange = (val: string) => {
+    setFormData(prev => ({ ...prev, projectManagerId: val }));
+  };
+
+  const handleStatusChange = (val: string) => {
+    setFormData(prev => ({ ...prev, statusId: val }));
+  };
+
+  const handleTeamChange = (val: string) => {
+    setFormData(prev => ({ ...prev, teamId: val }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -234,17 +263,11 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ lookups, onClose, onA
                   </div>
                   <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.projectManager}</label>
-                      <select name="projectManagerId" value={formData.projectManagerId} onChange={handleChange} required disabled={isSubmitting} className={selectClasses}>
-                          <option value="" disabled>{t.selectHere}</option>
-                          {lookups.projectManagers.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
-                      </select>
+                      <SearchableSelect options={projectManagerOptions} value={formData.projectManagerId} onChange={handleManagerChange} placeholder={t.selectHere} language={language} />
                   </div>
                    <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.status}</label>
-                      <select name="statusId" value={formData.statusId} onChange={handleChange} required disabled={isSubmitting} className={selectClasses}>
-                          <option value="" disabled>{t.selectHere}</option>
-                          {lookups.projectStatuses.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
-                      </select>
+                      <SearchableSelect options={statusOptions} value={formData.statusId} onChange={handleStatusChange} placeholder={t.selectHere} language={language} />
                   </div>
                   <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.product}</label>
@@ -259,10 +282,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ lookups, onClose, onA
                   </div>
                   <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.team}</label>
-                      <select name="teamId" value={formData.teamId} onChange={handleChange} disabled={isSubmitting} className={selectClasses}>
-                          <option value="">{t.selectHere}</option>
-                          {lookups.teams.map(l => (<option key={l.id} value={l.id}>{l.name}</option>))}
-                      </select>
+                      <SearchableSelect options={teamOptions} value={formData.teamId} onChange={handleTeamChange} placeholder={t.selectHere} language={language} />
                   </div>
               </div>
 

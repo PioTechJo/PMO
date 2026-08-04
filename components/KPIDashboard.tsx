@@ -2,6 +2,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Project, Milestone, Language, User, PaymentStatus, MilestoneStatus, Issue, TaskViewMode } from '../types';
 import SearchableSelect from './SearchableSelect';
+import { Wallet, CheckCircle2, Clock, FolderKanban, AlertTriangle } from 'lucide-react';
 
 interface KPIDashboardProps {
     projects: Project[];
@@ -241,47 +242,73 @@ const KPIDashboard: React.FC<KPIDashboardProps> = ({ projects, milestones, issue
             </div>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
-                <div className="bg-gradient-to-br from-indigo-600 to-violet-700 p-6 md:p-8 rounded-3xl md:rounded-4xl shadow-xl text-white relative overflow-hidden group">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6 items-stretch">
+                <div className="bg-gradient-to-br from-indigo-600 to-violet-700 p-6 md:p-8 rounded-3xl shadow-xl text-white relative overflow-hidden group flex flex-col justify-between h-full">
                     <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform"></div>
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">{t.totalAmount}</p>
-                    <p className="text-2xl md:text-3xl font-black">{formatCurrency(kpis.totalValue)}</p>
+                    <div>
+                        <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center mb-4">
+                            <Wallet className="w-5 h-5" strokeWidth={2.25} />
+                        </div>
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">{t.totalAmount}</p>
+                        <p className="text-xl md:text-2xl font-black whitespace-nowrap">{formatCurrency(kpis.totalValue)}</p>
+                    </div>
                     <div className="mt-4 pt-4 border-t border-white/10 flex justify-between items-center text-[10px] font-bold">
                         <span>{kpis.count} {t.projects}</span>
-                        <span className="bg-white/20 px-2 py-1 rounded-lg uppercase">{isAllTime ? 'All Time' : 'Period View'}</span>
+                        <span className="bg-white/20 px-2 py-1 rounded-lg uppercase">{isAllTime ? t.allTime : t.period}</span>
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl md:rounded-4xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.collected}</p>
-                    <p className="text-2xl md:text-3xl font-black text-emerald-500">{formatCurrency(kpis.collected)}</p>
-                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full mt-6 overflow-hidden">
-                        <div className="bg-emerald-500 h-full rounded-full transition-all duration-1000" style={{ width: `${(kpis.collected/kpis.totalValue)*100 || 0}%` }}></div>
+                <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between h-full">
+                    <div>
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-4">
+                            <CheckCircle2 className="w-5 h-5 text-emerald-500" strokeWidth={2.25} />
+                        </div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.collected}</p>
+                        <p className="text-xl md:text-2xl font-black text-emerald-500 whitespace-nowrap">{formatCurrency(kpis.collected)}</p>
                     </div>
-                </div>
-
-                <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl md:rounded-4xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.pending}</p>
-                    <p className="text-2xl md:text-3xl font-black text-orange-500">{formatCurrency(kpis.pending)}</p>
-                    <div className="flex items-center gap-1.5 mt-4">
-                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Balance</span>
-                    </div>
-                </div>
-
-                <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl md:rounded-4xl border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.projectsCountKpi}</p>
-                    <p className="text-2xl md:text-3xl font-black text-violet-500">{kpis.count}</p>
                     <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-800">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter italic">{selectedStatus === 'all' || selectedStatus === '' ? t.allStatuses : (statusOptions.find(s => s.value === selectedStatus)?.label || '')}</span>
+                        <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                            <div className="bg-emerald-500 h-full rounded-full transition-all duration-1000" style={{ width: `${(kpis.collected/kpis.totalValue)*100 || 0}%` }}></div>
+                        </div>
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl md:rounded-4xl border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.activeIssues}</p>
-                    <p className="text-2xl md:text-3xl font-black text-red-500">{kpis.totalIssues}</p>
+                <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between h-full">
+                    <div>
+                        <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center mb-4">
+                            <Clock className="w-5 h-5 text-orange-500" strokeWidth={2.25} />
+                        </div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.pending}</p>
+                        <p className="text-xl md:text-2xl font-black text-orange-500 whitespace-nowrap">{formatCurrency(kpis.pending)}</p>
+                    </div>
                     <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-800">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter italic">Needs Attention</span>
+                        <span className="text-[9px] font-black text-orange-500 bg-orange-500/10 uppercase tracking-widest px-2 py-1 rounded-lg">{t.balance}</span>
+                    </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between h-full">
+                    <div>
+                        <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center mb-4">
+                            <FolderKanban className="w-5 h-5 text-violet-500" strokeWidth={2.25} />
+                        </div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.projectsCountKpi}</p>
+                        <p className="text-2xl md:text-3xl font-black text-violet-500">{kpis.count}</p>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-800">
+                        <span className="text-[9px] font-black text-violet-500 bg-violet-500/10 uppercase tracking-widest px-2 py-1 rounded-lg truncate inline-block max-w-full">{selectedStatus === 'all' || selectedStatus === '' ? t.allStatuses : (statusOptions.find(s => s.value === selectedStatus)?.label || '')}</span>
+                    </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between h-full">
+                    <div>
+                        <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center mb-4">
+                            <AlertTriangle className="w-5 h-5 text-red-500" strokeWidth={2.25} />
+                        </div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.activeIssues}</p>
+                        <p className="text-2xl md:text-3xl font-black text-red-500">{kpis.totalIssues}</p>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-800">
+                        <span className="text-[9px] font-black text-red-500 bg-red-500/10 uppercase tracking-widest px-2 py-1 rounded-lg">{t.needsAttention}</span>
                     </div>
                 </div>
             </div>
@@ -437,7 +464,8 @@ const translations = {
         allCustomers: "كل العملاء", customer: "العميل",
         cardView: "بطاقات", listView: "قائمة", code: "الكود",
         showingRange: "عرض {start}-{end} من {total}", prev: "السابق", next: "التالي",
-        startDate: "تاريخ البداية", endDate: "تاريخ الانتهاء"
+        startDate: "تاريخ البداية", endDate: "تاريخ الانتهاء",
+        balance: "الرصيد المتبقي", needsAttention: "يتطلب اهتماماً"
     },
     en: {
         totalAmount: "Total Financial Value", collected: "Total Collected", pending: "Pending Payments", avgProgress: "Average Progress", 
@@ -458,7 +486,8 @@ const translations = {
         allCustomers: "All Customers", customer: "Customer",
         cardView: "Cards", listView: "List", code: "Code",
         showingRange: "Showing {start}-{end} of {total}", prev: "Prev", next: "Next",
-        startDate: "Start Date", endDate: "End Date"
+        startDate: "Start Date", endDate: "End Date",
+        balance: "Balance", needsAttention: "Needs Attention"
     }
 };
 
