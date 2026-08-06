@@ -1,6 +1,6 @@
 
 import { getSupabase } from './supabaseClient';
-import { Project, Milestone, User, Lookups, MilestoneStatus, PaymentStatus, MaintenanceContract, Issue, IssueStatus, IssuePriority, Notification, Lookup, IssueComment, MilestoneChangeRequest, MilestoneAuditLog } from '../types';
+import { Project, Milestone, User, Lookups, MilestoneStatus, PaymentStatus, MaintenanceContract, Issue, IssueStatus, IssuePriority, Notification, Lookup, IssueComment, MilestoneChangeRequest, MilestoneAuditLog, CustomerActivityLog, ActivityLogType, Customer, CustomerContact, CustomerTier, CustomerStatus } from '../types';
 
 const mapDbToNotification = (db: any): Notification => ({
     id: db.id,
@@ -55,14 +55,27 @@ export const fetchAllData = async () => {
         email: u.email || null
     }));
 
+    const mappedCustomers: Customer[] = (cst as any[] || []).map(c => ({
+        id: c.id,
+        name: c.name,
+        contactName: c.contact_name || null,
+        contactEmail: c.contact_email || null,
+        contactPhone: c.contact_phone || null,
+        industry: c.industry || null,
+        tier: (c.tier || 'Standard') as CustomerTier,
+        status: (c.status || 'active') as CustomerStatus,
+        ownerId: c.owner_id || null,
+        owner: mappedUsers.find(u => u.id === c.owner_id)
+    }));
+
     const lookups: Lookups = {
-        countries: cnt, 
-        categories: cat, 
-        teams: tm, 
-        products: prd, 
+        countries: cnt,
+        categories: cat,
+        teams: tm,
+        products: prd,
         projectStatuses: st,
         projectManagers: mappedUsers.filter(u => u.type === 'PM'),
-        customers: cst,
+        customers: mappedCustomers,
     };
 
     const projects: Project[] = prj.map(db => {
@@ -237,6 +250,125 @@ export const fetchMilestoneAuditLogs = async (milestoneId: string) => {
         createdAt: d.created_at,
         userName: d.users?.name
     }));
+};
+
+export const fetchCustomerActivities = async (customerId: string): Promise<CustomerActivityLog[]> => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('customer_activities').select('*, users(name, avatar_url)').eq('customer_id', customerId).order('created_at', { ascending: false });
+    if (error) throw error;
+    return data.map((d: any) => ({
+        id: d.id,
+        customerId: d.customer_id,
+        type: d.type,
+        note: d.note,
+        createdBy: d.created_by,
+        createdAt: d.created_at,
+        user: d.users ? { id: d.created_by, name: d.users.name, avatarUrl: d.users.avatar_url } : undefined
+    }));
+};
+
+export const addCustomerActivity = async (customerId: string, type: ActivityLogType, note: string, createdBy: string) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { error } = await supabase.from('customer_activities').insert([{ customer_id: customerId, type, note, created_by: createdBy }]);
+    if (error) throw error;
+};
+
+export const deleteCustomerActivity = async (activityId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { error } = await supabase.from('customer_activities').delete().eq('id', activityId);
+    if (error) throw error;
+};
+
+export const addCustomer = async (data: Omit<Customer, 'id' | 'owner'>) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { error } = await supabase.from('customers').insert([{
+        name: data.name,
+        contact_name: data.contactName,
+        contact_email: data.contactEmail,
+        contact_phone: data.contactPhone,
+        industry: data.industry,
+        tier: data.tier,
+        status: data.status,
+        owner_id: data.ownerId,
+    }]);
+    if (error) throw error;
+};
+
+export const updateCustomer = async (customerId: string, data: Omit<Customer, 'id' | 'owner'>) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { error } = await supabase.from('customers').update({
+        name: data.name,
+        contact_name: data.contactName,
+        contact_email: data.contactEmail,
+        contact_phone: data.contactPhone,
+        industry: data.industry,
+        tier: data.tier,
+        status: data.status,
+        owner_id: data.ownerId,
+    }).eq('id', customerId);
+    if (error) throw error;
+};
+
+export const deleteCustomer = async (customerId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { error } = await supabase.from('customers').delete().eq('id', customerId);
+    if (error) throw error;
+};
+
+export const fetchCustomerContacts = async (customerId: string): Promise<CustomerContact[]> => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('customer_contacts').select('*').eq('customer_id', customerId).order('is_primary', { ascending: false }).order('created_at', { ascending: true });
+    if (error) throw error;
+    return data.map((d: any) => ({
+        id: d.id,
+        customerId: d.customer_id,
+        name: d.name,
+        role: d.role,
+        email: d.email,
+        phone: d.phone,
+        isPrimary: !!d.is_primary,
+    }));
+};
+
+export const addCustomerContact = async (customerId: string, data: Omit<CustomerContact, 'id' | 'customerId'>) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { error } = await supabase.from('customer_contacts').insert([{
+        customer_id: customerId,
+        name: data.name,
+        role: data.role,
+        email: data.email,
+        phone: data.phone,
+        is_primary: data.isPrimary,
+    }]);
+    if (error) throw error;
+};
+
+export const updateCustomerContact = async (contactId: string, data: Omit<CustomerContact, 'id' | 'customerId'>) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { error } = await supabase.from('customer_contacts').update({
+        name: data.name,
+        role: data.role,
+        email: data.email,
+        phone: data.phone,
+        is_primary: data.isPrimary,
+    }).eq('id', contactId);
+    if (error) throw error;
+};
+
+export const deleteCustomerContact = async (contactId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { error } = await supabase.from('customer_contacts').delete().eq('id', contactId);
+    if (error) throw error;
 };
 
 export const addIssueComment = async (issueId: string, userId: string, content: string) => {

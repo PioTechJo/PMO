@@ -30,7 +30,7 @@ const SystemManagement: React.FC<SystemManagementProps> = ({ lookups, onUpdate, 
             title: "إدارة النظام", subtitle: "تكوين إعدادات التطبيق وجداول البحث والصلاحيات.", configTitle: "إعدادات الاتصال", configSubtitle: "أدخل مفتاح وبيانات Supabase للاتصال بقاعدة البيانات.",
             supabaseLabel: "مفتاح Supabase Anon", supabaseUrlLabel: "رابط Supabase URL", saveConfig: "حفظ الإعدادات", setupTitle: "إعداد التطبيق لأول مرة",
             setupSubtitle: "مرحبًا بك! يرجى إدخل بيانات الوصول اللازمة.", lookupsTitle: "جداول البحث", 
-            countries: "الدول", categories: "الفئات", teams: "الفرق", products: "المنتجات", statuses: "حالات المشروع", customers: "العملاء",
+            countries: "الدول", categories: "الفئات", teams: "الفرق", products: "المنتجات", statuses: "حالات المشروع",
             permissionsTitle: "إدارة صلاحيات الأدوار", permissionsSubtitle: "حدد الصفحات التي يمكن لكل دور الوصول إليها.",
             role: "الدور", views: "الصفحات المتاحة", config: "الإعدادات", lookups: "جداول البحث", permissions: "الصلاحيات"
         },
@@ -38,7 +38,7 @@ const SystemManagement: React.FC<SystemManagementProps> = ({ lookups, onUpdate, 
             title: "System Management", subtitle: "Configure settings, lookup tables and role permissions.", configTitle: "Connection Settings", configSubtitle: "Enter Supabase credentials to connect to your database.",
             supabaseLabel: "Supabase Anon Key", supabaseUrlLabel: "Supabase URL", saveConfig: "Save Settings", setupTitle: "First Time Setup",
             setupSubtitle: "Welcome! Please enter credentials.", lookupsTitle: "Lookup Tables",
-            countries: "Countries", categories: "Categories", teams: "Teams", products: "Products", statuses: "Statuses", customers: "Customers",
+            countries: "Countries", categories: "Categories", teams: "Teams", products: "Products", statuses: "Statuses",
             permissionsTitle: "Role Permissions Manager", permissionsSubtitle: "Define allowed views for each system role.",
             role: "Role", views: "Allowed Views", config: "Settings", lookups: "Lookups", permissions: "Permissions"
         }
@@ -50,6 +50,7 @@ const SystemManagement: React.FC<SystemManagementProps> = ({ lookups, onUpdate, 
         { id: 'paymentsTargetsDashboard', label: language === 'ar' ? 'لوحة المتابعة' : 'Dashboard' },
         { id: 'filter', label: language === 'ar' ? 'الفلاتر' : 'Filters' },
         { id: 'projects', label: language === 'ar' ? 'المشاريع' : 'Projects' },
+        { id: 'customers', label: language === 'ar' ? 'العملاء' : 'Customers' },
         { id: 'milestones', label: language === 'ar' ? 'المعالم' : 'Milestones' },
         { id: 'team', label: language === 'ar' ? 'فريق العمل' : 'Team' },
         { id: 'payments', label: language === 'ar' ? 'المدفوعات' : 'Payments' },
@@ -119,7 +120,6 @@ const SystemManagement: React.FC<SystemManagementProps> = ({ lookups, onUpdate, 
                     <LookupEditor title={t.teams} initialValues={lookups.teams} onSave={(v) => onUpdate('teams', v as Lookup[])} language={language} />
                     <LookupEditor title={t.products} initialValues={lookups.products} onSave={(v) => onUpdate('products', v as Lookup[])} language={language} />
                     <LookupEditor title={t.statuses} initialValues={lookups.projectStatuses} onSave={(v) => onUpdate('projectStatuses', v as Lookup[])} language={language} />
-                    <LookupEditor title={t.customers} initialValues={lookups.customers} onSave={(v) => onUpdate('customers', v as Lookup[])} language={language} />
                 </div>
             )}
 

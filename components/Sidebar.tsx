@@ -31,14 +31,15 @@ const NavIcon: React.FC<{ view: View }> = ({ view }) => {
         reports: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
         filter: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" /></svg>,
         system: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066" /></svg>,
+        customers: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-4-2.83M9 20H4v-2a3 3 0 014-2.83m6-2.34a3 3 0 10-4 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>,
     };
     return icons[view] || icons.dashboard;
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language, allowedViews, onLogout, isOpen, onClose, projectsCount, openTasksCount }) => {
   const translations = {
-    ar: { myTasks: 'مهامي', dashboard: 'نظرة عامة', paymentsTargetsDashboard: 'لوحة المتابعة', reports: 'التقارير', projects: 'المشاريع', milestones: 'المعالم', payments: 'المدفوعات', tasks: 'المهام', tasksOverviewSub: 'نظرة عامة', tasksManagementSub: 'إدارة المهام', users: 'الفريق', settings: 'الإعدادات', system: 'إدارة النظام', logout: 'تسجيل الخروج', filter: 'الفلاتر المتقدمة', maintenance: 'الصيانة', maintenanceOverviewSub: 'نظرة عامة', maintenanceContractsSub: 'إدارة العقود', main: 'الرئيسية', operations: 'العمليات' },
-    en: { myTasks: 'My Tasks', dashboard: 'Overview', paymentsTargetsDashboard: 'Dashboard', reports: 'Reports', projects: 'Projects', milestones: 'Milestones', payments: 'Payments', tasks: 'Tasks', tasksOverviewSub: 'Overview', tasksManagementSub: 'Tasks Management', users: 'Team', settings: 'Settings', system: 'System Management', logout: 'Logout', filter: 'Advanced Filter', maintenance: 'Maintenance', maintenanceOverviewSub: 'Overview', maintenanceContractsSub: 'Contracts Management', main: 'Main', operations: 'Operations' },
+    ar: { myTasks: 'مهامي', dashboard: 'نظرة عامة', paymentsTargetsDashboard: 'لوحة المتابعة', reports: 'التقارير', projects: 'المشاريع', milestones: 'المعالم', payments: 'المدفوعات', tasks: 'المهام', tasksOverviewSub: 'نظرة عامة', tasksManagementSub: 'إدارة المهام', users: 'الفريق', settings: 'الإعدادات', system: 'إدارة النظام', customers: 'العملاء', logout: 'تسجيل الخروج', filter: 'الفلاتر المتقدمة', maintenance: 'الصيانة', maintenanceOverviewSub: 'نظرة عامة', maintenanceContractsSub: 'إدارة العقود', main: 'الرئيسية', operations: 'العمليات' },
+    en: { myTasks: 'My Tasks', dashboard: 'Overview', paymentsTargetsDashboard: 'Dashboard', reports: 'Reports', projects: 'Projects', milestones: 'Milestones', payments: 'Payments', tasks: 'Tasks', tasksOverviewSub: 'Overview', tasksManagementSub: 'Tasks Management', users: 'Team', settings: 'Settings', system: 'System Management', customers: 'Customers', logout: 'Logout', filter: 'Advanced Filter', maintenance: 'Maintenance', maintenanceOverviewSub: 'Overview', maintenanceContractsSub: 'Contracts Management', main: 'Main', operations: 'Operations' },
   };
   const t = translations[language];
 
@@ -55,6 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
         { view: 'projects', label: t.projects },
         { view: 'milestones', label: t.milestones },
         { view: 'payments', label: t.payments },
+        { view: 'customers', label: t.customers },
       ]
     },
     {

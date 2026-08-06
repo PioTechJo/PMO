@@ -22,14 +22,16 @@ import EditProjectModal from './components/EditProjectModal';
 import EditMilestoneModal from './components/EditMilestoneModal';
 import MilestoneDetailModal from './components/MilestoneDetailModal';
 import ConfirmDeleteModal from './components/ConfirmDeleteModal';
-import { Language, Theme, View, Project, Milestone, User, Lookups, MaintenanceContract, Issue, IssueStatus, Notification, RolePermissions } from './types';
-import { 
-    fetchAllData, 
-    addProject as apiAddProject, 
-    updateProject as apiUpdateProject, 
-    addMilestones as apiAddMilestones, 
-    updateMilestone as apiUpdateMilestone, 
-    updateLookups as apiUpdateLookups, 
+import Customers from './components/Customers';
+import CustomerProfileModal from './components/CustomerProfileModal';
+import { Language, Theme, View, Project, Milestone, User, Lookups, MaintenanceContract, Issue, IssueStatus, Notification, RolePermissions, Customer } from './types';
+import {
+    fetchAllData,
+    addProject as apiAddProject,
+    updateProject as apiUpdateProject,
+    addMilestones as apiAddMilestones,
+    updateMilestone as apiUpdateMilestone,
+    updateLookups as apiUpdateLookups,
     deleteProject as apiDeleteProject,
     addMaintenanceContract as apiAddContract,
     updateMaintenanceContract as apiUpdateContract,
@@ -37,6 +39,8 @@ import {
     updateIssue as apiUpdateIssue,
     deleteIssue as apiDeleteIssue,
     addIssueComment as apiAddIssueComment,
+    addCustomer as apiAddCustomer,
+    updateCustomer as apiUpdateCustomer,
 } from './services/api';
 import { initSupabase, getSupabase } from './services/supabaseClient';
 
@@ -62,8 +66,8 @@ const App: React.FC = () => {
         // actually gets issues assigned to them (see AddIssueModal's
         // assignee list). Everyone else keeps their existing landing page.
         const defaultPermissions = [
-            { role: 'Manager', allowedViews: ['dashboard', 'tasksOverview', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'maintenanceOverview', 'system', 'issues'] },
-            { role: 'PM', allowedViews: ['dashboard', 'tasksOverview', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'maintenanceOverview', 'issues'] },
+            { role: 'Manager', allowedViews: ['dashboard', 'tasksOverview', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'maintenanceOverview', 'system', 'issues', 'customers'] },
+            { role: 'PM', allowedViews: ['dashboard', 'tasksOverview', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'maintenanceOverview', 'issues', 'customers'] },
             { role: 'PS', allowedViews: ['myTasks', 'tasksOverview', 'issues'] },
             { role: 'Staff', allowedViews: ['dashboard', 'tasksOverview', 'projects', 'issues'] },
             { role: 'User', allowedViews: ['dashboard', 'tasksOverview', 'projects', 'issues'] },
@@ -118,6 +122,7 @@ const App: React.FC = () => {
     const [editingProject, setEditingProject] = useState<Project | null>(null);
     const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
     const [viewingMilestone, setViewingMilestone] = useState<Milestone | null>(null);
+    const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
     const [deletingProject, setDeletingProject] = useState<Project | null>(null);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
@@ -270,6 +275,7 @@ const App: React.FC = () => {
                     {view === 'system' && allowedViews.includes('system') && <SystemManagement lookups={lookups} onUpdate={apiUpdateLookups} language={language} onSaveConfig={(k, u) => { localStorage.setItem('supabaseAnonKey', k); localStorage.setItem('supabaseUrl', u); setupClient(k, u); }} rolePermissions={rolePermissions} onUpdatePermissions={(p) => { setRolePermissions(p); localStorage.setItem('rolePermissions', JSON.stringify(p)); }} />}
                     {view === 'filter' && allowedViews.includes('filter') && <MilestoneFilter projects={projects} milestones={milestones} teams={lookups.teams} customers={lookups.customers} projectManagers={lookups.projectManagers} language={language} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} />}
                     {view === 'reports' && allowedViews.includes('reports') && <ReportsBuilder projects={projects} milestones={milestones} issues={issues} users={users} teams={lookups.teams} language={language} />}
+                    {view === 'customers' && allowedViews.includes('customers') && <Customers customers={lookups.customers} allProjects={projects} allMaintenanceContracts={maintenanceContracts} allUsers={users} currentUser={currentUser} language={language} onViewCustomer={setViewingCustomer} onAddCustomer={async (d) => { await apiAddCustomer(d); loadData(); }} onUpdateCustomer={async (id, d) => { await apiUpdateCustomer(id, d); loadData(); }} />}
                 </main>
             </div>
 
@@ -277,6 +283,20 @@ const App: React.FC = () => {
             {editingMilestone && <EditMilestoneModal milestoneToEdit={editingMilestone} allMilestones={milestones} teams={lookups.teams} projects={projects} allMilestoneUpdates={[]} allUsers={users} currentUser={currentUser} onClose={() => setEditingMilestone(null)} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} onAddMilestones={async (d) => { await apiAddMilestones(d); loadData(); }} onAddUpdate={async () => {}} language={language} />}
             {viewingMilestone && <MilestoneDetailModal milestone={viewingMilestone} projects={projects} allMilestoneUpdates={[]} allUsers={users} lookups={lookups} onClose={() => setViewingMilestone(null)} language={language} />}
             {deletingProject && <ConfirmDeleteModal project={deletingProject} onClose={() => setDeletingProject(null)} onConfirm={async () => { await apiDeleteProject(deletingProject.id); setDeletingProject(null); loadData(); }} language={language} />}
+            {viewingCustomer && (
+                <CustomerProfileModal
+                    customer={lookups.customers.find(c => c.id === viewingCustomer.id) || viewingCustomer}
+                    projects={projects.filter(p => p.customerId === viewingCustomer.id)}
+                    milestones={milestones.filter(m => projects.some(p => p.id === m.projectId && p.customerId === viewingCustomer.id))}
+                    maintenanceContracts={maintenanceContracts.filter(c => c.customerId === viewingCustomer.id)}
+                    issues={issues}
+                    allUsers={users}
+                    language={language}
+                    currentUser={currentUser}
+                    onClose={() => setViewingCustomer(null)}
+                    onUpdateCustomer={async (id, d) => { await apiUpdateCustomer(id, d); loadData(); }}
+                />
+            )}
             <style>{`@keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }`}</style>
         </div>
     );

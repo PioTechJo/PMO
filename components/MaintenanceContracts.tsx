@@ -3,6 +3,7 @@ import { MaintenanceContract, Lookup, Language } from '../types';
 import SearchableSelect from './SearchableSelect';
 import * as XLSX from 'xlsx';
 import StatCard from './StatCard';
+import { getContractRiskStatus } from '../services/maintenanceStatus';
 
 // --- Editable Row Sub-Component ---
 interface EditableRowProps {
@@ -237,10 +238,7 @@ const MaintenanceContracts: React.FC<MaintenanceContractsProps> = ({ contracts, 
         const total = filteredContracts.reduce((sum, c) => sum + (Number(c.totalAmount) || 0), 0);
         const collected = filteredContracts.reduce((sum, c) => sum + (Number(c.collectedAmount) || 0), 0);
         const lost = filteredContracts.reduce((sum, c) => sum + (Number(c.lostAmount) || 0), 0);
-        const activeCount = filteredContracts.filter(c => {
-            if (!c.endDate) return true;
-            return new Date(c.endDate) >= new Date();
-        }).length;
+        const activeCount = filteredContracts.filter(c => getContractRiskStatus(c.endDate) !== 'expired').length;
         
         return { total, collected, lost, activeCount };
     }, [filteredContracts]);

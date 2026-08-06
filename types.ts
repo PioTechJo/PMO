@@ -1,7 +1,8 @@
 
 export type Language = 'ar' | 'en';
 export type Theme = 'light' | 'dark' | 'system';
-export type View = 'myTasks' | 'dashboard' | 'tasksOverview' | 'paymentsTargetsDashboard' | 'projects' | 'milestones' | 'team' | 'payments' | 'system' | 'maintenanceContracts' | 'maintenanceOverview' | 'filter' | 'reports' | 'issues';
+export type View = 'myTasks' | 'dashboard' | 'tasksOverview' | 'paymentsTargetsDashboard' | 'projects' | 'milestones' | 'team' | 'payments' | 'system' | 'maintenanceContracts' | 'maintenanceOverview' | 'filter' | 'reports' | 'issues' | 'customers';
+export type ActivityLogType = 'call' | 'meeting' | 'email' | 'visit' | 'other';
 export type GroupingType = 'project' | 'assignee';
 export type TaskViewMode = 'byProject' | 'byAssignee';
 
@@ -85,6 +86,32 @@ export interface IssueComment {
     user?: User;
 }
 
+export type CustomerTier = 'VIP' | 'Standard' | 'Other';
+export type CustomerStatus = 'active' | 'prospect' | 'churned';
+
+export interface Customer {
+    id: string;
+    name: string;
+    contactName: string | null;
+    contactEmail: string | null;
+    contactPhone: string | null;
+    industry: string | null;
+    tier: CustomerTier;
+    status: CustomerStatus;
+    ownerId: string | null;
+    owner?: User;
+}
+
+export interface CustomerContact {
+    id: string;
+    customerId: string;
+    name: string;
+    role: string | null;
+    email: string | null;
+    phone: string | null;
+    isPrimary: boolean;
+}
+
 export interface Lookups {
     countries: Lookup[];
     categories: Lookup[];
@@ -92,7 +119,7 @@ export interface Lookups {
     products: Lookup[];
     projectStatuses: Lookup[];
     projectManagers: User[];
-    customers: Lookup[];
+    customers: Customer[];
 }
 
 export enum MilestoneStatus {
@@ -196,6 +223,16 @@ export interface Project {
     status?: Lookup;
     projectManager?: User;
     customer?: Lookup;
+}
+
+export interface CustomerActivityLog {
+    id: string;
+    customerId: string;
+    type: ActivityLogType;
+    note: string;
+    createdBy: string;
+    createdAt: string;
+    user?: User;
 }
 
 export interface MaintenanceContract {
