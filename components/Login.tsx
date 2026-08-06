@@ -54,7 +54,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
             rememberMe: 'ذكرني',
             forgotPassword: 'هل نسيت كلمة المرور؟',
             welcomeTo: 'مرحباً بك في',
-            appName: 'بوابة محفظة المشاريع',
+            appName: 'بوابة بايو-تك',
             typeStaff: 'موظف (Staff)',
             typePS: 'خدمات احترافية (PS)',
             typeClient: 'عميل (Client)'
@@ -83,7 +83,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
             rememberMe: 'Remember me',
             forgotPassword: 'Forgot Password?',
             welcomeTo: 'Welcome to',
-            appName: 'Projects Portfolio Portal',
+            appName: 'Pio-Tech Portal',
             typeStaff: 'Staff Member',
             typePS: 'Professional Services (PS)',
             typeClient: 'Client'
