@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { Lookups, Language, Lookup, RolePermissions, View } from '../types';
+import { Lookups, Language, Lookup, RolePermissions, View, User } from '../types';
 import LookupEditor from './LookupEditor';
+import AuditLog from './AuditLog';
 
 interface SystemManagementProps {
     lookups: Lookups;
@@ -11,12 +12,15 @@ interface SystemManagementProps {
     isSetupMode?: boolean;
     rolePermissions: RolePermissions[];
     onUpdatePermissions: (newPermissions: RolePermissions[]) => void;
+    allUsers?: User[];
+    currentUser?: User;
 }
 
-const SystemManagement: React.FC<SystemManagementProps> = ({ lookups, onUpdate, language, onSaveConfig, isSetupMode = false, rolePermissions, onUpdatePermissions }) => {
+const SystemManagement: React.FC<SystemManagementProps> = ({ lookups, onUpdate, language, onSaveConfig, isSetupMode = false, rolePermissions, onUpdatePermissions, allUsers = [], currentUser }) => {
     const [supabaseKey, setSupabaseKey] = useState('');
     const [supabaseUrl, setSupabaseUrl] = useState('https://dcamlinhazzmbaldsrdo.supabase.co');
-    const [activeTab, setActiveTab] = useState<'lookups' | 'permissions'>('lookups');
+    const [activeTab, setActiveTab] = useState<'lookups' | 'permissions' | 'auditLog'>('lookups');
+    const isManager = currentUser?.type === 'Manager';
 
     useEffect(() => {
         if (isSetupMode) {
@@ -32,7 +36,7 @@ const SystemManagement: React.FC<SystemManagementProps> = ({ lookups, onUpdate, 
             setupSubtitle: "مرحبًا بك! يرجى إدخل بيانات الوصول اللازمة.", lookupsTitle: "جداول البحث", 
             countries: "الدول", categories: "الفئات", teams: "الفرق", products: "المنتجات", statuses: "حالات المشروع",
             permissionsTitle: "إدارة صلاحيات الأدوار", permissionsSubtitle: "حدد الصفحات التي يمكن لكل دور الوصول إليها.",
-            role: "الدور", views: "الصفحات المتاحة", config: "الإعدادات", lookups: "جداول البحث", permissions: "الصلاحيات"
+            role: "الدور", views: "الصفحات المتاحة", config: "الإعدادات", lookups: "جداول البحث", permissions: "الصلاحيات", auditLog: "سجل التدقيق"
         },
         en: {
             title: "System Management", subtitle: "Configure settings, lookup tables and role permissions.", configTitle: "Connection Settings", configSubtitle: "Enter Supabase credentials to connect to your database.",
@@ -40,7 +44,7 @@ const SystemManagement: React.FC<SystemManagementProps> = ({ lookups, onUpdate, 
             setupSubtitle: "Welcome! Please enter credentials.", lookupsTitle: "Lookup Tables",
             countries: "Countries", categories: "Categories", teams: "Teams", products: "Products", statuses: "Statuses",
             permissionsTitle: "Role Permissions Manager", permissionsSubtitle: "Define allowed views for each system role.",
-            role: "Role", views: "Allowed Views", config: "Settings", lookups: "Lookups", permissions: "Permissions"
+            role: "Role", views: "Allowed Views", config: "Settings", lookups: "Lookups", permissions: "Permissions", auditLog: "Audit Log"
         }
     };
     const t = translations[language];
@@ -88,6 +92,9 @@ const SystemManagement: React.FC<SystemManagementProps> = ({ lookups, onUpdate, 
                 <div className="flex gap-2 p-1 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl w-max">
                     <button onClick={() => setActiveTab('lookups')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'lookups' ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20' : 'text-slate-400 hover:text-slate-600'}`}>{t.lookups}</button>
                     <button onClick={() => setActiveTab('permissions')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'permissions' ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20' : 'text-slate-400 hover:text-slate-600'}`}>{t.permissions}</button>
+                    {isManager && (
+                        <button onClick={() => setActiveTab('auditLog')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'auditLog' ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20' : 'text-slate-400 hover:text-slate-600'}`}>{t.auditLog}</button>
+                    )}
                 </div>
             )}
 
@@ -162,6 +169,12 @@ const SystemManagement: React.FC<SystemManagementProps> = ({ lookups, onUpdate, 
                             </div>
                         ))}
                     </div>
+                </div>
+            )}
+
+            {activeTab === 'auditLog' && !isSetupMode && isManager && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-[2.5rem] shadow-xl animate-in fade-in zoom-in-95">
+                    <AuditLog allUsers={allUsers} language={language} />
                 </div>
             )}
         </div>

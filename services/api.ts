@@ -1,6 +1,6 @@
 
 import { getSupabase } from './supabaseClient';
-import { Project, Milestone, User, Lookups, MilestoneStatus, PaymentStatus, MaintenanceContract, Issue, IssueStatus, IssuePriority, Notification, Lookup, IssueComment, MilestoneChangeRequest, MilestoneAuditLog, CustomerActivityLog, ActivityLogType, Customer, CustomerContact, CustomerTier, CustomerStatus } from '../types';
+import { Project, Milestone, User, Lookups, MilestoneStatus, PaymentStatus, MaintenanceContract, Issue, IssueStatus, IssuePriority, Notification, Lookup, IssueComment, MilestoneChangeRequest, MilestoneAuditLog, CustomerActivityLog, ActivityLogType, Customer, CustomerContact, CustomerTier, CustomerStatus, AuditLogEntry, AuditAction } from '../types';
 
 const mapDbToNotification = (db: any): Notification => ({
     id: db.id,
@@ -685,5 +685,58 @@ export const addMilestoneUpdate = async (u: any) => {
     const { error } = await supabase.from('milestone_updates').insert([{
         milestone_id: u.milestoneId, user_id: u.userId, update_text: u.updateText
     }]);
+    if (error) throw error;
+};
+
+export interface AuditLogFilters {
+    userId?: string;
+    tableName?: string;
+    action?: AuditAction;
+    from?: string;
+    to?: string;
+}
+
+export const fetchAuditLog = async (filters: AuditLogFilters, page: number, pageSize: number): Promise<{ entries: AuditLogEntry[]; total: number }> => {
+    const supabase = getSupabase();
+    if (!supabase) return { entries: [], total: 0 };
+
+    let query = supabase.from('system_audit_log').select('*, users(name)', { count: 'exact' });
+    if (filters.userId) query = query.eq('changed_by', filters.userId);
+    if (filters.tableName) query = query.eq('table_name', filters.tableName);
+    if (filters.action) query = query.eq('action', filters.action);
+    if (filters.from) query = query.gte('created_at', filters.from);
+    if (filters.to) query = query.lte('created_at', filters.to);
+
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+    const { data, error, count } = await query.order('created_at', { ascending: false }).range(from, to);
+    if (error) throw error;
+
+    const entries: AuditLogEntry[] = (data || []).map((d: any) => ({
+        id: d.id,
+        tableName: d.table_name,
+        recordId: d.record_id,
+        action: d.action,
+        changedBy: d.changed_by,
+        oldData: d.old_data,
+        newData: d.new_data,
+        createdAt: d.created_at,
+        user: d.users ? { id: d.changed_by, name: d.users.name } : undefined,
+    }));
+
+    return { entries, total: count || 0 };
+};
+
+export const logLoginEvent = async () => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const { error } = await supabase.rpc('log_login_event');
+    if (error) throw error;
+};
+
+export const purgeAuditLog = async (from: string, to: string) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { error } = await supabase.from('system_audit_log').delete().gte('created_at', from).lte('created_at', to);
     if (error) throw error;
 };

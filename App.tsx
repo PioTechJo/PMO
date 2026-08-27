@@ -41,6 +41,7 @@ import {
     addIssueComment as apiAddIssueComment,
     addCustomer as apiAddCustomer,
     updateCustomer as apiUpdateCustomer,
+    logLoginEvent,
 } from './services/api';
 import { initSupabase, getSupabase } from './services/supabaseClient';
 
@@ -187,7 +188,10 @@ const App: React.FC = () => {
             setSession(session);
             setIsLoading(false);
         });
-        const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, session) => setSession(session));
+        const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
+            setSession(session);
+            if (event === 'SIGNED_IN') logLoginEvent().catch(() => {});
+        });
         return () => subscription.unsubscribe();
     }, [supabaseClient]);
 
@@ -272,7 +276,7 @@ const App: React.FC = () => {
                     {view === 'maintenanceContracts' && allowedViews.includes('maintenanceContracts') && <MaintenanceContracts contracts={maintenanceContracts} customers={lookups.customers} language={language} onAddContract={async (d) => { await apiAddContract(d); loadData(); }} onUpdateContract={async (id, d) => { await apiUpdateContract(id, d); loadData(); }} />}
                     {view === 'maintenanceOverview' && allowedViews.includes('maintenanceOverview') && <MaintenanceOverview maintenanceContracts={maintenanceContracts} customers={lookups.customers} language={language} />}
                     {view === 'issues' && allowedViews.includes('issues') && <Issues allIssues={issues} allProjects={projects} allMilestones={milestones} allUsers={users} language={language} onAddIssue={async (d) => { await apiAddIssue(d); loadData(); }} onUpdateIssue={async (id, d) => { await apiUpdateIssue(id, d); loadData(); }} onAddComment={async (id, uid, c) => { await apiAddIssueComment(id, uid, c); loadData(); }} onDeleteIssue={async (id) => { await apiDeleteIssue(id); setIssues(prev => prev.filter(i => i.id !== id)); loadData(); }} currentUser={currentUser} />}
-                    {view === 'system' && allowedViews.includes('system') && <SystemManagement lookups={lookups} onUpdate={apiUpdateLookups} language={language} onSaveConfig={(k, u) => { localStorage.setItem('supabaseAnonKey', k); localStorage.setItem('supabaseUrl', u); setupClient(k, u); }} rolePermissions={rolePermissions} onUpdatePermissions={(p) => { setRolePermissions(p); localStorage.setItem('rolePermissions', JSON.stringify(p)); }} />}
+                    {view === 'system' && allowedViews.includes('system') && <SystemManagement lookups={lookups} onUpdate={apiUpdateLookups} language={language} onSaveConfig={(k, u) => { localStorage.setItem('supabaseAnonKey', k); localStorage.setItem('supabaseUrl', u); setupClient(k, u); }} rolePermissions={rolePermissions} onUpdatePermissions={(p) => { setRolePermissions(p); localStorage.setItem('rolePermissions', JSON.stringify(p)); }} allUsers={users} currentUser={currentUser} />}
                     {view === 'filter' && allowedViews.includes('filter') && <MilestoneFilter projects={projects} milestones={milestones} teams={lookups.teams} customers={lookups.customers} projectManagers={lookups.projectManagers} language={language} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} />}
                     {view === 'reports' && allowedViews.includes('reports') && <ReportsBuilder projects={projects} milestones={milestones} issues={issues} users={users} teams={lookups.teams} language={language} />}
                     {view === 'customers' && allowedViews.includes('customers') && <Customers customers={lookups.customers} allProjects={projects} allMaintenanceContracts={maintenanceContracts} allUsers={users} currentUser={currentUser} language={language} onViewCustomer={setViewingCustomer} onAddCustomer={async (d) => { await apiAddCustomer(d); loadData(); }} onUpdateCustomer={async (id, d) => { await apiUpdateCustomer(id, d); loadData(); }} />}

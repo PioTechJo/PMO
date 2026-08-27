@@ -112,6 +112,20 @@ export interface CustomerContact {
     isPrimary: boolean;
 }
 
+export type AuditAction = 'INSERT' | 'UPDATE' | 'DELETE' | 'LOGIN';
+
+export interface AuditLogEntry {
+    id: string;
+    tableName: string;
+    recordId: string | null;
+    action: AuditAction;
+    changedBy: string | null;
+    oldData: Record<string, any> | null;
+    newData: Record<string, any> | null;
+    createdAt: string;
+    user?: User;
+}
+
 export interface Lookups {
     countries: Lookup[];
     categories: Lookup[];

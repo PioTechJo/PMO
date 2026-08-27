@@ -14,19 +14,21 @@ interface ProjectListItemProps {
     onClick: () => void;
     language: Language;
     visibleColumns: Record<ProjectColumn, boolean>;
+    columnWidths: Record<string, number>;
 }
 
-const ProjectListItem: React.FC<ProjectListItemProps> = ({ 
-    project, 
-    milestoneCount, 
+const ProjectListItem: React.FC<ProjectListItemProps> = ({
+    project,
+    milestoneCount,
     issueCount,
     milestoneValue,
     milestoneTypes,
-    onEdit, 
-    onDelete, 
+    onEdit,
+    onDelete,
     onClick,
-    language, 
-    visibleColumns 
+    language,
+    visibleColumns,
+    columnWidths,
 }) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -63,26 +65,26 @@ const ProjectListItem: React.FC<ProjectListItemProps> = ({
             onClick={onClick}
             className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl flex items-center gap-6 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-300 text-sm cursor-pointer shadow-sm hover:shadow-md group"
         >
-            <div className="w-[450px] shrink-0">
-                <p className="font-black text-slate-800 dark:text-white group-hover:text-violet-600 transition-colors uppercase tracking-tight leading-relaxed">{project.name}</p>
+            <div className="shrink-0 min-w-0 overflow-hidden" style={{ width: columnWidths.name }}>
+                <p className="font-black text-slate-800 dark:text-white group-hover:text-violet-600 transition-colors uppercase tracking-tight leading-relaxed truncate">{project.name}</p>
             </div>
-            
-            <div className="w-24 text-center shrink-0">
+
+            <div className="text-center shrink-0" style={{ width: columnWidths.milestones }}>
                 <div className="bg-slate-50 dark:bg-slate-800 px-3 py-1 rounded-xl border border-slate-100 dark:border-slate-800 inline-flex items-center gap-1.5 font-black text-[10px] text-slate-500 dark:text-slate-400" title={t.milestones}>
                     <span className="text-red-500">🚩</span>
                     <span>{milestoneCount}</span>
                 </div>
             </div>
 
-            <div className="w-32 text-center shrink-0">
+            <div className="text-center shrink-0 min-w-0 overflow-hidden" style={{ width: columnWidths.value }}>
                 <p className="font-black text-emerald-600 dark:text-emerald-400 font-mono text-sm leading-none">
                     {milestoneValue.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })}
                 </p>
-                {milestoneTypes.length > 0 && <p className="text-[8px] font-bold text-slate-400 uppercase mt-1" title={milestoneTypes.map(mt => t[mt] || mt).join(', ')}>{milestoneTypes.map(mt => t[mt] || mt).join(', ')}</p>}
+                {milestoneTypes.length > 0 && <p className="text-[8px] font-bold text-slate-400 uppercase mt-1 truncate" title={milestoneTypes.map(mt => t[mt] || mt).join(', ')}>{milestoneTypes.map(mt => t[mt] || mt).join(', ')}</p>}
             </div>
-            
+
             {visibleColumns.status && (
-                <div className="w-32 text-center shrink-0">
+                <div className="text-center shrink-0" style={{ width: columnWidths.status }}>
                     <span className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg ${project.status?.name ? statusColors[project.status.name] : 'bg-slate-500/10 text-slate-600 dark:text-slate-400'}`}>
                         {project.status?.name ? (language === 'ar' ? project.status.name : (project.status.name === 'نشط' ? 'ACTIVE' : project.status.name)) : t.noStatus}
                     </span>
@@ -90,7 +92,7 @@ const ProjectListItem: React.FC<ProjectListItemProps> = ({
             )}
 
             {visibleColumns.tasks && (
-                <div className="w-24 text-center shrink-0">
+                <div className="text-center shrink-0" style={{ width: columnWidths.tasks }}>
                      <div className="flex items-center justify-center bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 px-3 py-1 rounded-lg font-black text-[11px] mx-auto w-max" title={t.tasks}>
                         {issueCount}
                     </div>
@@ -98,25 +100,25 @@ const ProjectListItem: React.FC<ProjectListItemProps> = ({
             )}
 
             {visibleColumns.projectManager && (
-                <div className="w-60 flex items-center gap-3 shrink-0 px-2">
+                <div className="flex items-center gap-3 shrink-0 px-2 min-w-0 overflow-hidden" style={{ width: columnWidths.projectManager }}>
                     <img src={project.projectManager?.avatarUrl || `https://ui-avatars.com/api/?name=${project.projectManager?.name || '?'}&background=8b5cf6&color=f5f3ff`} alt={project.projectManager?.name || t.unassigned} className="w-8 h-8 rounded-xl shrink-0 shadow-sm" />
-                    <span className="font-bold text-slate-700 dark:text-slate-200">{project.projectManager?.name || t.unassigned}</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-200 truncate">{project.projectManager?.name || t.unassigned}</span>
                 </div>
             )}
 
             {visibleColumns.customer && (
-                 <div className="w-60 text-[11px] font-bold text-slate-500 dark:text-slate-400 px-2 text-center">{project.customer?.name || '--'}</div>
-            )}
-            
-            {visibleColumns.category && (
-                 <div className="w-40 text-center shrink-0 text-slate-600 dark:text-slate-300 truncate">{project.category?.name || '--'}</div>
-            )}
-            
-            {visibleColumns.team && (
-                 <div className="w-40 text-center shrink-0 text-slate-600 dark:text-slate-300 truncate">{project.team?.name || '--'}</div>
+                 <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 px-2 text-center shrink-0 truncate" style={{ width: columnWidths.customer }}>{project.customer?.name || '--'}</div>
             )}
 
-            <div className="w-16 text-center shrink-0">
+            {visibleColumns.category && (
+                 <div className="text-center shrink-0 text-slate-600 dark:text-slate-300 truncate" style={{ width: columnWidths.category }}>{project.category?.name || '--'}</div>
+            )}
+
+            {visibleColumns.team && (
+                 <div className="text-center shrink-0 text-slate-600 dark:text-slate-300 truncate" style={{ width: columnWidths.team }}>{project.team?.name || '--'}</div>
+            )}
+
+            <div className="text-center shrink-0 sticky right-0 rtl:left-0 rtl:right-auto bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/60 transition-colors z-[1] -my-4 py-4 border-s border-slate-100 dark:border-slate-800" style={{ width: columnWidths.actions }}>
                  <div className="relative" ref={menuRef}>
                     <button 
                         onClick={(e) => {e.stopPropagation(); setMenuOpen(!menuOpen);}}

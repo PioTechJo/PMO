@@ -183,7 +183,47 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssu
     const toggleColumn = (col: ProjectColumn) => {
         setVisibleColumns(prev => ({ ...prev, [col]: !prev[col] }));
     };
-    
+
+    const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
+        name: 450, milestones: 96, value: 128, status: 128, tasks: 96,
+        projectManager: 240, customer: 240, category: 160, team: 160, actions: 64,
+    };
+    const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_COLUMN_WIDTHS);
+    const [sortKey, setSortKey] = useState<string | null>(null);
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+    const resizingRef = useRef<{ key: string; startX: number; startWidth: number } | null>(null);
+
+    const toggleSort = (key: string) => {
+        if (sortKey === key) {
+            setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortKey(key);
+            setSortDir('asc');
+        }
+    };
+
+    const handleResizeMove = useCallback((e: MouseEvent) => {
+        if (!resizingRef.current) return;
+        const { key, startX, startWidth } = resizingRef.current;
+        const dir = language === 'ar' ? -1 : 1;
+        const newWidth = Math.max(60, startWidth + (e.clientX - startX) * dir);
+        setColumnWidths(prev => ({ ...prev, [key]: newWidth }));
+    }, [language]);
+
+    const handleResizeEnd = useCallback(() => {
+        resizingRef.current = null;
+        document.removeEventListener('mousemove', handleResizeMove);
+        document.removeEventListener('mouseup', handleResizeEnd);
+    }, [handleResizeMove]);
+
+    const handleResizeStart = (key: string) => (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        resizingRef.current = { key, startX: e.clientX, startWidth: columnWidths[key] };
+        document.addEventListener('mousemove', handleResizeMove);
+        document.addEventListener('mouseup', handleResizeEnd);
+    };
+
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedManagerId, setSelectedManagerId] = useState<string>('all');
     const [selectedCustomerId, setSelectedCustomerId] = useState<string>('all');
@@ -218,10 +258,80 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssu
         return filtered;
     }, [searchResult, allProjects, searchTerm, selectedManagerId, selectedCustomerId, selectedStatusId, selectedCountryId]);
 
+    const enrichedProjects = useMemo(() => projectsToDisplay.map(project => {
+        const projectMilestones = allMilestones.filter(m => m.projectId === project.id);
+        const milestoneCount = projectMilestones.length;
+        const issueCount = allIssues.filter(i => i.projectId === project.id).length;
+        const milestoneValue = projectMilestones.reduce((acc, m) => acc + (m.paymentAmount || 0), 0);
+        const milestoneTypes = Array.from(new Set(projectMilestones.filter(m => m.hasPayment && m.paymentType).map(m => m.paymentType!)));
+        return { project, milestoneCount, issueCount, milestoneValue, milestoneTypes };
+    }), [projectsToDisplay, allMilestones, allIssues]);
+
+    const sortedProjects = useMemo(() => {
+        if (!sortKey) return enrichedProjects;
+        const dir = sortDir === 'asc' ? 1 : -1;
+        const getValue = (item: typeof enrichedProjects[0]): string | number => {
+            switch (sortKey) {
+                case 'name': return item.project.name.toLowerCase();
+                case 'milestones': return item.milestoneCount;
+                case 'value': return item.milestoneValue;
+                case 'status': return (item.project.status?.name || '').toLowerCase();
+                case 'tasks': return item.issueCount;
+                case 'projectManager': return (item.project.projectManager?.name || '').toLowerCase();
+                case 'customer': return (item.project.customer?.name || '').toLowerCase();
+                case 'category': return (item.project.category?.name || '').toLowerCase();
+                case 'team': return (item.project.team?.name || '').toLowerCase();
+                default: return '';
+            }
+        };
+        return [...enrichedProjects].sort((a, b) => {
+            const va = getValue(a), vb = getValue(b);
+            if (va < vb) return -1 * dir;
+            if (va > vb) return 1 * dir;
+            return 0;
+        });
+    }, [enrichedProjects, sortKey, sortDir]);
+
+    const [pageSize, setPageSize] = useState<number>(10);
+    const [page, setPage] = useState(0);
+    const totalPages = pageSize === Infinity ? 1 : Math.max(1, Math.ceil(sortedProjects.length / pageSize));
+    const paginatedProjects = useMemo(
+        () => pageSize === Infinity ? sortedProjects : sortedProjects.slice(page * pageSize, page * pageSize + pageSize),
+        [sortedProjects, page, pageSize]
+    );
+
+    useEffect(() => { setPage(0); }, [searchResult, searchTerm, selectedManagerId, selectedCustomerId, selectedStatusId, selectedCountryId, pageSize, sortKey, sortDir]);
+
     const handleClearFilters = () => {
         setSearchTerm(''); setSelectedManagerId('all'); setSelectedCustomerId('all'); setSelectedStatusId('all'); setSelectedCountryId('all');
     };
-    
+
+    const alwaysVisibleKeys = ['name', 'milestones', 'value', 'actions'];
+    const tableMinWidth = alwaysVisibleKeys
+        .concat((Object.keys(visibleColumns) as ProjectColumn[]).filter(k => visibleColumns[k]))
+        .reduce((sum, key) => sum + (columnWidths[key] || 0) + 24, 48);
+
+    const renderHeaderCell = (key: string, label: React.ReactNode, extraClass = 'justify-center') => (
+        <div
+            key={key}
+            className={`relative shrink-0 flex items-center gap-1 select-none cursor-pointer hover:text-violet-500 transition-colors ${extraClass}`}
+            style={{ width: columnWidths[key] }}
+            onClick={() => toggleSort(key)}
+        >
+            <span className="truncate">{label}</span>
+            {sortKey === key && (
+                <svg className={`w-3 h-3 shrink-0 transition-transform ${sortDir === 'desc' ? 'rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20"><path d="M10 3l7 7H3l7-7z" /></svg>
+            )}
+            <div
+                onMouseDown={handleResizeStart(key)}
+                onClick={(e) => e.stopPropagation()}
+                className="absolute top-1/2 -translate-y-1/2 -end-3 h-full w-3 cursor-col-resize flex items-center justify-center group z-10"
+            >
+                <div className="w-[2px] h-4 bg-slate-200 dark:bg-slate-700 group-hover:bg-violet-500 group-hover:h-full transition-colors"></div>
+            </div>
+        </div>
+    );
+
     return (
         <div className="space-y-6 md:space-y-8">
             {showAddModal && <AddProjectModal lookups={lookups} onClose={() => setShowAddModal(false)} onAddProject={onAddProject} onAddMilestones={onAddMilestones} language={language} />}
@@ -310,68 +420,53 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssu
             {projectsToDisplay.length > 0 ? (
                 viewMode === 'grid' ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {projectsToDisplay.map(project => {
-                            const projectMilestones = allMilestones.filter(m => m.projectId === project.id);
-                            const projectMilestonesCount = projectMilestones.length;
-                            const projectIssuesCount = allIssues.filter(i => i.projectId === project.id).length;
-                            const milestoneValue = projectMilestones.reduce((acc, m) => acc + (m.paymentAmount || 0), 0);
-                            const milestoneTypes = Array.from(new Set(projectMilestones.filter(m => m.hasPayment && m.paymentType).map(m => m.paymentType!)));
-                            
-                            return (
-                                <ProjectCard 
-                                    key={project.id} 
-                                    project={project} 
-                                    milestoneCount={projectMilestonesCount}
-                                    issueCount={projectIssuesCount}
-                                    milestoneValue={milestoneValue}
-                                    milestoneTypes={milestoneTypes}
-                                    onEdit={() => onOpenEditModal(project)} 
-                                    onDelete={() => onOpenDeleteModal(project)} 
-                                    onClick={() => setViewingProject(project)}
-                                    language={language} 
-                                />
-                            );
-                        })}
+                        {paginatedProjects.map(({ project, milestoneCount, issueCount, milestoneValue, milestoneTypes }) => (
+                            <ProjectCard
+                                key={project.id}
+                                project={project}
+                                milestoneCount={milestoneCount}
+                                issueCount={issueCount}
+                                milestoneValue={milestoneValue}
+                                milestoneTypes={milestoneTypes}
+                                onEdit={() => onOpenEditModal(project)}
+                                onDelete={() => onOpenDeleteModal(project)}
+                                onClick={() => setViewingProject(project)}
+                                language={language}
+                            />
+                        ))}
                     </div>
                 ) : (
                     <div className="overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl">
-                        <div className="min-w-[1600px] p-6 text-slate-800 dark:text-slate-200">
+                        <div className="p-6 text-slate-800 dark:text-slate-200" style={{ minWidth: tableMinWidth }}>
                             <div className="flex items-center gap-6 text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-6">
-                                <div className="w-[450px] shrink-0">PROJECT NAME</div>
-                                <div className="w-24 shrink-0 text-center">{t.milestones}</div>
-                                <div className="w-32 shrink-0 text-center text-emerald-600 dark:text-emerald-400">VALUE</div>
-                                {visibleColumns.status && <div className="w-32 shrink-0 text-center">STATUS</div>}
-                                {visibleColumns.tasks && <div className="w-24 shrink-0 text-center">TASKS</div>}
-                                {visibleColumns.projectManager && <div className="w-60 shrink-0 text-center">MANAGER</div>}
-                                {visibleColumns.customer && <div className="w-60 shrink-0 text-center">CUSTOMER</div>}
-                                {visibleColumns.category && <div className="w-40 shrink-0 text-center">CATEGORY</div>}
-                                {visibleColumns.team && <div className="w-40 shrink-0 text-center">TEAM</div>}
-                                <div className="w-16 shrink-0 text-center">...</div>
+                                {renderHeaderCell('name', 'PROJECT NAME', 'text-left rtl:text-right justify-start')}
+                                {renderHeaderCell('milestones', t.milestones)}
+                                {renderHeaderCell('value', 'VALUE', 'text-emerald-600 dark:text-emerald-400')}
+                                {visibleColumns.status && renderHeaderCell('status', 'STATUS')}
+                                {visibleColumns.tasks && renderHeaderCell('tasks', 'TASKS')}
+                                {visibleColumns.projectManager && renderHeaderCell('projectManager', 'MANAGER')}
+                                {visibleColumns.customer && renderHeaderCell('customer', 'CUSTOMER')}
+                                {visibleColumns.category && renderHeaderCell('category', 'CATEGORY')}
+                                {visibleColumns.team && renderHeaderCell('team', 'TEAM')}
+                                <div className="shrink-0 text-center" style={{ width: columnWidths.actions }}>...</div>
                             </div>
                             <div className="space-y-2">
-                                {projectsToDisplay.map(project => {
-                                    const projectMilestones = allMilestones.filter(m => m.projectId === project.id);
-                                    const projectMilestonesCount = projectMilestones.length;
-                                    const projectIssuesCount = allIssues.filter(i => i.projectId === project.id).length;
-                                    const milestoneValue = projectMilestones.reduce((acc, m) => acc + (m.paymentAmount || 0), 0);
-                                    const milestoneTypes = Array.from(new Set(projectMilestones.filter(m => m.hasPayment && m.paymentType).map(m => m.paymentType!)));
-
-                                    return (
-                                        <ProjectListItem 
-                                            key={project.id} 
-                                            project={project} 
-                                            milestoneCount={projectMilestonesCount}
-                                            issueCount={projectIssuesCount}
-                                            milestoneValue={milestoneValue}
-                                            milestoneTypes={milestoneTypes}
-                                            onEdit={() => onOpenEditModal(project)} 
-                                            onDelete={() => onOpenDeleteModal(project)} 
-                                            onClick={() => setViewingProject(project)}
-                                            language={language} 
-                                            visibleColumns={visibleColumns} 
-                                        />
-                                    );
-                                })}
+                                {paginatedProjects.map(({ project, milestoneCount, issueCount, milestoneValue, milestoneTypes }) => (
+                                    <ProjectListItem
+                                        key={project.id}
+                                        project={project}
+                                        milestoneCount={milestoneCount}
+                                        issueCount={issueCount}
+                                        milestoneValue={milestoneValue}
+                                        milestoneTypes={milestoneTypes}
+                                        onEdit={() => onOpenEditModal(project)}
+                                        onDelete={() => onOpenDeleteModal(project)}
+                                        onClick={() => setViewingProject(project)}
+                                        language={language}
+                                        visibleColumns={visibleColumns}
+                                        columnWidths={columnWidths}
+                                    />
+                                ))}
                             </div>
                         </div>
                     </div>
@@ -379,13 +474,36 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssu
             ) : (
                 <p className="text-center text-[10px] font-black uppercase text-slate-300 tracking-[0.5em] py-20">{t.noProjectsFound}</p>
             )}
+
+            {projectsToDisplay.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+                    <div className="flex items-center gap-2">
+                        <span>{t.showingRange.replace('{from}', String(page * pageSize + 1)).replace('{to}', String(pageSize === Infinity ? projectsToDisplay.length : Math.min((page + 1) * pageSize, projectsToDisplay.length))).replace('{total}', String(projectsToDisplay.length))}</span>
+                        <select
+                            value={pageSize === Infinity ? 'all' : String(pageSize)}
+                            onChange={(e) => setPageSize(e.target.value === 'all' ? Infinity : Number(e.target.value))}
+                            className="px-2 py-1.5 text-[10px] font-black uppercase bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg outline-none focus:ring-1 focus:ring-violet-500"
+                        >
+                            <option value="10">10 / {t.page}</option>
+                            <option value="20">20 / {t.page}</option>
+                            <option value="50">50 / {t.page}</option>
+                            <option value="100">100 / {t.page}</option>
+                            <option value="all">{t.allProjects}</option>
+                        </select>
+                    </div>
+                    <div className="flex gap-2">
+                        <button disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))} className="px-4 py-2 text-[10px] font-black uppercase bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl disabled:opacity-40">{t.prev}</button>
+                        <button disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} className="px-4 py-2 text-[10px] font-black uppercase bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl disabled:opacity-40">{t.next}</button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
 const translations = {
-    ar: { title: "المشاريع", subtitle: "نظرة عامة على جميع مشاريعك الحالية.", newProject: "إضافة مشروع", noProjectsFound: "لم يتم العثور على مشاريع.", gridView: "عرض شبكي", listView: "عرض قائمة", columns: "الأعمدة", status: "الحالة", tasks: "المهام", milestones: "المعالم", milestoneValue: "القيمة", projectManager: "مدير المشروع", category: "الفئة", team: "الفريق", customer: "العميل", projectName: "اسم المشروع", actions: "إجراءات", allManagers: "كل المدراء", allCustomers: "كل العملاء", allStatuses: "كل الحالات", allCountries: "كل الدول", clearFilters: "مسح الفلاتر", searchManagers: "بحث...", searchCustomers: "بحث...", searchStatuses: "بحث...", searchCountries: "بحث...", searchByName: "بحث بالاسم...", import: { button: "استيراد", title: "استيراد من CSV", instructionsTitle: "تعليمات", instruction1: "صيغة CSV فقط.", instruction2: "الصف الأول رؤوس.", downloadTemplate: "تنزيل القالب", instruction3: "الأعمدة الإلزامية.", instruction4: "التاريخ YYYY-MM-DD.", dropzone: "اسحب ملف CSV هنا.", fileReadAbort: "تم إلغاء القراءة.", fileReadError: "خطأ في الملف.", parsingError: "خطأ في التحليل.", missingHeadersError: "رؤوس مفقودة", moreRows: "صفوف إضافية", cancel: "إلغاء", importButton: "بدء الاستيراد", importing: "جاري الاستيراد..." } },
-    en: { title: "Projects", subtitle: "An overview of all current projects.", newProject: "Add Project", noProjectsFound: "No projects found.", gridView: "Grid View", listView: "List View", columns: "Columns", status: "Status", tasks: "Tasks", milestones: "Milestones", milestoneValue: "Value", projectManager: "Manager", category: "Category", team: "Team", customer: "Customer", projectName: "Project Name", actions: "Actions", allManagers: "All Managers", allCustomers: "All Customers", allStatuses: "All Statuses", allCountries: "All Countries", clearFilters: "Clear Filters", searchManagers: "Search...", searchCustomers: "Search...", searchStatuses: "Search...", searchCountries: "Search...", searchByName: "Search Name...", import: { button: "Import", title: "Import CSV", instructionsTitle: "How-to", instruction1: "CSV format only.", instruction2: "Headers in 1st row.", downloadTemplate: "Download Template", instruction3: "Required columns.", instruction4: "YYYY-MM-DD dates.", dropzone: "Drop CSV here.", fileReadAbort: "Aborted.", fileReadError: "Error.", parsingError: "Parse Error.", missingHeadersError: "Missing headers", moreRows: "rows", cancel: "Cancel", importButton: "Import", importing: "Importing..." } }
+    ar: { title: "المشاريع", subtitle: "نظرة عامة على جميع مشاريعك الحالية.", showingRange: "عرض {from}-{to} من {total}", prev: "السابق", next: "التالي", page: "صفحة", allProjects: "الكل", newProject: "إضافة مشروع", noProjectsFound: "لم يتم العثور على مشاريع.", gridView: "عرض شبكي", listView: "عرض قائمة", columns: "الأعمدة", status: "الحالة", tasks: "المهام", milestones: "المعالم", milestoneValue: "القيمة", projectManager: "مدير المشروع", category: "الفئة", team: "الفريق", customer: "العميل", projectName: "اسم المشروع", actions: "إجراءات", allManagers: "كل المدراء", allCustomers: "كل العملاء", allStatuses: "كل الحالات", allCountries: "كل الدول", clearFilters: "مسح الفلاتر", searchManagers: "بحث...", searchCustomers: "بحث...", searchStatuses: "بحث...", searchCountries: "بحث...", searchByName: "بحث بالاسم...", import: { button: "استيراد", title: "استيراد من CSV", instructionsTitle: "تعليمات", instruction1: "صيغة CSV فقط.", instruction2: "الصف الأول رؤوس.", downloadTemplate: "تنزيل القالب", instruction3: "الأعمدة الإلزامية.", instruction4: "التاريخ YYYY-MM-DD.", dropzone: "اسحب ملف CSV هنا.", fileReadAbort: "تم إلغاء القراءة.", fileReadError: "خطأ في الملف.", parsingError: "خطأ في التحليل.", missingHeadersError: "رؤوس مفقودة", moreRows: "صفوف إضافية", cancel: "إلغاء", importButton: "بدء الاستيراد", importing: "جاري الاستيراد..." } },
+    en: { title: "Projects", subtitle: "An overview of all current projects.", showingRange: "Showing {from}-{to} of {total}", prev: "Prev", next: "Next", page: "page", allProjects: "All", newProject: "Add Project", noProjectsFound: "No projects found.", gridView: "Grid View", listView: "List View", columns: "Columns", status: "Status", tasks: "Tasks", milestones: "Milestones", milestoneValue: "Value", projectManager: "Manager", category: "Category", team: "Team", customer: "Customer", projectName: "Project Name", actions: "Actions", allManagers: "All Managers", allCustomers: "All Customers", allStatuses: "All Statuses", allCountries: "All Countries", clearFilters: "Clear Filters", searchManagers: "Search...", searchCustomers: "Search...", searchStatuses: "Search...", searchCountries: "Search...", searchByName: "Search Name...", import: { button: "Import", title: "Import CSV", instructionsTitle: "How-to", instruction1: "CSV format only.", instruction2: "Headers in 1st row.", downloadTemplate: "Download Template", instruction3: "Required columns.", instruction4: "YYYY-MM-DD dates.", dropzone: "Drop CSV here.", fileReadAbort: "Aborted.", fileReadError: "Error.", parsingError: "Parse Error.", missingHeadersError: "Missing headers", moreRows: "rows", cancel: "Cancel", importButton: "Import", importing: "Importing..." } }
 };
 
 export default Projects;
