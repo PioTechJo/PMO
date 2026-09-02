@@ -102,6 +102,21 @@ serve(async (req) => {
       throw new Error(`Profile insert error: ${profileError.message}`);
     }
 
+    // The audit trigger just fired on that upsert, but stamped changed_by
+    // as null - service-role writes have no JWT/auth.uid() context. Since
+    // this function already verified the calling Manager's identity above,
+    // backfill that row with the real actor instead of leaving it blank.
+    try {
+      await supabaseAdmin
+        .from("system_audit_log")
+        .update({ changed_by: callerData.user.id })
+        .eq("table_name", "users")
+        .eq("record_id", newUserId)
+        .is("changed_by", null);
+    } catch (auditErr) {
+      console.error("Failed to backfill invite-user audit log actor:", auditErr);
+    }
+
     // 5. Email the temporary password via the same Power Automate pipeline
     let emailStatus = "sent";
     let errorMessage: string | null = null;

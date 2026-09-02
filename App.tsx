@@ -76,7 +76,10 @@ const App: React.FC = () => {
             // Sees/manages every task across every project, but has no
             // access to Projects, Milestones, Payments, etc. - a narrower
             // admin than Manager, scoped to Tasks only.
-            { role: 'TasksAdmin', allowedViews: ['tasksOverview', 'issues'] }
+            { role: 'TasksAdmin', allowedViews: ['tasksOverview', 'issues'] },
+            // Read-only exec view: high-level dashboards and reports only,
+            // no access to editing projects/milestones/payments/team etc.
+            { role: 'TopManagement', allowedViews: ['paymentsTargetsDashboard', 'dashboard', 'tasksOverview', 'maintenanceOverview', 'reports'] }
         ];
         const saved = localStorage.getItem('rolePermissions');
         if (!saved) return defaultPermissions;
@@ -96,6 +99,10 @@ const App: React.FC = () => {
             // Migrate: add the new TasksAdmin role if it's missing
             if (!migrated.some((p: any) => p.role === 'TasksAdmin')) {
                 migrated = [...migrated, { role: 'TasksAdmin', allowedViews: ['tasksOverview', 'issues'] }];
+            }
+            // Migrate: add the new TopManagement role if it's missing
+            if (!migrated.some((p: any) => p.role === 'TopManagement')) {
+                migrated = [...migrated, { role: 'TopManagement', allowedViews: ['paymentsTargetsDashboard', 'dashboard', 'tasksOverview', 'maintenanceOverview', 'reports'] }];
             }
             // Migrate: give only PS access to the new My Tasks page; strip it
             // from any other role that may have picked it up in a previous
@@ -191,7 +198,7 @@ const App: React.FC = () => {
         });
         const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
             setSession(session);
-            if (event === 'SIGNED_IN') logLoginEvent().catch(() => {});
+            if (event === 'SIGNED_IN') logLoginEvent().catch((err) => console.error('Failed to log login event:', err));
         });
         return () => subscription.unsubscribe();
     }, [supabaseClient]);

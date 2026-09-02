@@ -28,6 +28,7 @@ const translations = {
     typeClient: "عميل (Client)",
     typeManager: "Manager (صلاحية كاملة على كل النظام)",
     typeTasksAdmin: "Tasks Admin (كل المهام بس، بدون مشاريع أو مدفوعات)",
+    typeTopManagement: "Top Management (لوحة المتابعة والنظرة العامة والتقارير فقط)",
     cancel: "إلغاء",
     send: "إرسال الدعوة",
     sending: "جارٍ الإرسال...",
@@ -43,6 +44,7 @@ const translations = {
     groupPS: "الخدمات الاحترافية",
     groupStaff: "الموظفون",
     groupClient: "العملاء",
+    groupTopManagement: "الإدارة العليا",
     groupOther: "أخرى",
   },
   en: {
@@ -60,6 +62,7 @@ const translations = {
     typeClient: "Client",
     typeManager: "Manager (full access to everything)",
     typeTasksAdmin: "Tasks Admin (all tasks only, no projects or payments)",
+    typeTopManagement: "Top Management (Dashboard, Overview & Reports only)",
     cancel: "Cancel",
     send: "Send Invite",
     sending: "Sending...",
@@ -75,6 +78,7 @@ const translations = {
     groupPS: "Professional Services",
     groupStaff: "Staff",
     groupClient: "Clients",
+    groupTopManagement: "Top Management",
     groupOther: "Other",
   }
 };
@@ -84,6 +88,7 @@ const TYPE_GROUPS: { key: string; typeValue: string }[] = [
   { key: 'groupPS', typeValue: 'PS' },
   { key: 'groupStaff', typeValue: 'Staff' },
   { key: 'groupClient', typeValue: 'Client' },
+  { key: 'groupTopManagement', typeValue: 'TopManagement' },
 ];
 
 const InviteUserModal: React.FC<{ language: Language; onClose: () => void; onInvited: () => void }> = ({ language, onClose, onInvited }) => {
@@ -145,6 +150,7 @@ const InviteUserModal: React.FC<{ language: Language; onClose: () => void; onInv
                   <option value="Client">{t.typeClient}</option>
                   <option value="Manager">{t.typeManager}</option>
                   <option value="TasksAdmin">{t.typeTasksAdmin}</option>
+                  <option value="TopManagement">{t.typeTopManagement}</option>
                 </select>
               </div>
               <div>
