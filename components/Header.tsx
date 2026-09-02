@@ -13,11 +13,13 @@ interface HeaderProps {
     setTheme: (theme: Theme) => void;
     isDbConnected: boolean;
     onToggleSidebar: () => void;
+    isSidebarCollapsed?: boolean;
+    onToggleSidebarCollapse?: () => void;
     notifications?: Notification[];
     onNotificationRead?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, language, theme, setTheme, onToggleSidebar, notifications = [], onNotificationRead, onLogout }) => {
+const Header: React.FC<HeaderProps> = ({ user, language, theme, setTheme, onToggleSidebar, isSidebarCollapsed, onToggleSidebarCollapse, notifications = [], onNotificationRead, onLogout }) => {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -63,12 +65,23 @@ const Header: React.FC<HeaderProps> = ({ user, language, theme, setTheme, onTogg
     <header className="h-20 flex items-center justify-between px-8 bg-white dark:bg-[#0a0f1c] border-b border-slate-100 dark:border-slate-800/50 sticky top-0 z-[40]">
       <div className="flex items-center gap-6 flex-1 min-w-0 font-sans">
         {/* Hamburger Menu (visible only on mobile) */}
-        <button 
+        <button
           onClick={onToggleSidebar}
           className="lg:hidden p-2 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-all"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
         </button>
+
+        {/* Desktop sidebar collapse toggle (hide/show the docked menu) */}
+        {onToggleSidebarCollapse && (
+          <button
+            onClick={onToggleSidebarCollapse}
+            title={isSidebarCollapsed ? (language === 'ar' ? 'إظهار القائمة' : 'Show Menu') : (language === 'ar' ? 'إخفاء القائمة' : 'Hide Menu')}
+            className="hidden lg:inline-flex p-2 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-all"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
+          </button>
+        )}
 
         {/* Breadcrumbs */}
         <div className="hidden md:flex items-center gap-2 text-xs font-bold whitespace-nowrap">

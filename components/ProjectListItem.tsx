@@ -61,9 +61,9 @@ const ProjectListItem: React.FC<ProjectListItemProps> = ({
     };
 
     return (
-        <div 
+        <div
             onClick={onClick}
-            className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl flex items-center gap-6 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-300 text-sm cursor-pointer shadow-sm hover:shadow-md group"
+            className={`relative bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl flex items-center gap-6 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-300 text-sm cursor-pointer shadow-sm hover:shadow-md group ${menuOpen ? 'z-20' : ''}`}
         >
             <div className="shrink-0 min-w-0 overflow-hidden" style={{ width: columnWidths.name }}>
                 <p className="font-black text-slate-800 dark:text-white group-hover:text-violet-600 transition-colors uppercase tracking-tight leading-relaxed truncate">{project.name}</p>

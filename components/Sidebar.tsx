@@ -12,6 +12,8 @@ interface SidebarProps {
   onClose: () => void;
   projectsCount: number;
   openTasksCount: number;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 const NavIcon: React.FC<{ view: View }> = ({ view }) => {
@@ -36,7 +38,7 @@ const NavIcon: React.FC<{ view: View }> = ({ view }) => {
     return icons[view] || icons.dashboard;
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language, allowedViews, onLogout, isOpen, onClose, projectsCount, openTasksCount }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language, allowedViews, onLogout, isOpen, onClose, projectsCount, openTasksCount, isCollapsed = false, onToggleCollapse }) => {
   const translations = {
     ar: { myTasks: 'مهامي', dashboard: 'نظرة عامة', paymentsTargetsDashboard: 'لوحة المتابعة', reports: 'التقارير', projects: 'المشاريع', milestones: 'المعالم', payments: 'المدفوعات', tasks: 'المهام', tasksOverviewSub: 'نظرة عامة', tasksManagementSub: 'إدارة المهام', users: 'الفريق', settings: 'الإعدادات', system: 'إدارة النظام', customers: 'العملاء', logout: 'تسجيل الخروج', filter: 'الفلاتر المتقدمة', maintenance: 'الصيانة', maintenanceOverviewSub: 'نظرة عامة', maintenanceContractsSub: 'إدارة العقود', main: 'الرئيسية', operations: 'العمليات' },
     en: { myTasks: 'My Tasks', dashboard: 'Overview', paymentsTargetsDashboard: 'Dashboard', reports: 'Reports', projects: 'Projects', milestones: 'Milestones', payments: 'Payments', tasks: 'Tasks', tasksOverviewSub: 'Overview', tasksManagementSub: 'Tasks Management', users: 'Team', settings: 'Settings', system: 'System Management', customers: 'Customers', logout: 'Logout', filter: 'Advanced Filter', maintenance: 'Maintenance', maintenanceOverviewSub: 'Overview', maintenanceContractsSub: 'Contracts Management', main: 'Main', operations: 'Operations' },
@@ -90,23 +92,24 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
 
   return (
     <>
-      {/* Mobile Backdrop */}
+      {/* Mobile Backdrop - kept below any modal overlay (z-50+) so an open
+          modal is never visually obstructed by the sidebar/backdrop. */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[50] lg:hidden"
+        <div
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-30 lg:hidden"
           onClick={onClose}
         />
       )}
 
-      <aside className={`fixed lg:relative inset-y-0 ${language === 'ar' ? 'right-0' : 'left-0'} w-72 lg:translate-x-0 transition-transform duration-300 ease-in-out z-[60] flex flex-col h-full bg-[#0a1628] border-r border-[#1e293b]/20 shadow-2xl lg:shadow-none ${isOpen ? 'translate-x-0' : (language === 'ar' ? 'translate-x-full' : '-translate-x-full')}`} dir={language === 'ar' ? 'rtl' : 'ltr'}>
-        <div className="h-28 flex items-center px-8 shrink-0 relative">
+      <aside className={`fixed lg:relative inset-y-0 ${language === 'ar' ? 'right-0' : 'left-0'} ${isCollapsed ? 'w-72 lg:w-20' : 'w-72'} transition-all duration-300 ease-in-out z-40 flex flex-col h-full bg-[#0a1628] border-r border-[#1e293b]/20 shadow-2xl lg:shadow-none overflow-hidden ${isOpen ? 'translate-x-0' : (language === 'ar' ? 'translate-x-full lg:translate-x-0' : '-translate-x-full lg:translate-x-0')}`} dir={language === 'ar' ? 'rtl' : 'ltr'}>
+        <div className={`h-28 flex items-center shrink-0 relative ${isCollapsed ? 'lg:justify-center lg:px-0 px-8' : 'px-8'}`}>
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-[0_0_20px_rgba(37,99,235,0.4)]">
+            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-[0_0_20px_rgba(37,99,235,0.4)] shrink-0">
               PT
             </div>
-            <div>
-              <h1 className="text-lg font-black text-white tracking-widest uppercase mb-0.5">PIO-TECH</h1>
-              <p className="text-[11px] text-slate-400 font-medium tracking-wide">Projects Portfolio</p>
+            <div className={isCollapsed ? 'lg:hidden' : ''}>
+              <h1 className="text-lg font-black text-white tracking-widest uppercase mb-0.5 whitespace-nowrap">PIO-TECH</h1>
+              <p className="text-[11px] text-slate-400 font-medium tracking-wide whitespace-nowrap">Projects Portfolio</p>
             </div>
           </div>
           {/* Close button for mobile */}
@@ -119,8 +122,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
         <div className="flex-1 px-3 py-4 space-y-6 overflow-y-auto custom-scrollbar">
           {sections.map((section, sIdx) => (
             <div key={sIdx} className="space-y-4">
-              <div className="px-5">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] opacity-70">{section.title}</p>
+              <div className={`px-5 ${isCollapsed ? 'lg:hidden' : ''}`}>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] opacity-70 whitespace-nowrap">{section.title}</p>
               </div>
               <div className="space-y-0.5">
                 {section.items.map(item => {
@@ -129,8 +132,36 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
                     if (visibleChildren.length === 0) return null;
                     const isGroupActive = visibleChildren.some(child => child.view === currentView);
                     const isExpanded = !!expandedGroups[item.groupKey];
+
+                    if (isCollapsed) {
+                      // Rail mode: flatten the group into individual icon-only
+                      // buttons instead of an expand/collapse header, since
+                      // there's no room for a nested flyout at 80px wide.
+                      return (
+                        <div key={item.groupKey} className="hidden lg:block space-y-0.5">
+                          {visibleChildren.map(child => {
+                            const isActive = currentView === child.view;
+                            return (
+                              <button
+                                key={child.view}
+                                onClick={() => setCurrentView(child.view)}
+                                title={child.label}
+                                className={`w-full flex items-center justify-center py-2.5 rounded-lg transition-all duration-200 group relative ${
+                                  isActive ? 'bg-blue-600/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                                }`}
+                              >
+                                {isActive && <div className={`absolute ${language === 'ar' ? 'right-0' : 'left-0'} top-2 bottom-2 w-1 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]`} />}
+                                <NavIcon view={child.view} />
+                                {child.view === 'issues' && openTasksCount > 0 && <span className="absolute top-1 end-2 bg-blue-600 w-2 h-2 rounded-full shadow-lg" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    }
+
                     return (
-                      <div key={item.groupKey}>
+                      <div key={item.groupKey} className={isCollapsed ? 'hidden' : ''}>
                         <button
                           onClick={() => toggleGroup(item.groupKey)}
                           className={`w-full flex items-center justify-between px-5 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 group relative ${
@@ -141,7 +172,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
                               <div className={`${isGroupActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'} transition-colors duration-200`}>
                                   <NavIcon view={visibleChildren[0].view} />
                               </div>
-                              <span className={`${isGroupActive ? 'font-bold' : 'font-medium'} tracking-tight`}>{item.groupLabel}</span>
+                              <span className={`${isGroupActive ? 'font-bold' : 'font-medium'} tracking-tight whitespace-nowrap`}>{item.groupLabel}</span>
                           </div>
                           <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                         </button>
@@ -158,7 +189,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
                                   }`}
                                 >
                                   {isActive && <div className={`absolute ${language === 'ar' ? 'right-0' : 'left-0'} top-2 bottom-2 w-1 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]`} />}
-                                  <span className={`${isActive ? 'font-bold' : 'font-medium'} tracking-tight`}>{child.label}</span>
+                                  <span className={`${isActive ? 'font-bold' : 'font-medium'} tracking-tight whitespace-nowrap`}>{child.label}</span>
                                   {child.view === 'issues' && openTasksCount > 0 && <span className="bg-blue-600 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full shadow-lg">{openTasksCount}</span>}
                                 </button>
                               );
@@ -175,7 +206,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
                     <button
                       key={item.view}
                       onClick={() => setCurrentView(item.view)}
-                      className={`w-full flex items-center justify-between px-5 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 group relative ${
+                      title={isCollapsed ? item.label : undefined}
+                      className={`w-full flex items-center rounded-lg text-[13px] font-medium transition-all duration-200 group relative ${
+                        isCollapsed ? 'lg:justify-center justify-between px-5 lg:px-0 py-2.5' : 'justify-between px-5 py-2.5'
+                      } ${
                         isActive
                           ? 'bg-blue-600/10 text-white'
                           : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
@@ -186,10 +220,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
                           <div className={`${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'} transition-colors duration-200`}>
                               <NavIcon view={item.view} />
                           </div>
-                          <span className={`${isActive ? 'font-bold' : 'font-medium'} tracking-tight`}>{item.label}</span>
+                          <span className={`${isActive ? 'font-bold' : 'font-medium'} tracking-tight whitespace-nowrap ${isCollapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
                       </div>
-                      {item.view === 'projects' && projectsCount > 0 && <span className="bg-[#1e2d4d] text-blue-400 text-[10px] font-black px-2 py-0.5 rounded-md border border-blue-500/20">{projectsCount}</span>}
-                      {item.view === 'issues' && openTasksCount > 0 && <span className="bg-blue-600 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full shadow-lg">{openTasksCount}</span>}
+                      {item.view === 'projects' && projectsCount > 0 && <span className={`bg-[#1e2d4d] text-blue-400 text-[10px] font-black px-2 py-0.5 rounded-md border border-blue-500/20 ${isCollapsed ? 'lg:hidden' : ''}`}>{projectsCount}</span>}
+                      {item.view === 'issues' && openTasksCount > 0 && <span className={`bg-blue-600 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full shadow-lg ${isCollapsed ? 'lg:hidden' : ''}`}>{openTasksCount}</span>}
+                      {isCollapsed && item.view === 'projects' && projectsCount > 0 && <span className="hidden lg:block absolute top-1 end-2 bg-blue-500 w-2 h-2 rounded-full" />}
+                      {isCollapsed && item.view === 'issues' && openTasksCount > 0 && <span className="hidden lg:block absolute top-1 end-2 bg-blue-600 w-2 h-2 rounded-full" />}
                     </button>
                   );
                 })}
@@ -199,15 +235,35 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
         </div>
 
         <div className="p-6 border-t border-[#1e293b]/30 shrink-0">
-          <button 
+          <button
             onClick={onLogout}
-            className="w-full flex items-center gap-4 px-6 py-4 text-xs font-bold text-slate-500 hover:text-red-500 hover:bg-red-500/5 rounded-xl transition-all"
+            title={isCollapsed ? t.logout : undefined}
+            className={`w-full flex items-center rounded-xl text-xs font-bold text-slate-500 hover:text-red-500 hover:bg-red-500/5 transition-all ${isCollapsed ? 'lg:justify-center lg:px-0 gap-4 px-6 py-4' : 'gap-4 px-6 py-4'}`}
           >
-            <svg className="w-5 h-5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-            <span>{t.logout}</span>
+            <svg className="w-5 h-5 opacity-50 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+            <span className={isCollapsed ? 'lg:hidden' : ''}>{t.logout}</span>
           </button>
         </div>
       </aside>
+
+      {/* Desktop-only collapse/expand tab, pinned to the sidebar's current
+          edge so it's always visible and easy to find - independent of the
+          Header's toggle button, which can be scrolled/hidden out of view. */}
+      {onToggleCollapse && (
+        <button
+          onClick={onToggleCollapse}
+          title={isCollapsed ? (language === 'ar' ? 'إظهار القائمة' : 'Show Menu') : (language === 'ar' ? 'إخفاء القائمة' : 'Hide Menu')}
+          className={`hidden lg:flex fixed top-1/2 -translate-y-1/2 z-50 w-6 h-12 items-center justify-center bg-[#0a1628] border border-[#1e293b]/40 text-slate-400 hover:text-white hover:bg-violet-600 transition-all duration-300 ease-in-out rounded-e-lg ${language === 'ar' ? 'rounded-e-none rounded-s-lg' : ''}`}
+          style={language === 'ar'
+            ? { right: isCollapsed ? 80 : 288 }
+            : { left: isCollapsed ? 80 : 288 }
+          }
+        >
+          <svg className={`w-4 h-4 transition-transform ${(language === 'ar' ? !isCollapsed : isCollapsed) ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+      )}
     </>
   );
 };

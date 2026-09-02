@@ -52,6 +52,7 @@ const App: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
 
     const [projects, setProjects] = useState<Project[]>([]);
     const [milestones, setMilestones] = useState<Milestone[]>([]);
@@ -236,6 +237,10 @@ const App: React.FC = () => {
 
     const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
     const closeSidebar = () => setIsSidebarOpen(false);
+    const toggleSidebarCollapse = () => setIsSidebarCollapsed(prev => {
+        localStorage.setItem('sidebarCollapsed', String(!prev));
+        return !prev;
+    });
 
     if (isLoading) return <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center"><div className="w-10 h-10 border-4 border-violet-600/20 border-t-violet-600 rounded-full animate-spin"></div></div>;
     if (!isAppConfigured) return <SystemManagement lookups={lookups} onUpdate={() => {}} language={language} onSaveConfig={(k, u) => { localStorage.setItem('supabaseAnonKey', k); localStorage.setItem('supabaseUrl', u); setupClient(k, u); }} isSetupMode={true} rolePermissions={rolePermissions} onUpdatePermissions={() => {}} />;
@@ -251,16 +256,20 @@ const App: React.FC = () => {
                 onLogout={handleLogout} 
                 isOpen={isSidebarOpen}
                 onClose={closeSidebar}
+                isCollapsed={isSidebarCollapsed}
+                onToggleCollapse={toggleSidebarCollapse}
                 projectsCount={projects.length}
                 openTasksCount={issues.filter(i => i.status === IssueStatus.Open || i.status === IssueStatus.InProgress).length}
             />
 
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <Header 
-                    user={currentUser} 
+                <Header
+                    user={currentUser}
                     language={language} setLanguage={setLanguage} onLogout={handleLogout}
                     theme={theme} setTheme={setTheme} isDbConnected={!!session}
                     onToggleSidebar={toggleSidebar}
+                    isSidebarCollapsed={isSidebarCollapsed}
+                    onToggleSidebarCollapse={toggleSidebarCollapse}
                     notifications={notifications} onNotificationRead={loadData}
                 />
 

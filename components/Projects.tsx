@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
+import * as XLSX from 'xlsx';
 import type { Project, Milestone, User, Language, Lookups, ProjectImportRow, Issue } from '../types';
 import ProjectCard from './ProjectCard';
 import ProjectListItem from './ProjectListItem';
@@ -306,6 +307,28 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssu
         setSearchTerm(''); setSelectedManagerId('all'); setSelectedCustomerId('all'); setSelectedStatusId('all'); setSelectedCountryId('all');
     };
 
+    const exportToExcel = () => {
+        const dataToExport = sortedProjects.map(({ project, milestoneCount, issueCount, milestoneValue }) => ({
+            [t.projectName]: project.name,
+            [t.code]: project.projectCode || '',
+            [t.customer]: project.customer?.name || '',
+            [t.projectManager]: project.projectManager?.name || '',
+            [t.status]: project.status?.name || '',
+            [t.category]: project.category?.name || '',
+            [t.team]: project.team?.name || '',
+            [t.country]: project.country?.name || '',
+            [t.milestones]: milestoneCount,
+            [t.milestoneValue]: milestoneValue,
+            [t.tasks]: issueCount,
+            [t.progress]: `${project.progress || 0}%`,
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Projects");
+        XLSX.writeFile(wb, `Projects_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+
     const alwaysVisibleKeys = ['name', 'milestones', 'value', 'actions'];
     const tableMinWidth = alwaysVisibleKeys
         .concat((Object.keys(visibleColumns) as ProjectColumn[]).filter(k => visibleColumns[k]))
@@ -396,6 +419,10 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssu
                         <button onClick={() => setViewMode('list')} className={`p-2.5 rounded-xl transition-all ${viewMode === 'list' ? 'bg-violet-100 text-violet-600 dark:bg-violet-900/30' : 'text-slate-400'}`}><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button>
                         <button onClick={() => setViewMode('grid')} className={`p-2.5 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-violet-100 text-violet-600 dark:bg-violet-900/30' : 'text-slate-400'}`}><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" /><path d="M14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" /></svg></button>
                     </div>
+                    <button onClick={exportToExcel} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-6 py-3 bg-white dark:bg-slate-900 border-2 border-slate-50 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-emerald-500 hover:text-emerald-600 transition-all">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>
+                        {t.exportToExcel}
+                    </button>
                     <button onClick={onOpenImportModal} className="flex-1 sm:flex-none px-6 py-3 bg-white dark:bg-slate-900 border-2 border-slate-50 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-violet-500 transition-all">{t.import.button}</button>
                     <button onClick={() => setShowAddModal(true)} className="flex-1 sm:flex-none px-8 py-3 bg-violet-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-violet-500/20 hover:scale-105 active:scale-95 transition-all">{t.newProject}</button>
                 </div>
@@ -502,8 +529,8 @@ const Projects: React.FC<ProjectsProps> = ({ allProjects, allMilestones, allIssu
 };
 
 const translations = {
-    ar: { title: "المشاريع", subtitle: "نظرة عامة على جميع مشاريعك الحالية.", showingRange: "عرض {from}-{to} من {total}", prev: "السابق", next: "التالي", page: "صفحة", allProjects: "الكل", newProject: "إضافة مشروع", noProjectsFound: "لم يتم العثور على مشاريع.", gridView: "عرض شبكي", listView: "عرض قائمة", columns: "الأعمدة", status: "الحالة", tasks: "المهام", milestones: "المعالم", milestoneValue: "القيمة", projectManager: "مدير المشروع", category: "الفئة", team: "الفريق", customer: "العميل", projectName: "اسم المشروع", actions: "إجراءات", allManagers: "كل المدراء", allCustomers: "كل العملاء", allStatuses: "كل الحالات", allCountries: "كل الدول", clearFilters: "مسح الفلاتر", searchManagers: "بحث...", searchCustomers: "بحث...", searchStatuses: "بحث...", searchCountries: "بحث...", searchByName: "بحث بالاسم...", import: { button: "استيراد", title: "استيراد من CSV", instructionsTitle: "تعليمات", instruction1: "صيغة CSV فقط.", instruction2: "الصف الأول رؤوس.", downloadTemplate: "تنزيل القالب", instruction3: "الأعمدة الإلزامية.", instruction4: "التاريخ YYYY-MM-DD.", dropzone: "اسحب ملف CSV هنا.", fileReadAbort: "تم إلغاء القراءة.", fileReadError: "خطأ في الملف.", parsingError: "خطأ في التحليل.", missingHeadersError: "رؤوس مفقودة", moreRows: "صفوف إضافية", cancel: "إلغاء", importButton: "بدء الاستيراد", importing: "جاري الاستيراد..." } },
-    en: { title: "Projects", subtitle: "An overview of all current projects.", showingRange: "Showing {from}-{to} of {total}", prev: "Prev", next: "Next", page: "page", allProjects: "All", newProject: "Add Project", noProjectsFound: "No projects found.", gridView: "Grid View", listView: "List View", columns: "Columns", status: "Status", tasks: "Tasks", milestones: "Milestones", milestoneValue: "Value", projectManager: "Manager", category: "Category", team: "Team", customer: "Customer", projectName: "Project Name", actions: "Actions", allManagers: "All Managers", allCustomers: "All Customers", allStatuses: "All Statuses", allCountries: "All Countries", clearFilters: "Clear Filters", searchManagers: "Search...", searchCustomers: "Search...", searchStatuses: "Search...", searchCountries: "Search...", searchByName: "Search Name...", import: { button: "Import", title: "Import CSV", instructionsTitle: "How-to", instruction1: "CSV format only.", instruction2: "Headers in 1st row.", downloadTemplate: "Download Template", instruction3: "Required columns.", instruction4: "YYYY-MM-DD dates.", dropzone: "Drop CSV here.", fileReadAbort: "Aborted.", fileReadError: "Error.", parsingError: "Parse Error.", missingHeadersError: "Missing headers", moreRows: "rows", cancel: "Cancel", importButton: "Import", importing: "Importing..." } }
+    ar: { title: "المشاريع", subtitle: "نظرة عامة على جميع مشاريعك الحالية.", showingRange: "عرض {from}-{to} من {total}", prev: "السابق", next: "التالي", page: "صفحة", allProjects: "الكل", newProject: "إضافة مشروع", code: "الكود", country: "الدولة", progress: "التقدم", exportToExcel: "تصدير إلى Excel", noProjectsFound: "لم يتم العثور على مشاريع.", gridView: "عرض شبكي", listView: "عرض قائمة", columns: "الأعمدة", status: "الحالة", tasks: "المهام", milestones: "المعالم", milestoneValue: "القيمة", projectManager: "مدير المشروع", category: "الفئة", team: "الفريق", customer: "العميل", projectName: "اسم المشروع", actions: "إجراءات", allManagers: "كل المدراء", allCustomers: "كل العملاء", allStatuses: "كل الحالات", allCountries: "كل الدول", clearFilters: "مسح الفلاتر", searchManagers: "بحث...", searchCustomers: "بحث...", searchStatuses: "بحث...", searchCountries: "بحث...", searchByName: "بحث بالاسم...", import: { button: "استيراد", title: "استيراد من CSV", instructionsTitle: "تعليمات", instruction1: "صيغة CSV فقط.", instruction2: "الصف الأول رؤوس.", downloadTemplate: "تنزيل القالب", instruction3: "الأعمدة الإلزامية.", instruction4: "التاريخ YYYY-MM-DD.", dropzone: "اسحب ملف CSV هنا.", fileReadAbort: "تم إلغاء القراءة.", fileReadError: "خطأ في الملف.", parsingError: "خطأ في التحليل.", missingHeadersError: "رؤوس مفقودة", moreRows: "صفوف إضافية", cancel: "إلغاء", importButton: "بدء الاستيراد", importing: "جاري الاستيراد..." } },
+    en: { title: "Projects", subtitle: "An overview of all current projects.", showingRange: "Showing {from}-{to} of {total}", prev: "Prev", next: "Next", page: "page", allProjects: "All", newProject: "Add Project", code: "Code", country: "Country", progress: "Progress", exportToExcel: "Export to Excel", noProjectsFound: "No projects found.", gridView: "Grid View", listView: "List View", columns: "Columns", status: "Status", tasks: "Tasks", milestones: "Milestones", milestoneValue: "Value", projectManager: "Manager", category: "Category", team: "Team", customer: "Customer", projectName: "Project Name", actions: "Actions", allManagers: "All Managers", allCustomers: "All Customers", allStatuses: "All Statuses", allCountries: "All Countries", clearFilters: "Clear Filters", searchManagers: "Search...", searchCustomers: "Search...", searchStatuses: "Search...", searchCountries: "Search...", searchByName: "Search Name...", import: { button: "Import", title: "Import CSV", instructionsTitle: "How-to", instruction1: "CSV format only.", instruction2: "Headers in 1st row.", downloadTemplate: "Download Template", instruction3: "Required columns.", instruction4: "YYYY-MM-DD dates.", dropzone: "Drop CSV here.", fileReadAbort: "Aborted.", fileReadError: "Error.", parsingError: "Parse Error.", missingHeadersError: "Missing headers", moreRows: "rows", cancel: "Cancel", importButton: "Import", importing: "Importing..." } }
 };
 
 export default Projects;

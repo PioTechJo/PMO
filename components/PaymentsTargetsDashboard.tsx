@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import { Project, Milestone, User, Language, PaymentStatus } from '../types';
 
 interface PaymentsTargetsDashboardProps {
@@ -146,14 +147,64 @@ const PaymentsTargetsDashboard: React.FC<PaymentsTargetsDashboardProps> = ({ all
 
     const togglePM = (key: string) => setExpandedPMs(prev => ({ ...prev, [key]: !prev[key] }));
 
-    const TreeTable: React.FC<{ title: string; groups: ReturnType<typeof groupByPM>; collapsed: boolean; onToggleCollapse: () => void; keyPrefix: string; onProjectClick?: (code: string) => void }> = ({ title, groups, collapsed, onToggleCollapse, keyPrefix, onProjectClick }) => {
+    const flattenGroups = (groups: ReturnType<typeof groupByPM>) => {
+        const rows = groups.flatMap(g => g.projects.map(p => ({
+            [t.projectManager]: g.pmName,
+            [t.projectCode]: p.code,
+            [t.paymentAmount]: p.total,
+        })));
+        rows.push({ [t.projectManager]: t.total, [t.projectCode]: '', [t.paymentAmount]: groups.reduce((s, g) => s + g.total, 0) });
+        return rows;
+    };
+
+    const buildDetailedData = () => detailedRows.map(r => ({
+        [t.projectCode]: r.project.projectCode || r.project.name,
+        [t.paymentAmount]: r.milestone.paymentAmount || 0,
+        [t.milestoneName]: r.milestone.title,
+        [t.projectManager]: r.project.projectManager?.name || '-',
+        [t.milestoneDate]: r.milestone.dueDate ? `${monthNamesShort[language][new Date(r.milestone.dueDate).getMonth()]}/${new Date(r.milestone.dueDate).getFullYear()}` : '-',
+        [t.paymentStatus]: paymentStatusLabel(r.milestone.paymentStatus),
+    }));
+
+    const downloadSheet = (data: any[], sheetName: string, fileName: string) => {
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31));
+        XLSX.writeFile(wb, `${fileName}_${monthLabel.replace('/', '-')}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+
+    const exportNotIssuedToExcel = () => downloadSheet(flattenGroups(notIssuedGroups), t.notIssuedOnly, 'Not_Issued');
+    const exportIssuedSettledToExcel = () => downloadSheet(flattenGroups(issuedSettledGroups), t.issuedSentSettled, 'Issued_Sent_Settled');
+    const exportDetailedToExcel = () => downloadSheet(buildDetailedData(), t.detailedMilestones, 'Detailed_Milestones');
+
+    const exportToExcel = () => {
+        const wb = XLSX.utils.book_new();
+
+        const kpiRows = kpiCards.map(c => ({ [t.total]: c.label, [t.paymentAmount]: c.value }));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(kpiRows), "KPIs");
+
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(flattenGroups(notIssuedGroups)), t.notIssuedOnly.slice(0, 31));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(flattenGroups(issuedSettledGroups)), t.issuedSentSettled.slice(0, 31));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(buildDetailedData()), t.detailedMilestones.slice(0, 31));
+
+        XLSX.writeFile(wb, `Dashboard_Summary_${monthLabel.replace('/', '-')}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+
+    const TreeTable: React.FC<{ title: string; groups: ReturnType<typeof groupByPM>; collapsed: boolean; onToggleCollapse: () => void; keyPrefix: string; onProjectClick?: (code: string) => void; onExport?: () => void }> = ({ title, groups, collapsed, onToggleCollapse, keyPrefix, onProjectClick, onExport }) => {
         const total = groups.reduce((s, g) => s + g.total, 0);
         return (
             <div className="bg-white dark:bg-slate-900/30 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
-                <button onClick={onToggleCollapse} className="w-full flex items-center justify-between px-5 py-3 bg-slate-800 dark:bg-slate-800 text-white font-bold text-sm">
-                    <span>{title}</span>
-                    <svg className={`w-4 h-4 transition-transform duration-300 ${collapsed ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                </button>
+                <div className="w-full flex items-center justify-between gap-2 px-5 py-3 bg-slate-800 dark:bg-slate-800 text-white font-bold text-sm">
+                    <button onClick={onToggleCollapse} className="flex-1 flex items-center justify-between text-left rtl:text-right">
+                        <span>{title}</span>
+                        <svg className={`w-4 h-4 transition-transform duration-300 ${collapsed ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                    {onExport && (
+                        <button onClick={(e) => { e.stopPropagation(); onExport(); }} title={t.exportToExcel} className="shrink-0 p-1.5 rounded-md hover:bg-white/10 text-emerald-300 transition-colors">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>
+                        </button>
+                    )}
+                </div>
                 {!collapsed && (
                     <div className="max-h-80 overflow-y-auto">
                         <table className="w-full text-sm text-left rtl:text-right">
@@ -251,6 +302,12 @@ const PaymentsTargetsDashboard: React.FC<PaymentsTargetsDashboardProps> = ({ all
                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">{t.searchByProject}</label>
                     <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder={t.searchByProject} className="w-full bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200" />
                 </div>
+                <div className="flex md:items-end">
+                    <button onClick={exportToExcel} className="w-full md:w-auto flex items-center justify-center gap-1.5 text-sm font-bold bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg shadow-emerald-500/20 transition-colors">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>
+                        {t.exportToExcel}
+                    </button>
+                </div>
             </div>
 
             {/* Bar charts (single-month bar) */}
@@ -277,19 +334,24 @@ const PaymentsTargetsDashboard: React.FC<PaymentsTargetsDashboardProps> = ({ all
 
             {/* Tree tables */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <TreeTable title={t.notIssuedOnly} groups={notIssuedGroups} collapsed={collapsedNotIssued} onToggleCollapse={() => setCollapsedNotIssued(v => !v)} keyPrefix="ni" onProjectClick={handleProjectClick} />
-                <TreeTable title={t.issuedSentSettled} groups={issuedSettledGroups} collapsed={collapsedIssuedSettled} onToggleCollapse={() => setCollapsedIssuedSettled(v => !v)} keyPrefix="is" />
+                <TreeTable title={t.notIssuedOnly} groups={notIssuedGroups} collapsed={collapsedNotIssued} onToggleCollapse={() => setCollapsedNotIssued(v => !v)} keyPrefix="ni" onProjectClick={handleProjectClick} onExport={exportNotIssuedToExcel} />
+                <TreeTable title={t.issuedSentSettled} groups={issuedSettledGroups} collapsed={collapsedIssuedSettled} onToggleCollapse={() => setCollapsedIssuedSettled(v => !v)} keyPrefix="is" onExport={exportIssuedSettledToExcel} />
             </div>
 
             {/* Detailed Milestones */}
             <div ref={detailedMilestonesRef} className="bg-white dark:bg-slate-900/30 backdrop-blur-xl border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden scroll-mt-6">
                 <div className="px-5 py-3 bg-slate-800 text-white font-bold text-sm flex items-center justify-between gap-3">
                     <span>{t.detailedMilestones}{selectedDetailProjectCode ? ` — ${selectedDetailProjectCode}` : ''}</span>
-                    {selectedDetailProjectCode && (
-                        <button onClick={() => setSelectedDetailProjectCode(null)} className="text-xs font-bold bg-white/10 hover:bg-white/20 px-3 py-1 rounded-md">
-                            {t.clearFilter}
+                    <div className="flex items-center gap-2">
+                        <button onClick={exportDetailedToExcel} title={t.exportToExcel} className="p-1.5 rounded-md hover:bg-white/10 text-emerald-300 transition-colors">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>
                         </button>
-                    )}
+                        {selectedDetailProjectCode && (
+                            <button onClick={() => setSelectedDetailProjectCode(null)} className="text-xs font-bold bg-white/10 hover:bg-white/20 px-3 py-1 rounded-md">
+                                {t.clearFilter}
+                            </button>
+                        )}
+                    </div>
                 </div>
                 <div className="overflow-x-auto max-h-96">
                     <table className="w-full text-sm text-left rtl:text-right">
@@ -361,6 +423,7 @@ const translations = {
         settled: "مسدد",
         unassigned: "غير معين",
         clearFilter: "إلغاء الفلتر",
+        exportToExcel: "تصدير إلى Excel",
     },
     en: {
         title: "Dashboard",
@@ -393,6 +456,7 @@ const translations = {
         settled: "Settled",
         unassigned: "Unassigned",
         clearFilter: "Clear filter",
+        exportToExcel: "Export to Excel",
     }
 };
 

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { Milestone, Project, Lookup, Language, Lookups, User, PaymentStatus } from '../types';
 import MilestoneListItem from './MilestoneListItem';
 import SearchableSelect from './SearchableSelect';
@@ -65,6 +66,9 @@ const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, lan
             backToList: "العودة للقائمة",
             start: "البداية",
             end: "النهاية",
+            exportToExcel: "تصدير إلى Excel",
+            projectCol: "المشروع", milestoneTitle: "عنوان المعلم", dueDate: "تاريخ الاستحقاق", status: "الحالة",
+            paymentAmount: "مبلغ الدفعة", paymentStatus: "حالة الدفع", team: "الفريق", manager: "المدير",
         },
         en: {
             title: "Milestones",
@@ -91,6 +95,9 @@ const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, lan
             backToList: "Back to List",
             start: "Start",
             end: "End",
+            exportToExcel: "Export to Excel",
+            projectCol: "Project", milestoneTitle: "Milestone Title", dueDate: "Due Date", status: "Status",
+            paymentAmount: "Payment Amount", paymentStatus: "Payment Status", team: "Team", manager: "Manager",
         }
     };
     const t = translations[language];
@@ -389,6 +396,29 @@ const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, lan
         URL.revokeObjectURL(url);
     };
 
+    const exportToExcel = () => {
+        const dataToExport = filteredMilestones.map(m => {
+            const project = getProjectById(m.projectId);
+            const team = getTeamById(m.teamId);
+            return {
+                [t.projectCol]: project?.name || '',
+                [t.milestoneTitle]: m.title,
+                [t.dueDate]: m.dueDate || '',
+                [t.status]: m.status,
+                [t.hasPayment]: m.hasPayment ? t.yes : t.no,
+                [t.paymentAmount]: m.hasPayment ? m.paymentAmount : 0,
+                [t.paymentStatus]: m.hasPayment ? getPaymentStatusLabel(m.paymentStatus, language) : '',
+                [t.manager]: project?.projectManager?.name || '',
+                [t.team]: team?.name || '',
+            };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Milestones");
+        XLSX.writeFile(wb, `Milestones_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+
     const grandTotalPayments = useMemo(() => {
         return filteredMilestones.reduce((sum, m) => sum + (m.hasPayment ? m.paymentAmount : 0), 0);
     }, [filteredMilestones]);
@@ -411,8 +441,17 @@ const Milestones: React.FC<MilestonesProps> = ({ allMilestones, allProjects, lan
                             <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{grandTotalPayments.toLocaleString()}</span>
                         </div>
                     )}
-                    <button 
-                        onClick={() => setShowHistory(!showHistory)} 
+                    {!showHistory && (
+                        <button
+                            onClick={exportToExcel}
+                            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold py-2 px-6 rounded-full flex items-center gap-2 transition-all hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 shadow-sm"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>
+                            <span>{t.exportToExcel}</span>
+                        </button>
+                    )}
+                    <button
+                        onClick={() => setShowHistory(!showHistory)}
                         className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold py-2 px-6 rounded-full flex items-center gap-2 transition-all hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm"
                     >
                         {showHistory ? <List className="w-4 h-4" /> : <History className="w-4 h-4" />}

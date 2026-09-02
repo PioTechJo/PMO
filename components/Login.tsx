@@ -70,7 +70,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, language, setLanguage, su
             passwordLabel: 'Password',
             loginButton: 'Login',
             signupButton: 'Create Account',
-            sendResetLink: 'Send Reset Link',
+            sendResetLink: 'Reset Password',
             noAccount: "Don't have an account?",
             goSignup: 'Sign up now',
             hasAccount: 'Already have an account?',
