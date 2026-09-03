@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Project, Milestone, User, Lookups, Language } from '../types';
 import PaymentsTargetsDashboard from './PaymentsTargetsDashboard';
 import StatisticsDashboard from './StatisticsDashboard';
+import MilestoneNADatesDashboard from './MilestoneNADatesDashboard';
 
 interface DashboardTabsProps {
     allProjects: Project[];
@@ -11,7 +12,7 @@ interface DashboardTabsProps {
     language: Language;
 }
 
-type Tab = 'summary' | 'statistics';
+type Tab = 'summary' | 'statistics' | 'naDates';
 
 const DashboardTabs: React.FC<DashboardTabsProps> = ({ allProjects, allMilestones, allProjectManagers, lookups, language }) => {
     const [tab, setTab] = useState<Tab>('summary');
@@ -32,6 +33,12 @@ const DashboardTabs: React.FC<DashboardTabsProps> = ({ allProjects, allMilestone
                 >
                     {t.statistics}
                 </button>
+                <button
+                    onClick={() => setTab('naDates')}
+                    className={`px-5 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${tab === 'naDates' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                >
+                    {t.naDates}
+                </button>
             </div>
 
             {tab === 'summary' && (
@@ -40,13 +47,16 @@ const DashboardTabs: React.FC<DashboardTabsProps> = ({ allProjects, allMilestone
             {tab === 'statistics' && (
                 <StatisticsDashboard allProjects={allProjects} allMilestones={allMilestones} lookups={lookups} language={language} />
             )}
+            {tab === 'naDates' && (
+                <MilestoneNADatesDashboard allProjects={allProjects} allMilestones={allMilestones} language={language} />
+            )}
         </div>
     );
 };
 
 const translations = {
-    ar: { summary: 'ملخص', statistics: 'إحصائيات' },
-    en: { summary: 'Summary', statistics: 'Statistics' },
+    ar: { summary: 'ملخص', statistics: 'إحصائيات', naDates: 'مواعيد غير محددة' },
+    en: { summary: 'Summary', statistics: 'Statistics', naDates: 'NA Dates' },
 };
 
 export default DashboardTabs;
