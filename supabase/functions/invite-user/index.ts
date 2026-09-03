@@ -52,9 +52,15 @@ serve(async (req) => {
     }
 
     // 2. Parse and validate the invite payload
-    const { email, name, type, department } = await req.json();
+    const { email, name, type, department, customerId, projectIds } = await req.json();
     if (!email || !name || !type) {
       throw new Error("Missing required fields: email, name, type");
+    }
+    if (type === "Client" && !customerId) {
+      throw new Error("A Client user must be linked to a customer.");
+    }
+    if (type === "Client" && (!Array.isArray(projectIds) || projectIds.length === 0)) {
+      throw new Error("A Client user must be granted access to at least one project.");
     }
 
     // 3. Create the auth account with a generated temporary password
@@ -94,12 +100,23 @@ serve(async (req) => {
         role: type === "Manager" ? "Manager" : "User",
         email,
         department: department || null,
+        customer_id: type === "Client" ? customerId : null,
       },
       { onConflict: "id" }
     );
 
     if (profileError) {
       throw new Error(`Profile insert error: ${profileError.message}`);
+    }
+
+    // 4b. Grant the Client explicit access to the selected project(s).
+    if (type === "Client" && Array.isArray(projectIds) && projectIds.length > 0) {
+      const { error: accessError } = await supabaseAdmin.from("client_project_access").insert(
+        projectIds.map((projectId: string) => ({ user_id: newUserId, project_id: projectId }))
+      );
+      if (accessError) {
+        throw new Error(`Project access error: ${accessError.message}`);
+      }
     }
 
     // The audit trigger just fired on that upsert, but stamped changed_by

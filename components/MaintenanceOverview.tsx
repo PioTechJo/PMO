@@ -110,7 +110,7 @@ const MaintenanceOverview: React.FC<MaintenanceOverviewProps> = ({ maintenanceCo
                 <p className="text-slate-500 dark:text-slate-400 mt-1">{t.maintenanceSubtitle}</p>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 rounded-3xl md:rounded-4xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl md:rounded-4xl border border-slate-100 dark:border-slate-800 shadow-sm">
                 <div className="p-6 md:p-10">
                     {/* Filters */}
                     <div className="flex flex-col xl:flex-row items-center gap-3 w-full mb-8">

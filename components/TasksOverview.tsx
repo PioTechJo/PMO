@@ -1,7 +1,17 @@
 
 import React, { useMemo, useState } from 'react';
-import { Project, Issue, User, Language, TaskViewMode, IssueStatus, IssuePriority } from '../types';
+import { Project, Issue, User, Language, TaskViewMode, IssueStatus, IssuePriority, IssueType } from '../types';
 import SearchableSelect from './SearchableSelect';
+
+const customerStatusLabel = (status: IssueStatus, language: Language) => {
+    const map: Record<string, { ar: string; en: string }> = {
+        [IssueStatus.Open]: { ar: 'جديدة', en: 'New' },
+        [IssueStatus.InProgress]: { ar: 'قيد التنفيذ', en: 'In Progress' },
+        [IssueStatus.Resolved]: { ar: 'منجزة', en: 'Done' },
+        [IssueStatus.Closed]: { ar: 'مغلقة', en: 'Closed' },
+    };
+    return map[status]?.[language] || status;
+};
 
 const skipWeekend = (date: Date) => {
     const day = date.getDay(); // Friday = 5, Saturday = 6
@@ -35,7 +45,7 @@ const translations = {
         unassigned: "غير معين", unknownProject: "مشروع غير معروف", noIssuesFound: "لا توجد مهام حالياً",
         activeIssues: "المهام النشطة", issuesByProject: "المهام حسب المشروع",
         allAssignees: "كل المسؤولين", searchProject: "ابحث عن مشروع...", selectAssignee: "اختر المسؤول...",
-        taskStatus: "حالة المهام", totalTasks: "إجمالي المهام", totalProjects: "عدد المشاريع", openTasks: "مهام مفتوحة", inProgressTasks: "قيد التنفيذ", completedTasks: "مكتملة",
+        taskStatus: "حالة المهام", totalTasks: "إجمالي المهام", totalProjects: "عدد المشاريع", openTasks: "مهام مفتوحة", inProgressTasks: "قيد التنفيذ", completedTasks: "مكتملة", customerTasksKpi: "مهام العملاء",
         scheduleKpis: "مؤشرات الجدول الزمني", dueToday: "مستحقة اليوم", dueThisWeek: "مستحقة هذا الأسبوع", overdueTasks: "متأخرة",
         productivityKpis: "مؤشرات الإنتاجية", completionRate: "نسبة الإنجاز", avgPerResource: "متوسط المهام المنجزة لكل موظف",
         riskKpis: "مؤشرات المخاطر", criticalTasks: "مهام حرجة", highPriorityTasks: "أولوية عالية", tasksWithoutOwner: "بدون مسؤول",
@@ -50,7 +60,7 @@ const translations = {
         unassigned: "Unassigned", unknownProject: "Unknown Project", noIssuesFound: "No tasks reported",
         activeIssues: "Active Tasks", issuesByProject: "Tasks by Project",
         allAssignees: "All Assignees", searchProject: "Search project...", selectAssignee: "Select Assignee...",
-        taskStatus: "Task Status", totalTasks: "Total Tasks", totalProjects: "Projects Count", openTasks: "Open Tasks", inProgressTasks: "In Progress", completedTasks: "Completed",
+        taskStatus: "Task Status", totalTasks: "Total Tasks", totalProjects: "Projects Count", openTasks: "Open Tasks", inProgressTasks: "In Progress", completedTasks: "Completed", customerTasksKpi: "Customer Tasks",
         scheduleKpis: "Schedule KPIs", dueToday: "Due Today", dueThisWeek: "Due This Week", overdueTasks: "Overdue Tasks",
         productivityKpis: "Productivity KPIs", completionRate: "Completion Rate", avgPerResource: "Avg Tasks Completed / Resource",
         riskKpis: "Risk KPIs", criticalTasks: "Critical Tasks", highPriorityTasks: "High Priority Tasks", tasksWithoutOwner: "Tasks Without Owner",
@@ -142,12 +152,15 @@ const TasksOverview: React.FC<TasksOverviewProps> = ({ issues, projects, allUser
         const open = issues.filter(i => i.status === IssueStatus.Open).length;
         const inProgress = issues.filter(i => i.status === IssueStatus.InProgress).length;
         const completed = issues.filter(i => i.status === IssueStatus.Resolved || i.status === IssueStatus.Closed).length;
+        const fromCustomers = issues.filter(i => !!i.type && i.type !== IssueType.Task).length;
 
         let dueToday = 0, dueThisWeek = 0, overdue = 0;
         const activeStatuses = [IssueStatus.Open, IssueStatus.InProgress];
         issues.forEach(i => {
             if (!activeStatuses.includes(i.status)) return;
-            const due = getDueDate(i.createdAt, i.expectedDuration);
+            const due = i.type && i.type !== IssueType.Task
+                ? (i.dueDate ? new Date(i.dueDate) : null)
+                : getDueDate(i.createdAt, i.expectedDuration);
             if (!due) return;
             if (due < startOfToday) overdue++;
             else if (due >= startOfToday && due < endOfToday) dueToday++;
@@ -171,7 +184,7 @@ const TasksOverview: React.FC<TasksOverviewProps> = ({ issues, projects, allUser
             }, 0) / resolvedIssues.length
             : null;
 
-        return { total, projectsCount, open, inProgress, completed, dueToday, dueThisWeek, overdue, completionRate, avgPerResource, critical, highPriority, withoutOwner, avgResolutionHours };
+        return { total, projectsCount, open, inProgress, completed, fromCustomers, dueToday, dueThisWeek, overdue, completionRate, avgPerResource, critical, highPriority, withoutOwner, avgResolutionHours };
     }, [issues]);
 
     const overdueIssues = useMemo(() => {
@@ -179,7 +192,7 @@ const TasksOverview: React.FC<TasksOverviewProps> = ({ issues, projects, allUser
         const activeStatuses = [IssueStatus.Open, IssueStatus.InProgress];
         return issues
             .filter(i => activeStatuses.includes(i.status))
-            .map(i => ({ issue: i, dueDate: getDueDate(i.createdAt, i.expectedDuration) }))
+            .map(i => ({ issue: i, dueDate: i.type && i.type !== IssueType.Task ? (i.dueDate ? new Date(i.dueDate) : null) : getDueDate(i.createdAt, i.expectedDuration) }))
             .filter((x): x is { issue: Issue; dueDate: Date } => !!x.dueDate && x.dueDate < now)
             .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
     }, [issues]);
@@ -225,6 +238,7 @@ const TasksOverview: React.FC<TasksOverviewProps> = ({ issues, projects, allUser
                 <StatCard label={t.openTasks} value={kpis.open} colorClass="text-blue-500" />
                 <StatCard label={t.inProgressTasks} value={kpis.inProgress} colorClass="text-indigo-500" />
                 <StatCard label={t.completedTasks} value={kpis.completed} colorClass="text-emerald-500" />
+                <StatCard label={t.customerTasksKpi} value={kpis.fromCustomers} colorClass="text-violet-500" />
             </KpiGroup>
 
             <KpiGroup title={t.scheduleKpis}>
@@ -331,7 +345,7 @@ const TasksOverview: React.FC<TasksOverviewProps> = ({ issues, projects, allUser
                                         </>
                                     ) : (
                                         <SearchableSelect
-                                            options={[{ value: 'all', label: t.allAssignees }, ...allUsers.filter(u => u.type === 'PS').map(u => ({ value: u.id, label: u.name }))]}
+                                            options={[{ value: 'all', label: t.allAssignees }, ...allUsers.filter(u => u.type === 'PS' || u.type === 'Dev').map(u => ({ value: u.id, label: u.name }))]}
                                             value={selectedTaskAssignee}
                                             onChange={setSelectedTaskAssignee}
                                             placeholder={t.selectAssignee}
@@ -604,16 +618,18 @@ const TasksOverview: React.FC<TasksOverviewProps> = ({ issues, projects, allUser
 
                         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.status}</span>
-                            {onUpdateIssue ? (
+                            {onUpdateIssue && (!(activeIssue.type && activeIssue.type !== IssueType.Task) || currentUser?.type === 'Manager') ? (
                                 <select
                                     value={activeIssue.status}
                                     onChange={(e) => onUpdateIssue(activeIssue.id, { status: e.target.value as IssueStatus })}
                                     className="px-3 py-2 rounded-xl text-[10px] font-black uppercase outline-none border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
                                 >
-                                    {Object.values(IssueStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                                    {Object.values(IssueStatus).map(s => <option key={s} value={s}>{activeIssue.type && activeIssue.type !== IssueType.Task ? customerStatusLabel(s, language) : s}</option>)}
                                 </select>
                             ) : (
-                                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{activeIssue.status}</span>
+                                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                                    {activeIssue.type && activeIssue.type !== IssueType.Task ? customerStatusLabel(activeIssue.status, language) : activeIssue.status}
+                                </span>
                             )}
                         </div>
 
@@ -621,7 +637,10 @@ const TasksOverview: React.FC<TasksOverviewProps> = ({ issues, projects, allUser
                             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.comments}</h3>
                             {(activeIssue.comments || []).length > 0 ? activeIssue.comments!.map(c => (
                                 <div key={c.id} className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl">
-                                    <p className="text-[10px] font-black text-slate-600 dark:text-slate-300">{c.user?.name}</p>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="text-[10px] font-black text-slate-600 dark:text-slate-300">{c.user?.name}</p>
+                                        <p className="text-[9px] font-bold text-slate-400 shrink-0">{new Date(c.createdAt).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                                    </div>
                                     <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{c.content}</p>
                                 </div>
                             )) : (

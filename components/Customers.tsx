@@ -28,26 +28,45 @@ const statusColors: Record<string, string> = {
     churned: 'bg-red-500/10 text-red-600 dark:text-red-400',
 };
 
+type RelationshipType = 'both' | 'projectsOnly' | 'maintenanceOnly' | 'neither';
+
+const relationshipColors: Record<RelationshipType, string> = {
+    both: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
+    projectsOnly: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+    maintenanceOnly: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+    neither: 'bg-slate-500/10 text-slate-400 dark:text-slate-500',
+};
+
+const getRelationshipType = (projectCount: number, contractCount: number): RelationshipType => {
+    if (projectCount > 0 && contractCount > 0) return 'both';
+    if (projectCount > 0) return 'projectsOnly';
+    if (contractCount > 0) return 'maintenanceOnly';
+    return 'neither';
+};
+
 const translations = {
     ar: {
         title: "العملاء", subtitle: "ملف كل عميل: مشاريعه، عقوده، وسجل التفاعلات.",
-        search: "بحث بالاسم...", colName: "الاسم", colTier: "الفئة", colStatus: "الحالة", colProjects: "المشاريع", colContracts: "عقود الصيانة",
+        search: "بحث بالاسم...", colName: "الاسم", colTier: "الفئة", colStatus: "الحالة", colRelationship: "نوع العلاقة", colProjects: "المشاريع", colContracts: "عقود الصيانة",
         colAtRisk: "تحتاج انتباه", noCustomers: "لا يوجد عملاء بهذا البحث", atRisk: "خطر التجديد",
         addCustomer: "إضافة عميل", tierVIP: "VIP", tierStandard: "عادي", tierOther: "أخرى",
         statusActive: "نشط", statusProspect: "محتمل", statusChurned: "منسحب",
+        relAll: "كل العلاقات", relBoth: "مشاريع وصيانة", relProjectsOnly: "مشاريع فقط", relMaintenanceOnly: "صيانة فقط", relNeither: "بدون",
     },
     en: {
         title: "Customers", subtitle: "Every customer's profile: projects, contracts, and interaction history.",
-        search: "Search by name...", colName: "Name", colTier: "Tier", colStatus: "Status", colProjects: "Projects", colContracts: "Maintenance Contracts",
+        search: "Search by name...", colName: "Name", colTier: "Tier", colStatus: "Status", colRelationship: "Relationship", colProjects: "Projects", colContracts: "Maintenance Contracts",
         colAtRisk: "Needs Attention", noCustomers: "No customers match your search", atRisk: "At Risk",
         addCustomer: "Add Customer", tierVIP: "VIP", tierStandard: "Standard", tierOther: "Other",
         statusActive: "Active", statusProspect: "Prospect", statusChurned: "Churned",
+        relAll: "All Relationships", relBoth: "Projects & Maintenance", relProjectsOnly: "Projects Only", relMaintenanceOnly: "Maintenance Only", relNeither: "Neither",
     }
 };
 
 const Customers: React.FC<CustomersProps> = ({ customers, allProjects, allMaintenanceContracts, allUsers, language, currentUser, onViewCustomer, onAddCustomer, onUpdateCustomer }) => {
     const t = translations[language];
     const [search, setSearch] = useState('');
+    const [relationshipFilter, setRelationshipFilter] = useState<'all' | RelationshipType>('all');
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
@@ -55,6 +74,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, allProjects, allMainte
 
     const statusLabels: Record<string, string> = { active: t.statusActive, prospect: t.statusProspect, churned: t.statusChurned };
     const tierLabels: Record<string, string> = { VIP: t.tierVIP, Standard: t.tierStandard, Other: t.tierOther };
+    const relationshipLabels: Record<RelationshipType, string> = { both: t.relBoth, projectsOnly: t.relProjectsOnly, maintenanceOnly: t.relMaintenanceOnly, neither: t.relNeither };
 
     const rows = useMemo(() => {
         return customers
@@ -63,10 +83,12 @@ const Customers: React.FC<CustomersProps> = ({ customers, allProjects, allMainte
                 const projects = allProjects.filter(p => p.customerId === customer.id);
                 const contracts = allMaintenanceContracts.filter(c => c.customerId === customer.id);
                 const atRiskCount = contracts.filter(c => getContractRiskStatus(c.endDate) !== 'active').length;
-                return { customer, projectCount: projects.length, contractCount: contracts.length, atRiskCount };
+                const relationship = getRelationshipType(projects.length, contracts.length);
+                return { customer, projectCount: projects.length, contractCount: contracts.length, atRiskCount, relationship };
             })
+            .filter(r => relationshipFilter === 'all' || r.relationship === relationshipFilter)
             .sort((a, b) => a.customer.name.localeCompare(b.customer.name, language === 'ar' ? 'ar' : 'en'));
-    }, [customers, allProjects, allMaintenanceContracts, search, language]);
+    }, [customers, allProjects, allMaintenanceContracts, search, relationshipFilter, language]);
 
     return (
         <div className="space-y-6 md:space-y-8">
@@ -88,6 +110,17 @@ const Customers: React.FC<CustomersProps> = ({ customers, allProjects, allMainte
                             className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl py-2.5 pl-9 pr-3 rtl:pr-9 rtl:pl-3 text-sm font-bold outline-none focus:ring-2 focus:ring-violet-500"
                         />
                     </div>
+                    <select
+                        value={relationshipFilter}
+                        onChange={(e) => setRelationshipFilter(e.target.value as 'all' | RelationshipType)}
+                        className="w-full md:w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl py-2.5 px-3 text-sm font-bold outline-none focus:ring-2 focus:ring-violet-500"
+                    >
+                        <option value="all">{t.relAll}</option>
+                        <option value="both">{t.relBoth}</option>
+                        <option value="projectsOnly">{t.relProjectsOnly}</option>
+                        <option value="maintenanceOnly">{t.relMaintenanceOnly}</option>
+                        <option value="neither">{t.relNeither}</option>
+                    </select>
                     {isManagerOrPM && (
                         <button
                             onClick={() => setIsAddOpen(true)}
@@ -109,6 +142,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, allProjects, allMainte
                                 <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.colName}</th>
                                 <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{t.colTier}</th>
                                 <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{t.colStatus}</th>
+                                <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{t.colRelationship}</th>
                                 <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{t.colProjects}</th>
                                 <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{t.colContracts}</th>
                                 <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{t.colAtRisk}</th>
@@ -116,7 +150,7 @@ const Customers: React.FC<CustomersProps> = ({ customers, allProjects, allMainte
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50 dark:divide-slate-800/60">
-                            {rows.map(({ customer, projectCount, contractCount, atRiskCount }) => (
+                            {rows.map(({ customer, projectCount, contractCount, atRiskCount, relationship }) => (
                                 <tr
                                     key={customer.id}
                                     onClick={() => onViewCustomer(customer)}
@@ -128,6 +162,9 @@ const Customers: React.FC<CustomersProps> = ({ customers, allProjects, allMainte
                                     </td>
                                     <td className="px-5 py-3 text-center">
                                         <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${statusColors[customer.status] || statusColors.active}`}>{statusLabels[customer.status] || customer.status}</span>
+                                    </td>
+                                    <td className="px-5 py-3 text-center">
+                                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${relationshipColors[relationship]}`}>{relationshipLabels[relationship]}</span>
                                     </td>
                                     <td className="px-5 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 text-center">{projectCount}</td>
                                     <td className="px-5 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 text-center">{contractCount}</td>

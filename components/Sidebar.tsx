@@ -34,14 +34,17 @@ const NavIcon: React.FC<{ view: View }> = ({ view }) => {
         filter: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" /></svg>,
         system: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066" /></svg>,
         customers: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-4-2.83M9 20H4v-2a3 3 0 014-2.83m6-2.34a3 3 0 10-4 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>,
+        clientIssues: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>,
+        internalTasks: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l7-3 7 3z" /></svg>,
+        customerTasks: <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-4-2.83M9 20H4v-2a3 3 0 014-2.83m6-2.34a3 3 0 10-4 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>,
     };
     return icons[view] || icons.dashboard;
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language, allowedViews, onLogout, isOpen, onClose, projectsCount, openTasksCount, isCollapsed = false, onToggleCollapse }) => {
   const translations = {
-    ar: { myTasks: 'مهامي', dashboard: 'نظرة عامة', paymentsTargetsDashboard: 'لوحة المتابعة', reports: 'التقارير', projects: 'المشاريع', milestones: 'المعالم', payments: 'المدفوعات', tasks: 'المهام', tasksOverviewSub: 'نظرة عامة', tasksManagementSub: 'إدارة المهام', users: 'الفريق', settings: 'الإعدادات', system: 'إدارة النظام', customers: 'العملاء', logout: 'تسجيل الخروج', filter: 'الفلاتر المتقدمة', maintenance: 'الصيانة', maintenanceOverviewSub: 'نظرة عامة', maintenanceContractsSub: 'إدارة العقود', main: 'الرئيسية', operations: 'العمليات' },
-    en: { myTasks: 'My Tasks', dashboard: 'Overview', paymentsTargetsDashboard: 'Dashboard', reports: 'Reports', projects: 'Projects', milestones: 'Milestones', payments: 'Payments', tasks: 'Tasks', tasksOverviewSub: 'Overview', tasksManagementSub: 'Tasks Management', users: 'Team', settings: 'Settings', system: 'System Management', customers: 'Customers', logout: 'Logout', filter: 'Advanced Filter', maintenance: 'Maintenance', maintenanceOverviewSub: 'Overview', maintenanceContractsSub: 'Contracts Management', main: 'Main', operations: 'Operations' },
+    ar: { myTasks: 'مهامي', clientIssues: 'المهام والاستفسارات', dashboard: 'نظرة عامة', paymentsTargetsDashboard: 'لوحة المتابعة', reports: 'التقارير', projects: 'المشاريع', milestones: 'المعالم', payments: 'المدفوعات', tasks: 'المهام', tasksOverviewSub: 'نظرة عامة', tasksManagementSub: 'إدارة المهام', internalTasksSub: 'المهام الداخلية', customerTasksSub: 'مهام العملاء', users: 'الفريق', settings: 'الإعدادات', system: 'إدارة النظام', customers: 'العملاء', logout: 'تسجيل الخروج', filter: 'الفلاتر المتقدمة', maintenance: 'الصيانة', maintenanceOverviewSub: 'نظرة عامة', maintenanceContractsSub: 'إدارة العقود', main: 'الرئيسية', operations: 'العمليات' },
+    en: { myTasks: 'My Tasks', clientIssues: 'My Issues', dashboard: 'Overview', paymentsTargetsDashboard: 'Dashboard', reports: 'Reports', projects: 'Projects', milestones: 'Milestones', payments: 'Payments', tasks: 'Tasks', tasksOverviewSub: 'Overview', tasksManagementSub: 'Tasks Management', internalTasksSub: 'Internal Tasks', customerTasksSub: 'Customer Tasks', users: 'Team', settings: 'Settings', system: 'System Management', customers: 'Customers', logout: 'Logout', filter: 'Advanced Filter', maintenance: 'Maintenance', maintenanceOverviewSub: 'Overview', maintenanceContractsSub: 'Contracts Management', main: 'Main', operations: 'Operations' },
   };
   const t = translations[language];
 
@@ -53,6 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
       title: t.main,
       items: [
         { view: 'myTasks', label: t.myTasks },
+        { view: 'clientIssues', label: t.clientIssues },
         { view: 'dashboard', label: t.dashboard },
         { view: 'paymentsTargetsDashboard', label: t.paymentsTargetsDashboard },
         { view: 'projects', label: t.projects },
@@ -70,6 +74,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
           children: [
             { view: 'tasksOverview', label: t.tasksOverviewSub },
             { view: 'issues', label: t.tasksManagementSub },
+            { view: 'internalTasks', label: t.internalTasksSub },
+            { view: 'customerTasks', label: t.customerTasksSub },
           ]
         },
         {
@@ -101,29 +107,29 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
         />
       )}
 
-      <aside className={`fixed lg:relative inset-y-0 ${language === 'ar' ? 'right-0' : 'left-0'} ${isCollapsed ? 'w-72 lg:w-20' : 'w-72'} transition-all duration-300 ease-in-out z-40 flex flex-col h-full bg-[#0a1628] border-r border-[#1e293b]/20 shadow-2xl lg:shadow-none overflow-hidden ${isOpen ? 'translate-x-0' : (language === 'ar' ? 'translate-x-full lg:translate-x-0' : '-translate-x-full lg:translate-x-0')}`} dir={language === 'ar' ? 'rtl' : 'ltr'}>
+      <aside className={`fixed lg:relative inset-y-0 lg:inset-y-auto ${language === 'ar' ? 'right-0' : 'left-0'} ${isCollapsed ? 'w-72 lg:w-20' : 'w-72'} lg:my-3 ${language === 'ar' ? 'lg:me-3' : 'lg:ms-3'} transition-all duration-300 ease-in-out z-40 flex flex-col h-full lg:h-[calc(100%-1.5rem)] bg-white dark:bg-[#0a1628] border border-slate-100 dark:border-[#1e293b]/20 lg:rounded-3xl shadow-2xl lg:shadow-[0_2px_20px_rgba(15,23,42,0.06)] overflow-hidden ${isOpen ? 'translate-x-0' : (language === 'ar' ? 'translate-x-full lg:translate-x-0' : '-translate-x-full lg:translate-x-0')}`} dir={language === 'ar' ? 'rtl' : 'ltr'}>
         <div className={`h-28 flex items-center shrink-0 relative ${isCollapsed ? 'lg:justify-center lg:px-0 px-8' : 'px-8'}`}>
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-[0_0_20px_rgba(37,99,235,0.4)] shrink-0">
+            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-[0_0_20px_rgba(37,99,235,0.25)] shrink-0">
               PT
             </div>
             <div className={isCollapsed ? 'lg:hidden' : ''}>
-              <h1 className="text-lg font-black text-white tracking-widest uppercase mb-0.5 whitespace-nowrap">PIO-TECH</h1>
+              <h1 className="text-lg font-black text-slate-900 dark:text-white tracking-widest uppercase mb-0.5 whitespace-nowrap">PIO-TECH</h1>
               <p className="text-[11px] text-slate-400 font-medium tracking-wide whitespace-nowrap">Projects Portfolio</p>
             </div>
           </div>
           {/* Close button for mobile */}
-          <button onClick={onClose} className="lg:hidden ms-auto p-2 text-slate-400 hover:text-slate-200">
+          <button onClick={onClose} className="lg:hidden ms-auto p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
-          <div className="absolute bottom-0 left-0 right-0 border-b border-[#1e293b]/30 mx-4" />
+          <div className="absolute bottom-0 left-0 right-0 border-b border-slate-100 dark:border-[#1e293b]/30 mx-4" />
         </div>
 
         <div className="flex-1 px-3 py-4 space-y-6 overflow-y-auto custom-scrollbar">
           {sections.map((section, sIdx) => (
             <div key={sIdx} className="space-y-4">
               <div className={`px-5 ${isCollapsed ? 'lg:hidden' : ''}`}>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] opacity-70 whitespace-nowrap">{section.title}</p>
+                <p className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] opacity-90 whitespace-nowrap">{section.title}</p>
               </div>
               <div className="space-y-0.5">
                 {section.items.map(item => {
@@ -145,14 +151,16 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
                               <button
                                 key={child.view}
                                 onClick={() => setCurrentView(child.view)}
-                                title={child.label}
                                 className={`w-full flex items-center justify-center py-2.5 rounded-lg transition-all duration-200 group relative ${
-                                  isActive ? 'bg-blue-600/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                                  isActive ? 'bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-white' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-600 dark:hover:text-slate-200'
                                 }`}
                               >
                                 {isActive && <div className={`absolute ${language === 'ar' ? 'right-0' : 'left-0'} top-2 bottom-2 w-1 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]`} />}
                                 <NavIcon view={child.view} />
                                 {child.view === 'issues' && openTasksCount > 0 && <span className="absolute top-1 end-2 bg-blue-600 w-2 h-2 rounded-full shadow-lg" />}
+                                <span className={`pointer-events-none absolute ${language === 'ar' ? 'right-full mr-3' : 'left-full ml-3'} top-1/2 -translate-y-1/2 whitespace-nowrap px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-bold opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-150 z-50 shadow-xl`}>
+                                  {child.label}
+                                </span>
                               </button>
                             );
                           })}
@@ -164,12 +172,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
                       <div key={item.groupKey} className={isCollapsed ? 'hidden' : ''}>
                         <button
                           onClick={() => toggleGroup(item.groupKey)}
-                          className={`w-full flex items-center justify-between px-5 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 group relative ${
-                            isGroupActive ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                          className={`w-full flex items-center justify-between px-5 py-2.5 rounded-lg text-[15px] font-bold transition-all duration-200 group relative ${
+                            isGroupActive ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200'
                           }`}
                         >
                           <div className="flex items-center gap-2.5">
-                              <div className={`${isGroupActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'} transition-colors duration-200`}>
+                              <div className={`${isGroupActive ? 'text-blue-600 dark:text-white' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'} transition-colors duration-200`}>
                                   <NavIcon view={visibleChildren[0].view} />
                               </div>
                               <span className={`${isGroupActive ? 'font-bold' : 'font-medium'} tracking-tight whitespace-nowrap`}>{item.groupLabel}</span>
@@ -184,8 +192,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
                                 <button
                                   key={child.view}
                                   onClick={() => setCurrentView(child.view)}
-                                  className={`w-full flex items-center justify-between px-5 py-2 rounded-lg text-[12px] font-medium transition-all duration-200 group relative ${
-                                    isActive ? 'bg-blue-600/10 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                                  className={`w-full flex items-center justify-between px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 group relative ${
+                                    isActive ? 'bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-800 dark:hover:text-slate-200'
                                   }`}
                                 >
                                   {isActive && <div className={`absolute ${language === 'ar' ? 'right-0' : 'left-0'} top-2 bottom-2 w-1 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]`} />}
@@ -206,26 +214,30 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
                     <button
                       key={item.view}
                       onClick={() => setCurrentView(item.view)}
-                      title={isCollapsed ? item.label : undefined}
-                      className={`w-full flex items-center rounded-lg text-[13px] font-medium transition-all duration-200 group relative ${
+                      className={`w-full flex items-center rounded-lg text-[15px] font-bold transition-all duration-200 group relative ${
                         isCollapsed ? 'lg:justify-center justify-between px-5 lg:px-0 py-2.5' : 'justify-between px-5 py-2.5'
                       } ${
                         isActive
-                          ? 'bg-blue-600/10 text-white'
-                          : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                          ? 'bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-white'
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200'
                       }`}
                     >
                       {isActive && <div className={`absolute ${language === 'ar' ? 'right-0' : 'left-0'} top-2.5 bottom-2.5 w-1 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]`} />}
                       <div className="flex items-center gap-2.5">
-                          <div className={`${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'} transition-colors duration-200`}>
+                          <div className={`${isActive ? 'text-blue-600 dark:text-white' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'} transition-colors duration-200`}>
                               <NavIcon view={item.view} />
                           </div>
-                          <span className={`${isActive ? 'font-bold' : 'font-medium'} tracking-tight whitespace-nowrap ${isCollapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
+                          <span className={`${isActive ? 'font-bold' : 'font-semibold'} tracking-tight whitespace-nowrap ${isCollapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
                       </div>
-                      {item.view === 'projects' && projectsCount > 0 && <span className={`bg-[#1e2d4d] text-blue-400 text-[10px] font-black px-2 py-0.5 rounded-md border border-blue-500/20 ${isCollapsed ? 'lg:hidden' : ''}`}>{projectsCount}</span>}
+                      {item.view === 'projects' && projectsCount > 0 && <span className={`bg-blue-50 dark:bg-[#1e2d4d] text-blue-600 dark:text-blue-400 text-[10px] font-black px-2 py-0.5 rounded-md border border-blue-100 dark:border-blue-500/20 ${isCollapsed ? 'lg:hidden' : ''}`}>{projectsCount}</span>}
                       {item.view === 'issues' && openTasksCount > 0 && <span className={`bg-blue-600 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full shadow-lg ${isCollapsed ? 'lg:hidden' : ''}`}>{openTasksCount}</span>}
                       {isCollapsed && item.view === 'projects' && projectsCount > 0 && <span className="hidden lg:block absolute top-1 end-2 bg-blue-500 w-2 h-2 rounded-full" />}
                       {isCollapsed && item.view === 'issues' && openTasksCount > 0 && <span className="hidden lg:block absolute top-1 end-2 bg-blue-600 w-2 h-2 rounded-full" />}
+                      {isCollapsed && (
+                        <span className={`pointer-events-none hidden lg:block absolute ${language === 'ar' ? 'right-full mr-3' : 'left-full ml-3'} top-1/2 -translate-y-1/2 whitespace-nowrap px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-bold opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-150 z-50 shadow-xl`}>
+                          {item.label}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -234,11 +246,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
           ))}
         </div>
 
-        <div className="p-6 border-t border-[#1e293b]/30 shrink-0">
+        <div className="p-6 border-t border-slate-100 dark:border-[#1e293b]/30 shrink-0">
           <button
             onClick={onLogout}
             title={isCollapsed ? t.logout : undefined}
-            className={`w-full flex items-center rounded-xl text-xs font-bold text-slate-500 hover:text-red-500 hover:bg-red-500/5 transition-all ${isCollapsed ? 'lg:justify-center lg:px-0 gap-4 px-6 py-4' : 'gap-4 px-6 py-4'}`}
+            className={`w-full flex items-center rounded-xl text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-red-500 hover:bg-red-500/5 transition-all ${isCollapsed ? 'lg:justify-center lg:px-0 gap-4 px-6 py-4' : 'gap-4 px-6 py-4'}`}
           >
             <svg className="w-5 h-5 opacity-50 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
             <span className={isCollapsed ? 'lg:hidden' : ''}>{t.logout}</span>
@@ -253,10 +265,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, language
         <button
           onClick={onToggleCollapse}
           title={isCollapsed ? (language === 'ar' ? 'إظهار القائمة' : 'Show Menu') : (language === 'ar' ? 'إخفاء القائمة' : 'Hide Menu')}
-          className={`hidden lg:flex fixed top-1/2 -translate-y-1/2 z-50 w-6 h-12 items-center justify-center bg-[#0a1628] border border-[#1e293b]/40 text-slate-400 hover:text-white hover:bg-violet-600 transition-all duration-300 ease-in-out rounded-e-lg ${language === 'ar' ? 'rounded-e-none rounded-s-lg' : ''}`}
+          className={`hidden lg:flex fixed top-1/2 -translate-y-1/2 z-50 w-6 h-12 items-center justify-center bg-white dark:bg-[#0a1628] border border-slate-200 dark:border-[#1e293b]/40 text-slate-400 hover:text-white hover:bg-violet-600 hover:border-violet-600 transition-all duration-300 ease-in-out rounded-e-lg shadow-sm ${language === 'ar' ? 'rounded-e-none rounded-s-lg' : ''}`}
           style={language === 'ar'
-            ? { right: isCollapsed ? 80 : 288 }
-            : { left: isCollapsed ? 80 : 288 }
+            ? { right: isCollapsed ? 92 : 300 }
+            : { left: isCollapsed ? 92 : 300 }
           }
         >
           <svg className={`w-4 h-4 transition-transform ${(language === 'ar' ? !isCollapsed : isCollapsed) ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">

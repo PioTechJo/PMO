@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Language, Theme, User, Notification } from '../types';
+import { Language, Theme, User, Notification, View } from '../types';
 import { markNotificationRead } from '../services/api';
 import ChangePasswordModal from './ChangePasswordModal';
 
@@ -17,9 +17,32 @@ interface HeaderProps {
     onToggleSidebarCollapse?: () => void;
     notifications?: Notification[];
     onNotificationRead?: () => void;
+    view?: View;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, language, theme, setTheme, onToggleSidebar, isSidebarCollapsed, onToggleSidebarCollapse, notifications = [], onNotificationRead, onLogout }) => {
+const VIEW_BREADCRUMBS: Record<View, { section: { en: string; ar: string }; group?: { en: string; ar: string }; label: { en: string; ar: string } }> = {
+    myTasks: { section: { en: 'Main', ar: 'الرئيسية' }, label: { en: 'My Tasks', ar: 'مهامي' } },
+    dashboard: { section: { en: 'Main', ar: 'الرئيسية' }, label: { en: 'Overview', ar: 'نظرة عامة' } },
+    paymentsTargetsDashboard: { section: { en: 'Main', ar: 'الرئيسية' }, label: { en: 'Dashboard', ar: 'لوحة المتابعة' } },
+    projects: { section: { en: 'Main', ar: 'الرئيسية' }, label: { en: 'Projects', ar: 'المشاريع' } },
+    milestones: { section: { en: 'Main', ar: 'الرئيسية' }, label: { en: 'Milestones', ar: 'المعالم' } },
+    payments: { section: { en: 'Main', ar: 'الرئيسية' }, label: { en: 'Payments', ar: 'المدفوعات' } },
+    customers: { section: { en: 'Main', ar: 'الرئيسية' }, label: { en: 'Customers', ar: 'العملاء' } },
+    filter: { section: { en: 'Main', ar: 'الرئيسية' }, label: { en: 'Advanced Filter', ar: 'الفلاتر المتقدمة' } },
+    tasksOverview: { section: { en: 'Operations', ar: 'العمليات' }, group: { en: 'Tasks', ar: 'المهام' }, label: { en: 'Overview', ar: 'نظرة عامة' } },
+    issues: { section: { en: 'Operations', ar: 'العمليات' }, group: { en: 'Tasks', ar: 'المهام' }, label: { en: 'Tasks Management', ar: 'إدارة المهام' } },
+    maintenanceOverview: { section: { en: 'Operations', ar: 'العمليات' }, group: { en: 'Maintenance', ar: 'الصيانة' }, label: { en: 'Overview', ar: 'نظرة عامة' } },
+    maintenanceContracts: { section: { en: 'Operations', ar: 'العمليات' }, group: { en: 'Maintenance', ar: 'الصيانة' }, label: { en: 'Contracts Management', ar: 'إدارة العقود' } },
+    team: { section: { en: 'Operations', ar: 'العمليات' }, label: { en: 'Team', ar: 'فريق العمل' } },
+    reports: { section: { en: 'Operations', ar: 'العمليات' }, label: { en: 'Reports', ar: 'التقارير' } },
+    system: { section: { en: 'Operations', ar: 'العمليات' }, label: { en: 'System Management', ar: 'إدارة النظام' } },
+    clientIssues: { section: { en: 'Main', ar: 'الرئيسية' }, label: { en: 'My Issues', ar: 'مهامي' } },
+    internalTasks: { section: { en: 'Operations', ar: 'العمليات' }, group: { en: 'Tasks', ar: 'المهام' }, label: { en: 'Internal Tasks', ar: 'المهام الداخلية' } },
+    customerTasks: { section: { en: 'Operations', ar: 'العمليات' }, group: { en: 'Tasks', ar: 'المهام' }, label: { en: 'Customer Tasks', ar: 'مهام العملاء' } },
+};
+
+const Header: React.FC<HeaderProps> = ({ user, language, theme, setTheme, onToggleSidebar, isSidebarCollapsed, onToggleSidebarCollapse, notifications = [], onNotificationRead, onLogout, view }) => {
+  const breadcrumb = view ? VIEW_BREADCRUMBS[view] : undefined;
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -84,14 +107,22 @@ const Header: React.FC<HeaderProps> = ({ user, language, theme, setTheme, onTogg
         )}
 
         {/* Breadcrumbs */}
-        <div className="hidden md:flex items-center gap-2 text-xs font-bold whitespace-nowrap">
-          <div className="flex items-center gap-2 text-slate-400">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H2a2 2 0 01-2-2v-2z" /></svg>
-            <span>Operations</span>
+        {breadcrumb && (
+          <div className="hidden md:flex items-center gap-2 text-xs font-bold whitespace-nowrap">
+            <div className="flex items-center gap-2 text-slate-400">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H2a2 2 0 01-2-2v-2z" /></svg>
+              <span>{breadcrumb.section[language]}</span>
+            </div>
+            {breadcrumb.group && (
+              <>
+                <span className="text-slate-300">/</span>
+                <span className="text-slate-500 dark:text-slate-400">{breadcrumb.group[language]}</span>
+              </>
+            )}
+            <span className="text-slate-300">/</span>
+            <span className="text-slate-800 dark:text-slate-200">{breadcrumb.label[language]}</span>
           </div>
-          <span className="text-slate-300">/</span>
-          <span className="text-slate-800 dark:text-slate-200">Tasks & Defects</span>
-        </div>
+        )}
       </div>
 
       <div className="flex items-center gap-3">

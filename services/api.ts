@@ -1,6 +1,6 @@
 
 import { getSupabase } from './supabaseClient';
-import { Project, Milestone, User, Lookups, MilestoneStatus, PaymentStatus, MaintenanceContract, Issue, IssueStatus, IssuePriority, Notification, Lookup, IssueComment, MilestoneChangeRequest, MilestoneAuditLog, CustomerActivityLog, ActivityLogType, Customer, CustomerContact, CustomerTier, CustomerStatus, AuditLogEntry, AuditAction } from '../types';
+import { Project, Milestone, User, Lookups, MilestoneStatus, PaymentStatus, MaintenanceContract, Issue, IssueStatus, IssuePriority, IssueType, Notification, Lookup, IssueComment, IssueAttachment, MilestoneChangeRequest, MilestoneAuditLog, CustomerActivityLog, ActivityLogType, Customer, CustomerContact, CustomerTier, CustomerStatus, AuditLogEntry, AuditAction } from '../types';
 
 const mapDbToNotification = (db: any): Notification => ({
     id: db.id,
@@ -32,12 +32,13 @@ export const fetchAllData = async () => {
         supabase.from('maintenance_contracts').select('*'),
         supabase.from('issues').select('*'),
         supabase.from('issue_comments').select('*').order('created_at', { ascending: true }),
+        supabase.from('issue_attachments').select('*').order('created_at', { ascending: true }),
         session ? supabase.from('notifications').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false }).limit(10) : Promise.resolve({ data: [] }),
         supabase.from('project_products').select('*')
     ]);
 
     const results = fetchRes.map(r => r.data || []);
-    const [prj, mls, usr, cnt, cat, tm, prd, st, cst, mnt, iss, cmts, ntf, prjPrd] = results;
+    const [prj, mls, usr, cnt, cat, tm, prd, st, cst, mnt, iss, cmts, atts, ntf, prjPrd] = results;
 
     const productIdsByProject = new Map<string, string[]>();
     (prjPrd as any[]).forEach(row => {
@@ -52,7 +53,8 @@ export const fetchAllData = async () => {
         avatarUrl: u.avatar_url,
         type: (u.role === 'Manager' || u.type === 'Manager') ? 'Manager' : (u.type || u.role || 'Staff'),
         department: u.department || null,
-        email: u.email || null
+        email: u.email || null,
+        customerId: u.customer_id || null
     }));
 
     const mappedCustomers: Customer[] = (cst as any[] || []).map(c => ({
@@ -125,6 +127,18 @@ export const fetchAllData = async () => {
         user: mappedUsers.find(u => u.id === c.user_id)
     }));
 
+    const mappedAttachments: IssueAttachment[] = atts.map((a: any) => ({
+        id: a.id,
+        issueId: a.issue_id,
+        uploadedBy: a.uploaded_by,
+        fileName: a.file_name,
+        filePath: a.file_path,
+        fileSize: a.file_size,
+        mimeType: a.mime_type,
+        createdAt: a.created_at,
+        uploader: mappedUsers.find(u => u.id === a.uploaded_by)
+    }));
+
     return { 
         projects, 
         milestones: mls.map(db => ({
@@ -140,8 +154,9 @@ export const fetchAllData = async () => {
             title: db.title, 
             description: db.description || '', 
             status: (db.status || IssueStatus.Open) as IssueStatus, 
-            priority: (db.priority || IssuePriority.Medium) as IssuePriority, 
-            projectId: db.project_id, 
+            priority: (db.priority || IssuePriority.Medium) as IssuePriority,
+            type: (db.task_type || IssueType.Task) as IssueType,
+            projectId: db.project_id,
             milestoneId: db.milestone_id, 
             assigneeId: db.assignee_id, 
             reporterId: db.reporter_id, 
@@ -149,12 +164,16 @@ export const fetchAllData = async () => {
             expectedDuration: db.expected_duration,
             estimatedHours: db.estimated_hours,
             completedAt: db.completed_at,
+            dueDate: db.due_date,
+            reopenCount: db.reopen_count || 0,
+            severity: db.severity || null,
             productId: db.product_id,
             project: projects.find(p => p.id === db.project_id),
             assignee: mappedUsers.find(u => u.id === db.assignee_id),
             reporter: mappedUsers.find(u => u.id === db.reporter_id),
             product: lookups.products.find(l => l.id === db.product_id),
-            comments: mappedComments.filter(c => c.issueId === db.id)
+            comments: mappedComments.filter(c => c.issueId === db.id),
+            attachments: mappedAttachments.filter(a => a.issueId === db.id)
         })),
         notifications: ntf.map(mapDbToNotification)
     };
@@ -380,7 +399,54 @@ export const addIssueComment = async (issueId: string, userId: string, content: 
         content: content
     }]).select();
     if (error) throw error;
+
+    // Fire-and-forget - this hits an external email webhook via the Edge
+    // Function and can take a couple of seconds; awaiting it here made every
+    // comment feel frozen in the UI while it waited on that round-trip.
+    supabase.functions.invoke('notify-issue-activity', { body: { issueId, activityType: 'comment', commentText: content } })
+        .catch(notifyErr => console.error('Failed to email issue stakeholders about new comment:', notifyErr));
+
     return data[0];
+};
+
+const ISSUE_ATTACHMENTS_BUCKET = 'issue-attachments';
+
+export const uploadIssueAttachment = async (issueId: string, userId: string, file: File) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+    const filePath = `${issueId}/${Date.now()}_${safeName}`;
+
+    const { error: uploadError } = await supabase.storage.from(ISSUE_ATTACHMENTS_BUCKET).upload(filePath, file);
+    if (uploadError) throw uploadError;
+
+    const { data, error } = await supabase.from('issue_attachments').insert([{
+        issue_id: issueId,
+        uploaded_by: userId,
+        file_name: file.name,
+        file_path: filePath,
+        file_size: file.size,
+        mime_type: file.type || null
+    }]).select();
+    if (error) throw error;
+    return data[0];
+};
+
+export const getIssueAttachmentUrl = async (filePath: string) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { data, error } = await supabase.storage.from(ISSUE_ATTACHMENTS_BUCKET).createSignedUrl(filePath, 60);
+    if (error) throw error;
+    return data.signedUrl;
+};
+
+export const deleteIssueAttachment = async (id: string, filePath: string) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { error: dbError } = await supabase.from('issue_attachments').delete().eq('id', id);
+    if (dbError) throw dbError;
+    await supabase.storage.from(ISSUE_ATTACHMENTS_BUCKET).remove([filePath]);
 };
 
 export const markNotificationRead = async (id: string) => {
@@ -405,7 +471,8 @@ export const addIssue = async (issueData: Omit<Issue, 'id' | 'createdAt'> & { cr
         expected_duration: issueData.expectedDuration || null,
         estimated_hours: issueData.estimatedHours || null,
         product_id: issueData.productId || null,
-        task_type: 'Task'
+        task_type: issueData.type || 'Task',
+        severity: issueData.severity || null
     };
     // Only Manager/TasksAdmin can backdate or forward-date a task via the UI
     // (see AddIssueModal's canEditCreatedDate) - everyone else's tasks just
@@ -416,7 +483,7 @@ export const addIssue = async (issueData: Omit<Issue, 'id' | 'createdAt'> & { cr
 
     const { data, error } = await supabase.from('issues').insert([insertData]).select();
     if (error) throw error;
-    
+
     if (insertData.assignee_id) {
         await supabase.from('notifications').insert([{
             user_id: insertData.assignee_id,
@@ -425,7 +492,34 @@ export const addIssue = async (issueData: Omit<Issue, 'id' | 'createdAt'> & { cr
             type: 'issue_assigned',
             link_id: data[0].id
         }]);
+        // Fire-and-forget - see comment on the identical call in addIssueComment.
+        supabase.functions.invoke('notify-task-assignment', { body: { issueId: data[0].id } })
+            .catch(notifyErr => console.error('Failed to email assignee of new issue:', notifyErr));
     }
+
+    // A Client Portal user filed this (task_type is only ever Bug/ChangeRequest/
+    // Inquiry from that flow - internal task creation always defaults to
+    // 'Task') - let the project's PM know, both in-app and by email.
+    if (insertData.task_type && insertData.task_type !== 'Task') {
+        (async () => {
+            try {
+                const { data: project } = await supabase.from('projects').select('project_manager_id').eq('id', insertData.project_id).maybeSingle();
+                if (project?.project_manager_id) {
+                    await supabase.from('notifications').insert([{
+                        user_id: project.project_manager_id,
+                        title: `New ${insertData.task_type}`,
+                        message: `A new ${insertData.task_type} was filed: ${insertData.title}`,
+                        type: 'issue_assigned',
+                        link_id: data[0].id
+                    }]);
+                }
+                await supabase.functions.invoke('notify-client-issue', { body: { issueId: data[0].id } });
+            } catch (notifyErr) {
+                console.error('Failed to notify PM of new client issue:', notifyErr);
+            }
+        })();
+    }
+
     return data[0];
 };
 
@@ -437,6 +531,8 @@ export const updateIssue = async (id: string, issueData: Partial<Issue>) => {
     if (issueData.priority) updateData.priority = issueData.priority;
     if (issueData.assigneeId !== undefined) updateData.assignee_id = issueData.assigneeId || null;
     if (issueData.estimatedHours !== undefined) updateData.estimated_hours = issueData.estimatedHours || null;
+    if (issueData.dueDate !== undefined) updateData.due_date = issueData.dueDate || null;
+    if (issueData.severity !== undefined) updateData.severity = issueData.severity || null;
     const { data, error } = await supabase.from('issues').update(updateData).eq('id', id).select();
     if (error) throw error;
 
@@ -451,6 +547,9 @@ export const updateIssue = async (id: string, issueData: Partial<Issue>) => {
             type: 'issue_assigned',
             link_id: id
         }]);
+        // Fire-and-forget - see comment on the identical call in addIssue.
+        supabase.functions.invoke('notify-task-assignment', { body: { issueId: id } })
+            .catch(notifyErr => console.error('Failed to email reassigned assignee:', notifyErr));
     }
 
     // Let the reporter know their reported task moved - skip notifying them
@@ -468,6 +567,14 @@ export const updateIssue = async (id: string, issueData: Partial<Issue>) => {
         }
     }
 
+    if (updateData.status) {
+        // Fire-and-forget - this was the main cause of status changes feeling
+        // frozen: it hits an external email webhook that can take a couple
+        // of seconds, and updateIssue() was awaiting it before returning.
+        supabase.functions.invoke('notify-issue-activity', { body: { issueId: id, activityType: 'status_change', newStatus: updateData.status } })
+            .catch(notifyErr => console.error('Failed to email issue stakeholders about status change:', notifyErr));
+    }
+
     return data[0];
 };
 
@@ -478,7 +585,7 @@ export const deleteIssue = async (id: string) => {
     if (error) throw error;
 };
 
-export const inviteUser = async (params: { email: string; name: string; type: string; department?: string | null }) => {
+export const inviteUser = async (params: { email: string; name: string; type: string; department?: string | null; customerId?: string | null; projectIds?: string[] }) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized");
     const { data, error } = await supabase.functions.invoke('invite-user', { body: params });
@@ -725,6 +832,34 @@ export const fetchAuditLog = async (filters: AuditLogFilters, page: number, page
     }));
 
     return { entries, total: count || 0 };
+};
+
+// Powers the per-task "History" page (Customer Tasks) - the full audit
+// trail for one issue row, ascending so it reads top-to-bottom as a
+// timeline. No pagination - a single task's history is always small.
+export const fetchIssueHistory = async (issueId: string): Promise<AuditLogEntry[]> => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+        .from('system_audit_log')
+        .select('*, users(name)')
+        .eq('table_name', 'issues')
+        .eq('record_id', issueId)
+        .order('created_at', { ascending: true });
+    if (error) throw error;
+
+    return (data || []).map((d: any) => ({
+        id: d.id,
+        tableName: d.table_name,
+        recordId: d.record_id,
+        action: d.action,
+        changedBy: d.changed_by,
+        oldData: d.old_data,
+        newData: d.new_data,
+        createdAt: d.created_at,
+        user: d.users ? { id: d.changed_by, name: d.users.name } : undefined,
+    }));
 };
 
 export const logLoginEvent = async () => {

@@ -6,7 +6,7 @@ import {
     Plus, X, Layout, User as UserIcon, Type, AlignLeft, 
     Flag, Calendar, Layers, ShieldCheck, AlertCircle, Settings, Check
 } from 'lucide-react';
-import { Issue, Project, Milestone, User, Language, IssueStatus, IssuePriority, IssueComment } from '../types';
+import { Issue, Project, Milestone, User, Language, IssueStatus, IssuePriority, IssueType, IssueComment } from '../types';
 import SearchableSelect from './SearchableSelect';
 import StatCard from './StatCard';
 
@@ -20,28 +20,44 @@ interface IssuesProps {
     onUpdateIssue: (id: string, data: Partial<Issue>) => Promise<void>;
     onAddComment?: (issueId: string, userId: string, content: string) => Promise<void>;
     onDeleteIssue?: (id: string) => Promise<void>;
+    onUploadAttachment?: (issueId: string, userId: string, file: File) => Promise<void>;
+    onDeleteAttachment?: (attachmentId: string, filePath: string) => Promise<void>;
+    onGetAttachmentUrl?: (filePath: string) => Promise<string>;
+    onViewHistory?: (issue: Issue) => void;
     currentUser: User | undefined;
+    // When set, this screen shows only that source's tasks and hides the
+    // Source filter/column entirely - used by the dedicated "Internal Tasks"
+    // / "Customer Tasks" sidebar entries, which are just this same screen
+    // pre-locked to one source instead of a separate implementation.
+    lockedSource?: 'internal' | 'external';
 }
 
-const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, allUsers, language, onAddIssue, onUpdateIssue, onAddComment, onDeleteIssue, currentUser }) => {
+const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, allUsers, language, onAddIssue, onUpdateIssue, onAddComment, onDeleteIssue, onUploadAttachment, onDeleteAttachment, onGetAttachmentUrl, onViewHistory, currentUser, lockedSource }) => {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
     const [selectedProjectId, setSelectedProjectId] = useState('all');
+    const [selectedCustomerId, setSelectedCustomerId] = useState('all');
     const [selectedStatus, setSelectedStatus] = useState('all');
     const [selectedAssigneeId, setSelectedAssigneeId] = useState('all');
     const [selectedPriority, setSelectedPriority] = useState('all');
+    const [selectedSource, setSelectedSource] = useState<'all' | 'internal' | 'external'>(lockedSource || 'all');
     const [onlyMyIssues, setOnlyMyIssues] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
     const [groupBy, setGroupBy] = useState<'none' | 'project' | 'assignee'>('none');
     
     const t = translations[language];
 
-    const [visibleColumns, setVisibleColumns] = useState<string[]>(['selection', 'task', 'priority', 'status', 'project', 'dueDate', 'assignee', 'updated', 'commentsCount']);
+    const [visibleColumns, setVisibleColumns] = useState<string[]>(
+        lockedSource
+            ? ['selection', 'task', 'priority', 'status', 'project', 'dueDate', 'assignee', 'updated', 'commentsCount']
+            : ['selection', 'task', 'source', 'priority', 'status', 'project', 'dueDate', 'assignee', 'updated', 'commentsCount']
+    );
     const [isColumnPickerOpen, setIsColumnPickerOpen] = useState(false);
 
     const ALL_COLUMNS = [
         { key: 'selection', label: language === 'ar' ? 'اختيار' : 'SELECTION' },
         { key: 'task', label: language === 'ar' ? 'المهمة' : 'TASK' },
+        ...(lockedSource ? [] : [{ key: 'source', label: language === 'ar' ? 'المصدر' : 'SOURCE' }]),
         { key: 'priority', label: language === 'ar' ? 'الأولوية' : 'PRIORITY' },
         { key: 'status', label: language === 'ar' ? 'الحالة' : 'STATUS' },
         { key: 'project', label: language === 'ar' ? 'المشروع' : 'PROJECT' },
@@ -89,8 +105,18 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
         allIssues.find(i => i.id === selectedIssueId), 
     [allIssues, selectedIssueId]);
 
-    const psUsers = useMemo(() => allUsers.filter(u => u.type === 'PS'), [allUsers]);
+    // "Resources" assignable to a task - Professional Services and the
+    // newer Dev role are both individual contributors who get assigned
+    // work, as opposed to PMs/Manager/TasksAdmin who assign it.
+    const psUsers = useMemo(() => allUsers.filter(u => u.type === 'PS' || u.type === 'Dev'), [allUsers]);
     const canDelete = currentUser?.type === 'Manager' || currentUser?.type === 'TasksAdmin';
+
+    const projectOptions = useMemo(() => [{ value: 'all', label: t.allProjects }, ...allProjects.map(p => ({ value: p.id, label: p.name }))], [allProjects, t.allProjects]);
+    const customerOptions = useMemo(() => {
+        const seen = new Map<string, string>();
+        allProjects.forEach(p => { if (p.customerId && p.customer?.name) seen.set(p.customerId, p.customer.name); });
+        return [{ value: 'all', label: t.allCustomers }, ...Array.from(seen.entries()).map(([value, label]) => ({ value, label }))];
+    }, [allProjects, t.allCustomers]);
 
     const handleDeleteIssue = async (id: string, title: string) => {
         if (!onDeleteIssue) return;
@@ -99,25 +125,38 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
         await onDeleteIssue(id);
     };
 
+    const isExternal = (issue: Issue) => !!issue.type && issue.type !== IssueType.Task;
+
+    // Issues scoped to this screen's locked source (Internal/Customer Tasks) - the
+    // KPI cards should reflect only what this screen shows, not the whole app.
+    const scopedIssues = useMemo(() => {
+        if (!lockedSource) return allIssues;
+        return allIssues.filter(i => lockedSource === 'external' ? isExternal(i) : !isExternal(i));
+    }, [allIssues, lockedSource]);
+
     const filteredIssues = useMemo(() => {
         return allIssues.filter(i => {
             const projectMatch = selectedProjectId === 'all' || i.projectId === selectedProjectId;
+            const project = allProjects.find(p => p.id === i.projectId);
+            const customerMatch = selectedCustomerId === 'all' || project?.customerId === selectedCustomerId;
             const statusMatch = selectedStatus === 'all' || i.status === selectedStatus;
             const assigneeMatch = selectedAssigneeId === 'all' || i.assigneeId === selectedAssigneeId;
             const priorityMatch = selectedPriority === 'all' || i.priority === selectedPriority;
+            const sourceMatch = selectedSource === 'all' || (selectedSource === 'external' ? isExternal(i) : !isExternal(i));
             const userMatch = !onlyMyIssues || (currentUser && i.assigneeId === currentUser.id);
-            return projectMatch && statusMatch && assigneeMatch && userMatch && priorityMatch;
+            return projectMatch && customerMatch && statusMatch && assigneeMatch && userMatch && priorityMatch && sourceMatch;
         });
-    }, [allIssues, selectedProjectId, selectedStatus, selectedAssigneeId, selectedPriority, onlyMyIssues, currentUser]);
+    }, [allIssues, allProjects, selectedProjectId, selectedCustomerId, selectedStatus, selectedAssigneeId, selectedPriority, selectedSource, onlyMyIssues, currentUser]);
 
     // KPI Stats
     const stats = useMemo(() => {
-        const open = allIssues.filter(i => i.status === IssueStatus.Open).length;
-        const resolved = allIssues.filter(i => i.status === IssueStatus.Resolved).length;
-        const inProgress = allIssues.filter(i => i.status === IssueStatus.InProgress).length;
-        const high = allIssues.filter(i => i.priority === IssuePriority.High || i.priority === IssuePriority.Critical).length;
-        return { open, resolved, inProgress, high };
-    }, [allIssues]);
+        const open = scopedIssues.filter(i => i.status === IssueStatus.Open).length;
+        const resolved = scopedIssues.filter(i => i.status === IssueStatus.Resolved).length;
+        const inProgress = scopedIssues.filter(i => i.status === IssueStatus.InProgress).length;
+        const high = scopedIssues.filter(i => i.priority === IssuePriority.High || i.priority === IssuePriority.Critical).length;
+        const external = scopedIssues.filter(isExternal).length;
+        return { open, resolved, inProgress, high, external };
+    }, [scopedIssues]);
 
     const priorityColors = {
         [IssuePriority.Critical]: 'bg-red-500 text-white shadow-lg shadow-red-500/20',
@@ -142,8 +181,12 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                     </div>
                     <div>
-                        <h1 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{t.title}</h1>
-                        <p className="text-[10px] font-bold text-slate-400">{t.subtitle}</p>
+                        <h1 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                            {lockedSource === 'internal' ? (language === 'ar' ? 'المهام الداخلية' : 'Internal Tasks') : lockedSource === 'external' ? (language === 'ar' ? 'مهام العملاء' : 'Customer Tasks') : t.title}
+                        </h1>
+                        <p className="text-[10px] font-bold text-slate-400">
+                            {lockedSource === 'internal' ? (language === 'ar' ? 'مهام وأعطال داخلية فقط' : 'Internal-only tasks and defects.') : lockedSource === 'external' ? (language === 'ar' ? 'طلبات جاية من بوابة العملاء فقط' : 'Requests filed by clients through the portal.') : t.subtitle}
+                        </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -160,7 +203,7 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                         {t.exportExcel}
                     </button>
-                    {currentUser?.type !== 'PS' && (
+                    {currentUser?.type !== 'PS' && currentUser?.type !== 'Dev' && (
                         <button
                             onClick={() => setIsAddModalOpen(true)}
                             className="flex items-center gap-2 px-6 py-2 bg-[#3b82f6] text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:opacity-90 shadow-lg shadow-blue-500/20 transition-all active:scale-95 h-10"
@@ -173,7 +216,7 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
             </div>
 
             {/* Stats Overview */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${lockedSource ? 'lg:grid-cols-4' : 'lg:grid-cols-5'}`}>
                 <StatCard 
                     title={language === 'ar' ? 'المهام النشطة' : 'Active Tasks'} 
                     value={stats.open} 
@@ -202,15 +245,26 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
                     color="red"
                     icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>}
                 />
+                {!lockedSource && (
+                    <StatCard
+                        title={language === 'ar' ? 'طلبات خارجية (من العملاء)' : 'External (Client) Requests'}
+                        value={stats.external}
+                        trend={{ label: language === 'ar' ? 'من بوابة العملاء' : 'From the Client Portal', type: 'warning' }}
+                        color="violet"
+                        icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-4-2.83M9 20H4v-2a3 3 0 014-2.83m6-2.34a3 3 0 10-4 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>}
+                    />
+                )}
             </div>
 
             {/* Filter Bar */}
             <div className="bg-white dark:bg-[#111927] p-3 rounded-2xl border border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-4 shadow-sm">
                 <div className="flex flex-wrap items-center gap-2">
-                    <select value={selectedProjectId} onChange={e => setSelectedProjectId(e.target.value)} className="bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-slate-500 transition-all outline-none focus:ring-2 focus:ring-blue-500 h-10 min-w-[140px]">
-                        <option value="all">{t.allProjects}</option>
-                        {allProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
+                    <div className="w-[160px]">
+                        <SearchableSelect options={projectOptions} value={selectedProjectId} onChange={setSelectedProjectId} placeholder={t.allProjects} language={language} />
+                    </div>
+                    <div className="w-[160px]">
+                        <SearchableSelect options={customerOptions} value={selectedCustomerId} onChange={setSelectedCustomerId} placeholder={t.allCustomers} language={language} />
+                    </div>
                     <select value={selectedAssigneeId} onChange={e => setSelectedAssigneeId(e.target.value)} className="bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-slate-500 transition-all outline-none focus:ring-2 focus:ring-blue-500 h-10 min-w-[140px]">
                         <option value="all">{t.allAssignees}</option>
                         {allUsers.filter(u => u.type === 'PS').map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
@@ -223,6 +277,13 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
                         <option value="all">{language === 'ar' ? 'جميع الأولويات' : 'All Priorities'}</option>
                         {Object.values(IssuePriority).map(p => <option key={p} value={p}>{p}</option>)}
                     </select>
+                    {!lockedSource && (
+                        <select value={selectedSource} onChange={e => setSelectedSource(e.target.value as any)} className="bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-slate-500 transition-all outline-none focus:ring-2 focus:ring-blue-500 h-10 min-w-[140px]">
+                            <option value="all">{language === 'ar' ? 'الكل (داخلي وخارجي)' : 'All Sources'}</option>
+                            <option value="internal">{language === 'ar' ? 'داخلي فقط' : 'Internal Only'}</option>
+                            <option value="external">{language === 'ar' ? 'خارجي فقط (عملاء)' : 'External Only (Clients)'}</option>
+                        </select>
+                    )}
                     <select value={groupBy} onChange={e => setGroupBy(e.target.value as any)} className="bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-slate-500 transition-all outline-none focus:ring-2 focus:ring-blue-500 h-10 min-w-[140px]">
                         <option value="none">{language === 'ar' ? 'بدون تجميع' : 'No Grouping'}</option>
                         <option value="project">{language === 'ar' ? 'تجميع حسب المشروع' : 'Group by Project'}</option>
@@ -230,7 +291,7 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
                     </select>
                 </div>
                 <div className="flex items-center gap-4">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{filteredIssues.length} of {allIssues.length} tasks</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{filteredIssues.length} of {(lockedSource ? allIssues.filter(i => (isExternal(i) ? 'external' : 'internal') === lockedSource) : allIssues).length} tasks</p>
                     <div className="flex bg-slate-50 dark:bg-slate-900/50 p-1 rounded-xl border border-slate-100 dark:border-slate-800">
                         <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-800 text-[#3b82f6] shadow-sm' : 'text-slate-400'}`}>
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
@@ -303,6 +364,7 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
                                 <tr className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800/50">
                                     {visibleColumns.includes('selection') && <th className="px-6 py-4"><input type="checkbox" className="rounded bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700" /></th>}
                                     {visibleColumns.includes('task') && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{language === 'ar' ? 'المهمة' : 'TASK'}</th>}
+                                    {visibleColumns.includes('source') && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{language === 'ar' ? 'المصدر' : 'SOURCE'}</th>}
                                     {visibleColumns.includes('priority') && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{language === 'ar' ? 'الأولوية' : 'PRIORITY'}</th>}
                                     {visibleColumns.includes('status') && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{language === 'ar' ? 'الحالة' : 'STATUS'}</th>}
                                     {visibleColumns.includes('project') && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{language === 'ar' ? 'المشروع' : 'PROJECT'}</th>}
@@ -315,7 +377,7 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 font-sans">
                                 {groupBy === 'none' ? (
-                                    filteredIssues.map(issue => <IssueRowComponent key={issue.id} issue={issue} allProjects={allProjects} t={t} statusColors={statusColors} onClick={() => setSelectedIssueId(issue.id)} language={language} visibleColumns={visibleColumns} canDelete={canDelete} onDelete={handleDeleteIssue} />)
+                                    filteredIssues.map(issue => <IssueRowComponent key={issue.id} issue={issue} allProjects={allProjects} t={t} statusColors={statusColors} onClick={() => setSelectedIssueId(issue.id)} language={language} visibleColumns={visibleColumns} canDelete={canDelete} onDelete={handleDeleteIssue} onViewHistory={onViewHistory} />)
                                 ) : (
                                     (Object.entries(
                                         filteredIssues.reduce((acc, issue) => {
@@ -382,17 +444,48 @@ const Issues: React.FC<IssuesProps> = ({ allIssues, allProjects, allMilestones, 
                         currentUser={currentUser}
                         psUsers={psUsers}
                         onUpdateStatus={async (s) => onUpdateIssue(activeViewingIssue.id, { status: s })}
-                        onReassign={async (assigneeId) => onUpdateIssue(activeViewingIssue.id, { assigneeId })}
+                        onReassign={async (assigneeId) => {
+                            // Customer tasks auto-advance New -> In Progress the moment
+                            // a resource is actually assigned (internal tasks unaffected).
+                            const shouldAutoStart = assigneeId && activeViewingIssue.type && activeViewingIssue.type !== IssueType.Task && activeViewingIssue.status === IssueStatus.Open;
+                            await onUpdateIssue(activeViewingIssue.id, shouldAutoStart ? { assigneeId, status: IssueStatus.InProgress } : { assigneeId });
+                        }}
                         onAddComment={async (c) => {
                             if (onAddComment && currentUser) {
                                 await onAddComment(activeViewingIssue.id, currentUser.id, c);
                             }
                         }}
+                        onUploadAttachment={onUploadAttachment && currentUser ? (file) => onUploadAttachment(activeViewingIssue.id, currentUser.id, file) : undefined}
+                        onDeleteAttachment={onDeleteAttachment}
+                        onGetAttachmentUrl={onGetAttachmentUrl}
+                        onSetDueDate={async (dueDate) => onUpdateIssue(activeViewingIssue.id, { dueDate })}
+                        onViewHistory={onViewHistory}
                     />
                 )}
             </AnimatePresence>
         </div>
     );
+};
+
+// Customer (Client Portal) tasks display their status under different
+// labels than internal tasks - same underlying IssueStatus enum values,
+// just relabeled to match the requested New -> In Progress -> Done ->
+// Closed lifecycle (see enforce_customer_task_status_flow DB trigger).
+const customerStatusLabel = (status: IssueStatus, language: Language) => {
+    const map: Record<IssueStatus, { ar: string; en: string }> = {
+        [IssueStatus.Open]: { ar: 'جديدة', en: 'New' },
+        [IssueStatus.InProgress]: { ar: 'قيد التنفيذ', en: 'In Progress' },
+        [IssueStatus.Resolved]: { ar: 'منجزة', en: 'Done' },
+        [IssueStatus.Closed]: { ar: 'مغلقة', en: 'Closed' },
+    };
+    return map[status]?.[language] || status;
+};
+
+const severityColors: Record<string, string> = {
+    [IssuePriority.Critical]: 'bg-red-600 text-white',
+    [IssuePriority.High]: 'bg-red-500 text-white',
+    [IssuePriority.Medium]: 'bg-amber-500 text-white',
+    [IssuePriority.Low]: 'bg-blue-400 text-white',
 };
 
 const isOverdue = (dueDate: Date | null) => {
@@ -414,9 +507,46 @@ const getDueDate = (createdAt: string, duration?: number | null) => {
     return skipWeekend(date);
 };
 
+const sourceTypeColors: Record<string, string> = {
+    [IssueType.Bug]: 'bg-red-500/10 text-red-600 dark:text-red-400',
+    [IssueType.ChangeRequest]: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
+    [IssueType.Inquiry]: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+};
+
+const sourceTypeLabels: Record<string, { ar: string; en: string }> = {
+    [IssueType.Bug]: { ar: 'عطل', en: 'Bug' },
+    [IssueType.ChangeRequest]: { ar: 'طلب تعديل', en: 'CR' },
+    [IssueType.Inquiry]: { ar: 'استفسار', en: 'Inquiry' },
+};
+
+const SourceBadge: React.FC<{ issue: Issue; language: Language }> = ({ issue, language }) => {
+    const isExternal = !!issue.type && issue.type !== IssueType.Task;
+    if (!isExternal) {
+        return (
+            <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                {language === 'ar' ? 'داخلي' : 'Internal'}
+            </span>
+        );
+    }
+    const typeLabel = sourceTypeLabels[issue.type]?.[language] || issue.type;
+    return (
+        <div className="flex items-center gap-1.5">
+            <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                {language === 'ar' ? 'خارجي' : 'External'}
+            </span>
+            <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${sourceTypeColors[issue.type] || ''}`}>{typeLabel}</span>
+        </div>
+    );
+};
+
 // Sub-components
-const IssueRowComponent: React.FC<{ issue: Issue, allProjects: Project[], t: any, statusColors: any, onClick: () => void, language: Language, visibleColumns: string[], canDelete?: boolean, onDelete?: (id: string, title: string) => void }> = ({ issue, allProjects, t, statusColors, onClick, language, visibleColumns, canDelete, onDelete }) => {
-    const dueDate = getDueDate(issue.createdAt, issue.expectedDuration);
+const IssueRowComponent: React.FC<{ issue: Issue, allProjects: Project[], t: any, statusColors: any, onClick: () => void, language: Language, visibleColumns: string[], canDelete?: boolean, onDelete?: (id: string, title: string) => void, onViewHistory?: (issue: Issue) => void }> = ({ issue, allProjects, t, statusColors, onClick, language, visibleColumns, canDelete, onDelete, onViewHistory }) => {
+    // Customer tasks use the explicit assignee-set due date (a real
+    // calendar date, stored directly) rather than the internal
+    // expectedDuration/createdAt-derived one.
+    const dueDate = issue.type && issue.type !== IssueType.Task
+        ? (issue.dueDate ? new Date(issue.dueDate) : null)
+        : getDueDate(issue.createdAt, issue.expectedDuration);
     const overdue = isOverdue(dueDate) && issue.status !== IssueStatus.Closed && issue.status !== IssueStatus.Resolved;
 
     return (
@@ -433,6 +563,11 @@ const IssueRowComponent: React.FC<{ issue: Issue, allProjects: Project[], t: any
                     </div>
                 </td>
             )}
+            {visibleColumns.includes('source') && (
+                <td className="px-6 py-5">
+                    <SourceBadge issue={issue} language={language} />
+                </td>
+            )}
             {visibleColumns.includes('priority') && (
                 <td className="px-6 py-5">
                     <div className="flex items-center gap-2">
@@ -444,7 +579,9 @@ const IssueRowComponent: React.FC<{ issue: Issue, allProjects: Project[], t: any
             {visibleColumns.includes('status') && (
                 <td className="px-6 py-5">
                     <div className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase text-center inline-block ${statusColors[issue.status]}`}>
-                        {issue.status === IssueStatus.Open ? (language === 'ar' ? 'نشط' : 'ACTIVE') : issue.status}
+                        {issue.type && issue.type !== IssueType.Task
+                            ? customerStatusLabel(issue.status, language)
+                            : issue.status === IssueStatus.Open ? (language === 'ar' ? 'نشط' : 'ACTIVE') : issue.status}
                     </div>
                 </td>
             )}
@@ -491,23 +628,34 @@ const IssueRowComponent: React.FC<{ issue: Issue, allProjects: Project[], t: any
                 </td>
             )}
             <td className="px-6 py-5 text-right">
-                {canDelete && onDelete && (
-                    <div className="flex items-center gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-2 justify-end">
+                    {issue.type && issue.type !== IssueType.Task && onViewHistory && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onViewHistory(issue); }}
+                            title={t.history}
+                            className="p-1.5 hover:bg-violet-50 dark:hover:bg-violet-500/10 rounded-lg text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition-all"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </button>
+                    )}
+                    {canDelete && onDelete && (
                         <button
                             onClick={(e) => { e.stopPropagation(); onDelete(issue.id, issue.title); }}
-                            className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg text-slate-400 hover:text-red-500 transition-all"
+                            className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg text-slate-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
-                    </div>
-                )}
+                    )}
+                </div>
             </td>
         </tr>
     );
 };
 
 const IssueCard: React.FC<{ issue: Issue, onClick: () => void, currentUser?: User, t: any, priorityColors: any, statusColors: any, language: Language }> = ({ issue, onClick, currentUser, t, priorityColors, statusColors, language }) => {
-    const dueDate = getDueDate(issue.createdAt, issue.expectedDuration);
+    const dueDate = issue.type && issue.type !== IssueType.Task
+        ? (issue.dueDate ? new Date(issue.dueDate) : null)
+        : getDueDate(issue.createdAt, issue.expectedDuration);
     const overdue = isOverdue(dueDate) && issue.status !== IssueStatus.Closed && issue.status !== IssueStatus.Resolved;
 
     return (
@@ -516,12 +664,15 @@ const IssueCard: React.FC<{ issue: Issue, onClick: () => void, currentUser?: Use
             className={`bg-white dark:bg-[#111927] border-2 p-6 rounded-[2rem] shadow-sm hover:shadow-xl transition-all group flex flex-col justify-between h-full cursor-pointer hover:-translate-y-1 ${issue.assigneeId === currentUser?.id ? 'border-blue-200 dark:border-blue-900/30' : 'border-slate-50 dark:border-slate-800'} ${overdue ? 'ring-2 ring-red-500/20' : ''}`}>
             <div>
                 <div className="flex justify-between items-start mb-6">
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                         <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase ${priorityColors[issue.priority]}`}>{issue.priority === IssuePriority.Critical ? (language === 'ar' ? 'حرجة' : 'CRITICAL') : issue.priority}</span>
                         {overdue && <span className="px-2 py-0.5 rounded-lg text-[8px] font-black uppercase bg-red-500 text-white animate-pulse">{t.overdue}</span>}
+                        <SourceBadge issue={issue} language={language} />
                     </div>
                     <div className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase shadow-sm ${statusColors[issue.status]}`}>
-                        {issue.status === IssueStatus.Open ? (language === 'ar' ? 'نشط' : 'ACTIVE') : issue.status}
+                        {issue.type && issue.type !== IssueType.Task
+                            ? customerStatusLabel(issue.status, language)
+                            : issue.status === IssueStatus.Open ? (language === 'ar' ? 'نشط' : 'ACTIVE') : issue.status}
                     </div>
                 </div>
                 <h3 className="text-sm font-black text-slate-800 dark:text-white mb-2 line-clamp-2 leading-tight group-hover:text-blue-500 transition-colors uppercase tracking-tight">{issue.title}</h3>
@@ -549,10 +700,53 @@ const IssueCard: React.FC<{ issue: Issue, onClick: () => void, currentUser?: Use
     );
 };
 
-const IssueDetailModal: React.FC<{ issue: Issue, onClose: () => void, language: Language, currentUser?: User, psUsers: User[], onUpdateStatus: (s: IssueStatus) => Promise<void>, onReassign: (assigneeId: string) => Promise<void>, onAddComment: (c: string) => Promise<void> }> = ({ issue, onClose, language, currentUser, psUsers, onUpdateStatus, onReassign, onAddComment }) => {
+const IssueDetailModal: React.FC<{
+    issue: Issue, onClose: () => void, language: Language, currentUser?: User, psUsers: User[],
+    onUpdateStatus: (s: IssueStatus) => Promise<void>, onReassign: (assigneeId: string) => Promise<void>, onAddComment: (c: string) => Promise<void>,
+    onUploadAttachment?: (file: File) => Promise<void>,
+    onDeleteAttachment?: (attachmentId: string, filePath: string) => Promise<void>,
+    onGetAttachmentUrl?: (filePath: string) => Promise<string>,
+    onSetDueDate?: (dueDate: string) => Promise<void>,
+    onViewHistory?: (issue: Issue) => void,
+}> = ({ issue, onClose, language, currentUser, psUsers, onUpdateStatus, onReassign, onAddComment, onUploadAttachment, onDeleteAttachment, onGetAttachmentUrl, onSetDueDate, onViewHistory }) => {
     const t = translations[language];
     const [comment, setComment] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [downloadingId, setDownloadingId] = useState<string | null>(null);
+    const [dueDateInput, setDueDateInput] = useState(issue.dueDate || '');
+    const [isSavingDueDate, setIsSavingDueDate] = useState(false);
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+    const [isReassigning, setIsReassigning] = useState(false);
+    const canEditDueDate = !issue.dueDate || currentUser?.type === 'Manager';
+
+    const handleStatusChange = async (s: IssueStatus) => {
+        setIsUpdatingStatus(true);
+        try {
+            await onUpdateStatus(s);
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    };
+
+    const handleReassignChange = async (assigneeId: string) => {
+        setIsReassigning(true);
+        try {
+            await onReassign(assigneeId);
+        } finally {
+            setIsReassigning(false);
+        }
+    };
+
+    const handleSaveDueDate = async () => {
+        if (!dueDateInput || !onSetDueDate || isSavingDueDate) return;
+        setIsSavingDueDate(true);
+        try {
+            await onSetDueDate(dueDateInput);
+        } finally {
+            setIsSavingDueDate(false);
+        }
+    };
 
     const handleAddComment = async () => {
         if (!comment.trim() || isSaving) return;
@@ -565,6 +759,47 @@ const IssueDetailModal: React.FC<{ issue: Issue, onClose: () => void, language: 
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file || !onUploadAttachment || isUploading) return;
+        setIsUploading(true);
+        try {
+            await onUploadAttachment(file);
+        } catch (err) {
+            console.error("Failed to upload attachment", err);
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleDownload = async (attachmentId: string, filePath: string, fileName: string) => {
+        if (!onGetAttachmentUrl || downloadingId) return;
+        setDownloadingId(attachmentId);
+        try {
+            const url = await onGetAttachmentUrl(filePath);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } catch (err) {
+            console.error("Failed to get attachment URL", err);
+        } finally {
+            setDownloadingId(null);
+        }
+    };
+
+    const formatFileSize = (bytes: number | null) => {
+        if (!bytes) return '';
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     };
 
     return (
@@ -580,20 +815,47 @@ const IssueDetailModal: React.FC<{ issue: Issue, onClose: () => void, language: 
                 <div className="flex-1 p-10 overflow-y-auto custom-scrollbar flex flex-col">
                     <div className="flex justify-between items-start mb-10">
                         <div className="space-y-4">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 flex-wrap">
                                 <span className="px-3 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-500/20">
                                     {issue.project?.name || t.unknownProject}
                                 </span>
+                                {issue.project?.customer?.name && (
+                                    <span className="px-3 py-1 bg-violet-500/10 text-violet-600 dark:text-violet-400 rounded-full text-[10px] font-black uppercase tracking-widest border border-violet-500/20">
+                                        {issue.project.customer.name}
+                                    </span>
+                                )}
                                 <span className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest">#TSK-{issue.id.substring(0, 8)}</span>
+                                <SourceBadge issue={issue} language={language} />
+                                {issue.severity && (
+                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${severityColors[issue.severity]}`}>
+                                        {t.severity}: {issue.severity}
+                                    </span>
+                                )}
                             </div>
                             <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-tight tracking-tight">{issue.title}</h2>
+                            {issue.type && issue.type !== IssueType.Task && issue.reporter?.name && (
+                                <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                                    {language === 'ar' ? `مقدَّم من ${issue.reporter.name}` : `Submitted by ${issue.reporter.name}`}
+                                </p>
+                            )}
                         </div>
-                        <button 
-                            onClick={onClose} 
-                            className="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-50 dark:bg-slate-800/50 text-slate-400 hover:text-slate-800 dark:hover:text-white transition-all shadow-sm"
-                        >
-                            <X className="w-6 h-6" />
-                        </button>
+                        <div className="flex items-center gap-2 shrink-0">
+                            {issue.type && issue.type !== IssueType.Task && onViewHistory && (
+                                <button
+                                    onClick={() => onViewHistory(issue)}
+                                    title={t.history}
+                                    className="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-50 dark:bg-slate-800/50 text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition-all shadow-sm"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                </button>
+                            )}
+                            <button
+                                onClick={onClose}
+                                className="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-50 dark:bg-slate-800/50 text-slate-400 hover:text-slate-800 dark:hover:text-white transition-all shadow-sm"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
                     </div>
 
                     <div className="space-y-10">
@@ -611,29 +873,44 @@ const IssueDetailModal: React.FC<{ issue: Issue, onClose: () => void, language: 
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             <div className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm space-y-4">
                                 <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                     <ShieldCheck className="w-3.5 h-3.5" /> {t.status}
+                                    {isUpdatingStatus && <span className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />}
                                 </div>
-                                <select 
-                                    value={issue.status} 
-                                    onChange={(e) => onUpdateStatus(e.target.value as IssueStatus)} 
-                                    className="w-full bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl text-xs font-black outline-none border border-transparent focus:border-blue-500 transition-all"
-                                >
-                                    {Object.values(IssueStatus).map(s => <option key={s} value={s}>{s}</option>)}
-                                </select>
+                                {issue.type && issue.type !== IssueType.Task && currentUser?.type !== 'Manager' ? (
+                                    <div>
+                                        <p className="text-xs font-black text-slate-700 dark:text-slate-200">{customerStatusLabel(issue.status, language)}</p>
+                                        {issue.status === IssueStatus.Closed && (issue.reopenCount || 0) > 0 && (
+                                            <p className="text-[10px] font-bold text-slate-400 mt-1">
+                                                {language === 'ar' ? `أعيد فتحها ${issue.reopenCount} مرة` : `Reopened ${issue.reopenCount}x`}
+                                            </p>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <select
+                                        value={issue.status}
+                                        onChange={(e) => handleStatusChange(e.target.value as IssueStatus)}
+                                        disabled={isUpdatingStatus}
+                                        className="w-full bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl text-xs font-black outline-none border border-transparent focus:border-blue-500 transition-all disabled:opacity-50"
+                                    >
+                                        {Object.values(IssueStatus).map(s => <option key={s} value={s}>{issue.type && issue.type !== IssueType.Task ? customerStatusLabel(s, language) : s}</option>)}
+                                    </select>
+                                )}
                             </div>
 
                             <div className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm space-y-4">
                                 <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                     <UserIcon className="w-3.5 h-3.5" /> {t.assignedTo}
+                                    {isReassigning && <span className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />}
                                 </div>
-                                {(currentUser?.type === 'Manager' || currentUser?.type === 'TasksAdmin') ? (
+                                {(currentUser?.type === 'Manager' || currentUser?.type === 'TasksAdmin' || currentUser?.type === 'PM') ? (
                                     <select
                                         value={issue.assigneeId || ''}
-                                        onChange={(e) => onReassign(e.target.value)}
-                                        className="w-full bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl text-xs font-black outline-none border border-transparent focus:border-blue-500 transition-all"
+                                        onChange={(e) => handleReassignChange(e.target.value)}
+                                        disabled={isReassigning}
+                                        className="w-full bg-slate-50 dark:bg-slate-800 p-2.5 rounded-xl text-xs font-black outline-none border border-transparent focus:border-blue-500 transition-all disabled:opacity-50"
                                     >
                                         <option value="">{t.unassigned}</option>
                                         {psUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
@@ -653,13 +930,59 @@ const IssueDetailModal: React.FC<{ issue: Issue, onClose: () => void, language: 
 
                             <div className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm space-y-4">
                                 <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    <UserIcon className="w-3.5 h-3.5" /> {t.creator}
+                                </div>
+                                <div className="text-xs font-black text-slate-700 dark:text-slate-300">
+                                    {issue.reporter?.name || '—'}
+                                </div>
+                            </div>
+
+                            <div className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm space-y-4">
+                                <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                     <Calendar className="w-3.5 h-3.5" /> {t.reportedAt}
                                 </div>
                                 <div className="text-xs font-black text-slate-700 dark:text-slate-300">
                                     {new Date(issue.createdAt).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { dateStyle: 'long' })}
                                 </div>
+                                <div className="text-[10px] font-bold text-slate-400">
+                                    {t.openFor}: {(() => { const d = Math.max(0, Math.floor((Date.now() - new Date(issue.createdAt).getTime()) / 86400000)); return d === 0 ? t.today : `${d} ${d === 1 ? t.dayOpen : t.daysOpen}`; })()}
+                                </div>
                             </div>
                         </div>
+
+                        {issue.type && issue.type !== IssueType.Task && (
+                            <div className={`p-6 rounded-2xl border shadow-sm space-y-3 ${issue.dueDate ? 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800' : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30'}`}>
+                                <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    <Calendar className="w-3.5 h-3.5" /> {t.customerDueDate}
+                                </div>
+                                {canEditDueDate ? (
+                                    onSetDueDate ? (
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="date"
+                                                value={dueDateInput}
+                                                onChange={(e) => setDueDateInput(e.target.value)}
+                                                className="flex-1 p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                                            />
+                                            <button
+                                                onClick={handleSaveDueDate}
+                                                disabled={!dueDateInput || isSavingDueDate}
+                                                className="px-4 py-2.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:opacity-90 disabled:opacity-50"
+                                            >
+                                                {t.saveDueDate}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs font-bold text-amber-700 dark:text-amber-400">{t.dueDateRequired}</p>
+                                    )
+                                ) : (
+                                    <p className="text-sm font-black text-slate-700 dark:text-slate-200">
+                                        {new Date(issue.dueDate!).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { dateStyle: 'long' })}
+                                    </p>
+                                )}
+                                {issue.dueDate && currentUser?.type !== 'Manager' && <p className="text-[10px] font-bold text-slate-400">{t.dueDateLockedNote}</p>}
+                            </div>
+                        )}
 
                         {issue.expectedDuration && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -687,6 +1010,52 @@ const IssueDetailModal: React.FC<{ issue: Issue, onClose: () => void, language: 
                                 </div>
                             </div>
                         )}
+
+                        <div className="bg-white dark:bg-[#111927] border border-slate-100 dark:border-slate-800/80 p-8 rounded-[2rem]">
+                            <div className="flex items-center justify-between mb-5">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                    {t.attachments} ({(issue.attachments || []).length})
+                                </p>
+                                {onUploadAttachment && (
+                                    <label className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all ${isUploading ? 'opacity-50 pointer-events-none' : 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-500/20'}`}>
+                                        {isUploading ? t.uploading : t.addAttachment}
+                                        <input type="file" className="hidden" onChange={handleFileSelected} disabled={isUploading} />
+                                    </label>
+                                )}
+                            </div>
+                            {(issue.attachments || []).length > 0 ? (
+                                <div className="space-y-2">
+                                    {issue.attachments!.map(a => (
+                                        <div key={a.id} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl group">
+                                            <div className="w-9 h-9 rounded-lg bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center text-slate-400 shrink-0">
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDownload(a.id, a.filePath, a.fileName)}
+                                                disabled={!onGetAttachmentUrl || downloadingId === a.id}
+                                                className="flex-1 min-w-0 text-left rtl:text-right disabled:opacity-50"
+                                            >
+                                                <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{a.fileName}</p>
+                                                <p className="text-[10px] text-slate-400 mt-0.5">{formatFileSize(a.fileSize)}{a.uploader?.name ? ` • ${a.uploader.name}` : ''}</p>
+                                            </button>
+                                            {onDeleteAttachment && (currentUser?.id === a.uploadedBy || currentUser?.type === 'Manager' || currentUser?.type === 'TasksAdmin') && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onDeleteAttachment(a.id, a.filePath)}
+                                                    className="p-2 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-xs text-slate-400 italic">{t.noAttachments}</p>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -710,7 +1079,7 @@ const IssueDetailModal: React.FC<{ issue: Issue, onClose: () => void, language: 
                                 <div className="space-y-1.5 flex-1 min-w-0">
                                     <div className="flex justify-between items-center">
                                         <p className="text-[10px] font-black text-slate-700 dark:text-slate-300 leading-none">{c.user?.name}</p>
-                                        <span className="text-[8px] font-bold text-slate-400 uppercase">Just now</span>
+                                        <span className="text-[8px] font-bold text-slate-400 uppercase">{new Date(c.createdAt).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' })}</span>
                                     </div>
                                     <div className="p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 rounded-2xl rounded-tl-none shadow-sm text-xs text-slate-600 dark:text-slate-400 leading-relaxed group-hover:shadow-md transition-all">
                                         {c.content}
@@ -1028,12 +1397,20 @@ const translations = {
     ar: {
         title: "إدارة المهام والعيوب", subtitle: "تتبع المهام التقنية والعيوب وإسندها للمستخدمين.", newIssue: "إضافة مهمة", allProjects: "كل المشاريع", allStatuses: "كل الحالات", allAssignees: "كل الموظفين", project: "المشروع", milestone: "المعلم", assignedTo: "المسؤول عن التنفيذ", reportedAt: "تاريخ الإنشاء", unassigned: "غير مسند", cancel: "إلغاء", saveIssue: "حفظ المهمة", issueTitle: "عنوان المهمة", description: "وصف التفاصيل", selectProject: "اختر المشروع", selectMilestone: "اختر المعلم (اختياري)", selectAssignee: "اختر الشخص المسؤول", priority: "الأولوية", myIssues: "مهامي فقط", allIssues: "عرض كل المهام", you: "أنت (المسؤول)", noIssues: "لا توجد مهام مطابقة", status: "الحالة الحالية", comments: "ملاحظات وتحديثات التنفيذ", noComments: "لا توجد ملاحظات بعد.", addCommentPlaceholder: "أضف ملاحظة أو تحديث حول التنفيذ...", assigneeOnlyNote: "فقط الشخص المسؤول عن تنفيذ هذه المهمة يمكنه إضافة ملاحظات وتحديثات.", close: "إغلاق", gridView: "عرض البطاقات", groupedView: "عرض حسب المشروع", byAssignee: "حسب المسؤول", unknownProject: "مشروع غير معروف", issuesCount: "مهمة", exportExcel: "تصدير للاكسيل",
         expectedDuration: "المدة المتوقعة (بأيام العمل)", days: "أيام", dueDate: "تاريخ الاستحقاق", overdue: "متأخر", createdDate: "تاريخ البدء",
-        product: "المنتج", selectProduct: "اختر المنتج (اختياري)", resources: "المسؤولون عن التنفيذ", addResource: "إضافة شخص آخر"
+        product: "المنتج", selectProduct: "اختر المنتج (اختياري)", resources: "المسؤولون عن التنفيذ", addResource: "إضافة شخص آخر",
+        attachments: "المرفقات", addAttachment: "+ إضافة مرفق", uploading: "جارٍ الرفع...", noAttachments: "لا توجد مرفقات بعد.",
+        customerDueDate: "تاريخ التسليم (إلزامي - مهمة من عميل)", saveDueDate: "حفظ", dueDateRequired: "لسا ما تحدد تاريخ تسليم من المسؤول عن التنفيذ.", dueDateLockedNote: "محدّد - بس Manager يقدر يعدّله.",
+        creator: "أنشأها", openFor: "مفتوحة من", dayOpen: "يوم", daysOpen: "أيام", today: "اليوم", severity: "الخطورة", history: "سجل التاريخ",
+        allCustomers: "كل العملاء"
     },
     en: {
         title: "Tasks & Defects Management", subtitle: "Track technical tasks, defects and assign them to users.", newIssue: "Add Task", allProjects: "All Projects", allStatuses: "All Statuses", allAssignees: "All Assignees", project: "Project", milestone: "Milestone", assignedTo: "Assigned To", reportedAt: "Created At", unassigned: "Unassigned", cancel: "Cancel", saveIssue: "Save Task", issueTitle: "Task Title", description: "Details Description", selectProject: "Select Project", selectMilestone: "Select Milestone (Optional)", selectAssignee: "Select User", priority: "Priority", myIssues: "My Assigned Tasks", allIssues: "Show All Tasks", you: "You (Assigned)", noIssues: "No tasks found", status: "Current Status", comments: "Progress Notes & Updates", noComments: "No notes yet.", addCommentPlaceholder: "Add a note or progress update...", assigneeOnlyNote: "Only the user assigned to this task can add progress notes and updates.", close: "Close", gridView: "Grid Cards", groupedView: "Group by Project", byAssignee: "By Assignee", unknownProject: "Unknown Project", issuesCount: "Tasks", exportExcel: "Export Excel",
         expectedDuration: "Expected Duration (Work Days)", days: "Days", dueDate: "Due Date", overdue: "Overdue", createdDate: "Start Date",
-        product: "Product", selectProduct: "Select Product (Optional)", resources: "Assigned To", addResource: "Add another resource"
+        product: "Product", selectProduct: "Select Product (Optional)", resources: "Assigned To", addResource: "Add another resource",
+        attachments: "Attachments", addAttachment: "+ Add Attachment", uploading: "Uploading...", noAttachments: "No attachments yet.",
+        customerDueDate: "Due Date (Required - Customer Task)", saveDueDate: "Save", dueDateRequired: "The assignee hasn't set a due date yet.", dueDateLockedNote: "Locked - only a Manager can change it.",
+        creator: "Created By", openFor: "Open For", dayOpen: "day", daysOpen: "days", today: "Today", severity: "Severity", history: "History",
+        allCustomers: "All Customers"
     }
 };
 

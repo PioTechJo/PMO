@@ -1,7 +1,7 @@
 
 export type Language = 'ar' | 'en';
 export type Theme = 'light' | 'dark' | 'system';
-export type View = 'myTasks' | 'dashboard' | 'tasksOverview' | 'paymentsTargetsDashboard' | 'projects' | 'milestones' | 'team' | 'payments' | 'system' | 'maintenanceContracts' | 'maintenanceOverview' | 'filter' | 'reports' | 'issues' | 'customers';
+export type View = 'myTasks' | 'dashboard' | 'tasksOverview' | 'paymentsTargetsDashboard' | 'projects' | 'milestones' | 'team' | 'payments' | 'system' | 'maintenanceContracts' | 'maintenanceOverview' | 'filter' | 'reports' | 'issues' | 'customers' | 'clientIssues' | 'internalTasks' | 'customerTasks';
 export type ActivityLogType = 'call' | 'meeting' | 'email' | 'visit' | 'other';
 export type GroupingType = 'project' | 'assignee';
 export type TaskViewMode = 'byProject' | 'byAssignee';
@@ -18,6 +18,7 @@ export interface User {
     type?: string; // Roles: 'PM', 'PS', 'Staff', 'Client', 'Manager'
     department?: string | null;
     email?: string | null;
+    customerId?: string | null; // Only set for 'Client' users - links them to their Customer record.
 }
 
 export interface RolePermissions {
@@ -84,6 +85,18 @@ export interface IssueComment {
     content: string;
     createdAt: string;
     user?: User;
+}
+
+export interface IssueAttachment {
+    id: string;
+    issueId: string;
+    uploadedBy: string | null;
+    fileName: string;
+    filePath: string;
+    fileSize: number | null;
+    mimeType: string | null;
+    createdAt: string;
+    uploader?: User;
 }
 
 export type CustomerTier = 'VIP' | 'Standard' | 'Other';
@@ -170,6 +183,13 @@ export enum IssuePriority {
     Critical = 'Critical'
 }
 
+export enum IssueType {
+    Task = 'Task',
+    Bug = 'Bug',
+    ChangeRequest = 'ChangeRequest',
+    Inquiry = 'Inquiry'
+}
+
 export interface Milestone {
     id: string;
     title: string;
@@ -190,6 +210,7 @@ export interface Issue {
     description: string;
     status: IssueStatus;
     priority: IssuePriority;
+    type: IssueType;
     projectId: string;
     milestoneId: string | null;
     assigneeId: string | null;
@@ -198,6 +219,20 @@ export interface Issue {
     expectedDuration?: number | null;
     estimatedHours?: number | null;
     completedAt?: string | null;
+    // Explicit due date the assignee picks themselves - distinct from the
+    // internal expectedDuration/createdAt-derived due date. Used for
+    // Client Portal (customer-originated) tasks: mandatory for the
+    // assignee to set once, then locked - only a Manager can change it
+    // afterward (enforced server-side, see enforce_due_date_lock trigger).
+    dueDate?: string | null;
+    // Customer-task-only lifecycle counter: bumped server-side each time a
+    // Closed task is reopened (see enforce_customer_task_status_flow trigger).
+    reopenCount?: number;
+    // Customer-task-only: set by the reporter (Client Portal creator) when
+    // filing the task, editable only by the assignee/Manager afterward -
+    // distinct from the internal `priority` field, same Low/Medium/High/
+    // Critical scale (reuses IssuePriority).
+    severity?: IssuePriority | null;
     productId?: string | null;
     project?: Project;
     milestone?: Milestone;
@@ -205,6 +240,7 @@ export interface Issue {
     reporter?: User;
     product?: Lookup;
     comments?: IssueComment[];
+    attachments?: IssueAttachment[];
 }
 
 export interface Project {

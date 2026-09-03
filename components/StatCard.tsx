@@ -6,7 +6,7 @@ interface StatCardProps {
   value: string | number;
   icon?: React.ReactNode;
   variant?: 'gradient' | 'white';
-  color?: 'blue' | 'emerald' | 'orange' | 'red';
+  color?: 'blue' | 'emerald' | 'orange' | 'red' | 'violet';
   trend?: { val: string | number; label: string; type: 'up' | 'down' | 'warning' };
   badge?: { icon: React.ReactNode; label: string };
   progress?: number;
@@ -41,6 +41,13 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, variant = 'whit
       text: 'text-red-600',
       border: 'border-red-100 dark:border-red-900/30',
       shadow: 'shadow-red-500/10'
+    },
+    violet: {
+      gradient: 'from-[#5b21b6] to-[#8b5cf6]',
+      accent: 'bg-violet-500',
+      text: 'text-violet-600',
+      border: 'border-violet-100 dark:border-violet-900/30',
+      shadow: 'shadow-violet-500/10'
     }
   };
 

@@ -1,12 +1,14 @@
 
 import React, { useState } from 'react';
-import { User, Project, Issue, Language } from '../types';
+import { User, Project, Issue, Customer, Language } from '../types';
 import { inviteUser } from '../services/api';
+import SearchableSelect from './SearchableSelect';
 
 interface TeamProps {
   allUsers: User[];
   allProjects: Project[];
   allIssues: Issue[];
+  allCustomers: Customer[];
   language: Language;
   currentUser?: User;
   onUserInvited?: () => void;
@@ -24,11 +26,18 @@ const translations = {
     department: "القسم (اختياري)",
     typePM: "مدير مشروع (PM)",
     typePS: "خدمات احترافية (PS)",
+    typeDev: "مطوّر (Dev)",
     typeStaff: "موظف (Staff)",
     typeClient: "عميل (Client)",
     typeManager: "Manager (صلاحية كاملة على كل النظام)",
     typeTasksAdmin: "Tasks Admin (كل المهام بس، بدون مشاريع أو مدفوعات)",
     typeTopManagement: "Top Management (لوحة المتابعة والنظرة العامة والتقارير فقط)",
+    customer: "العميل المرتبط",
+    selectCustomer: "اختر عميل...",
+    searchCustomers: "بحث عن عميل...",
+    projects: "المشاريع المسموح رؤيتها",
+    selectProjects: "اختر مشروع واحد أو أكتر...",
+    noProjectsForCustomer: "لا يوجد مشاريع لهذا العميل بعد.",
     cancel: "إلغاء",
     send: "إرسال الدعوة",
     sending: "جارٍ الإرسال...",
@@ -42,6 +51,7 @@ const translations = {
     colMetric: "المؤشر",
     groupPM: "مديرو المشاريع",
     groupPS: "الخدمات الاحترافية",
+    groupDev: "المطوّرون",
     groupStaff: "الموظفون",
     groupClient: "العملاء",
     groupTopManagement: "الإدارة العليا",
@@ -58,11 +68,18 @@ const translations = {
     department: "Department (optional)",
     typePM: "Project Manager (PM)",
     typePS: "Professional Services (PS)",
+    typeDev: "Developer (Dev)",
     typeStaff: "Staff",
     typeClient: "Client",
     typeManager: "Manager (full access to everything)",
     typeTasksAdmin: "Tasks Admin (all tasks only, no projects or payments)",
     typeTopManagement: "Top Management (Dashboard, Overview & Reports only)",
+    customer: "Linked Customer",
+    selectCustomer: "Select a customer...",
+    searchCustomers: "Search customers...",
+    projects: "Projects They Can See",
+    selectProjects: "Select one or more projects...",
+    noProjectsForCustomer: "This customer has no projects yet.",
     cancel: "Cancel",
     send: "Send Invite",
     sending: "Sending...",
@@ -76,6 +93,7 @@ const translations = {
     colMetric: "Metric",
     groupPM: "Project Managers",
     groupPS: "Professional Services",
+    groupDev: "Developers",
     groupStaff: "Staff",
     groupClient: "Clients",
     groupTopManagement: "Top Management",
@@ -86,30 +104,45 @@ const translations = {
 const TYPE_GROUPS: { key: string; typeValue: string }[] = [
   { key: 'groupPM', typeValue: 'PM' },
   { key: 'groupPS', typeValue: 'PS' },
+  { key: 'groupDev', typeValue: 'Dev' },
   { key: 'groupStaff', typeValue: 'Staff' },
   { key: 'groupClient', typeValue: 'Client' },
   { key: 'groupTopManagement', typeValue: 'TopManagement' },
 ];
 
-const InviteUserModal: React.FC<{ language: Language; onClose: () => void; onInvited: () => void }> = ({ language, onClose, onInvited }) => {
+const InviteUserModal: React.FC<{ language: Language; allCustomers: Customer[]; allProjects: Project[]; onClose: () => void; onInvited: () => void }> = ({ language, allCustomers, allProjects, onClose, onInvited }) => {
   const t = translations[language];
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [type, setType] = useState('PM');
   const [department, setDepartment] = useState('');
+  const [customerId, setCustomerId] = useState('');
+  const [projectIds, setProjectIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successEmail, setSuccessEmail] = useState('');
 
   const inputClasses = "w-full p-3 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 text-slate-800 dark:text-white transition-all";
+  const customerOptions = allCustomers.map(c => ({ value: c.id, label: c.name }));
+  const customerProjectOptions = allProjects.filter(p => p.customerId === customerId).map(p => ({ value: p.id, label: p.name }));
+
+  const handleCustomerChange = (val: string) => {
+    setCustomerId(val);
+    setProjectIds([]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email) return;
+    if (type === 'Client' && (!customerId || projectIds.length === 0)) return;
     setLoading(true);
     setError('');
     try {
-      await inviteUser({ email, name, type, department: department || null });
+      await inviteUser({
+        email, name, type, department: department || null,
+        customerId: type === 'Client' ? customerId : null,
+        projectIds: type === 'Client' ? projectIds : undefined,
+      });
       setSuccessEmail(email);
       onInvited();
     } catch (err: any) {
@@ -146,6 +179,7 @@ const InviteUserModal: React.FC<{ language: Language; onClose: () => void; onInv
                 <select value={type} onChange={(e) => setType(e.target.value)} className={inputClasses}>
                   <option value="PM">{t.typePM}</option>
                   <option value="PS">{t.typePS}</option>
+                  <option value="Dev">{t.typeDev}</option>
                   <option value="Staff">{t.typeStaff}</option>
                   <option value="Client">{t.typeClient}</option>
                   <option value="Manager">{t.typeManager}</option>
@@ -153,6 +187,22 @@ const InviteUserModal: React.FC<{ language: Language; onClose: () => void; onInv
                   <option value="TopManagement">{t.typeTopManagement}</option>
                 </select>
               </div>
+              {type === 'Client' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.customer}</label>
+                  <SearchableSelect options={customerOptions} value={customerId} onChange={handleCustomerChange} placeholder={t.selectCustomer} searchPlaceholder={t.searchCustomers} language={language} />
+                </div>
+              )}
+              {type === 'Client' && customerId && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.projects}</label>
+                  {customerProjectOptions.length > 0 ? (
+                    <SearchableSelect isMulti options={customerProjectOptions} value={projectIds} onChange={setProjectIds} placeholder={t.selectProjects} language={language} />
+                  ) : (
+                    <p className="text-xs text-slate-400 italic p-2">{t.noProjectsForCustomer}</p>
+                  )}
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">{t.department}</label>
                 <input type="text" value={department} onChange={(e) => setDepartment(e.target.value)} className={inputClasses} />
@@ -220,7 +270,7 @@ const UserListSection: React.FC<{
   </div>
 );
 
-const Team: React.FC<TeamProps> = ({ allUsers, allProjects, allIssues, language, currentUser, onUserInvited }) => {
+const Team: React.FC<TeamProps> = ({ allUsers, allProjects, allIssues, allCustomers, language, currentUser, onUserInvited }) => {
   const t = translations[language];
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const isManager = currentUser?.type === 'Manager';
@@ -275,6 +325,8 @@ const Team: React.FC<TeamProps> = ({ allUsers, allProjects, allIssues, language,
       {isInviteOpen && (
         <InviteUserModal
           language={language}
+          allCustomers={allCustomers}
+          allProjects={allProjects}
           onClose={() => setIsInviteOpen(false)}
           onInvited={() => onUserInvited?.()}
         />

@@ -62,7 +62,10 @@ const SystemManagement: React.FC<SystemManagementProps> = ({ lookups, onUpdate, 
         { id: 'maintenanceContracts', label: language === 'ar' ? 'عقود الصيانة' : 'Maintenance Contracts' },
         { id: 'maintenanceOverview', label: language === 'ar' ? 'نظرة عامة على الصيانة' : 'Maintenance Overview' },
         { id: 'issues', label: language === 'ar' ? 'سجل الأعطال' : 'Issues Log' },
+        { id: 'internalTasks', label: language === 'ar' ? 'المهام الداخلية' : 'Internal Tasks' },
+        { id: 'customerTasks', label: language === 'ar' ? 'مهام العملاء' : 'Customer Tasks' },
         { id: 'system', label: language === 'ar' ? 'إدارة النظام' : 'System Mgt' },
+        { id: 'clientIssues', label: language === 'ar' ? 'بوابة العملاء' : 'Client Portal' },
     ];
 
     const togglePermission = (role: string, view: View) => {

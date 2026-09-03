@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import KPIDashboard from './components/KPIDashboard';
 import MyTasks from './components/MyTasks';
+import ClientIssues from './components/ClientIssues';
 import TasksOverview from './components/TasksOverview';
 import DashboardTabs from './components/DashboardTabs';
 import Projects from './components/Projects';
@@ -24,6 +25,7 @@ import MilestoneDetailModal from './components/MilestoneDetailModal';
 import ConfirmDeleteModal from './components/ConfirmDeleteModal';
 import Customers from './components/Customers';
 import CustomerProfileModal from './components/CustomerProfileModal';
+import TaskHistory from './components/TaskHistory';
 import { Language, Theme, View, Project, Milestone, User, Lookups, MaintenanceContract, Issue, IssueStatus, Notification, RolePermissions, Customer } from './types';
 import {
     fetchAllData,
@@ -39,6 +41,9 @@ import {
     updateIssue as apiUpdateIssue,
     deleteIssue as apiDeleteIssue,
     addIssueComment as apiAddIssueComment,
+    uploadIssueAttachment as apiUploadIssueAttachment,
+    deleteIssueAttachment as apiDeleteIssueAttachment,
+    getIssueAttachmentUrl as apiGetIssueAttachmentUrl,
     addCustomer as apiAddCustomer,
     updateCustomer as apiUpdateCustomer,
     logLoginEvent,
@@ -68,9 +73,13 @@ const App: React.FC = () => {
         // actually gets issues assigned to them (see AddIssueModal's
         // assignee list). Everyone else keeps their existing landing page.
         const defaultPermissions = [
-            { role: 'Manager', allowedViews: ['dashboard', 'tasksOverview', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'maintenanceOverview', 'system', 'issues', 'customers'] },
-            { role: 'PM', allowedViews: ['dashboard', 'tasksOverview', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'maintenanceOverview', 'issues', 'customers'] },
+            { role: 'Manager', allowedViews: ['dashboard', 'tasksOverview', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'maintenanceOverview', 'system', 'issues', 'customers', 'internalTasks', 'customerTasks'] },
+            { role: 'PM', allowedViews: ['dashboard', 'tasksOverview', 'paymentsTargetsDashboard', 'filter', 'projects', 'milestones', 'team', 'payments', 'reports', 'maintenanceContracts', 'maintenanceOverview', 'issues', 'customers', 'internalTasks', 'customerTasks'] },
             { role: 'PS', allowedViews: ['myTasks', 'tasksOverview', 'issues'] },
+            // Individual-contributor resource, same reach as PS - gets
+            // tasks assigned to them, works My Tasks, no project/creation
+            // access.
+            { role: 'Dev', allowedViews: ['myTasks', 'tasksOverview', 'issues'] },
             { role: 'Staff', allowedViews: ['dashboard', 'tasksOverview', 'projects', 'issues'] },
             { role: 'User', allowedViews: ['dashboard', 'tasksOverview', 'projects', 'issues'] },
             // Sees/manages every task across every project, but has no
@@ -79,7 +88,11 @@ const App: React.FC = () => {
             { role: 'TasksAdmin', allowedViews: ['tasksOverview', 'issues'] },
             // Read-only exec view: high-level dashboards and reports only,
             // no access to editing projects/milestones/payments/team etc.
-            { role: 'TopManagement', allowedViews: ['paymentsTargetsDashboard', 'dashboard', 'tasksOverview', 'maintenanceOverview', 'reports'] }
+            { role: 'TopManagement', allowedViews: ['paymentsTargetsDashboard', 'dashboard', 'tasksOverview', 'maintenanceOverview', 'reports'] },
+            // External customer portal user (linked to a Customer via
+            // users.customer_id) - can only file/view/comment on their own
+            // issues, nothing else. Deliberately minimal MVP scope.
+            { role: 'Client', allowedViews: ['clientIssues'] }
         ];
         const saved = localStorage.getItem('rolePermissions');
         if (!saved) return defaultPermissions;
@@ -104,11 +117,26 @@ const App: React.FC = () => {
             if (!migrated.some((p: any) => p.role === 'TopManagement')) {
                 migrated = [...migrated, { role: 'TopManagement', allowedViews: ['paymentsTargetsDashboard', 'dashboard', 'tasksOverview', 'maintenanceOverview', 'reports'] }];
             }
-            // Migrate: give only PS access to the new My Tasks page; strip it
-            // from any other role that may have picked it up in a previous
-            // (broader) version of this migration.
+            // Migrate: add the new Client (portal) role if it's missing
+            if (!migrated.some((p: any) => p.role === 'Client')) {
+                migrated = [...migrated, { role: 'Client', allowedViews: ['clientIssues'] }];
+            }
+            // Migrate: add the new Dev role if it's missing
+            if (!migrated.some((p: any) => p.role === 'Dev')) {
+                migrated = [...migrated, { role: 'Dev', allowedViews: ['myTasks', 'tasksOverview', 'issues'] }];
+            }
+            // Migrate: grant the new Internal/Customer Tasks views to any
+            // role that already had the general Tasks Management (issues) view.
+            migrated = migrated.map((p: any) => (
+                p.allowedViews.includes('issues') && !p.allowedViews.includes('internalTasks')
+                    ? { ...p, allowedViews: [...p.allowedViews, 'internalTasks', 'customerTasks'] }
+                    : p
+            ));
+            // Migrate: give only PS/Dev access to the new My Tasks page;
+            // strip it from any other role that may have picked it up in a
+            // previous (broader) version of this migration.
             migrated = migrated.map((p: any) => {
-                const shouldHave = p.role === 'PS';
+                const shouldHave = p.role === 'PS' || p.role === 'Dev';
                 const has = p.allowedViews.includes('myTasks');
                 if (shouldHave && !has) return { ...p, allowedViews: ['myTasks', ...p.allowedViews] };
                 if (!shouldHave && has) return { ...p, allowedViews: p.allowedViews.filter((v: string) => v !== 'myTasks') };
@@ -132,6 +160,7 @@ const App: React.FC = () => {
     const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
     const [viewingMilestone, setViewingMilestone] = useState<Milestone | null>(null);
     const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
+    const [viewingHistoryIssueId, setViewingHistoryIssueId] = useState<string | null>(null);
     const [deletingProject, setDeletingProject] = useState<Project | null>(null);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
@@ -235,6 +264,25 @@ const App: React.FC = () => {
         }
     }, [session, loadData]);
 
+    // Status/severity/due-date/assignee changes were feeling frozen because
+    // the UI waited for a full loadData() (every table, ~15 queries) before
+    // showing anything different. Update the row locally the instant the
+    // user acts, write to the server in the background, and only roll the
+    // local change back if the server actually rejected it (e.g. one of the
+    // status-lock triggers) - loadData() still runs after, to pick up
+    // server-computed fields like reopen_count, but the UI doesn't wait on it.
+    const handleUpdateIssue = useCallback(async (id: string, data: Partial<Issue>) => {
+        const previous = issues.find(i => i.id === id);
+        setIssues(prev => prev.map(i => i.id === id ? { ...i, ...data } : i));
+        try {
+            await apiUpdateIssue(id, data);
+            loadData();
+        } catch (err) {
+            if (previous) setIssues(prev => prev.map(i => i.id === id ? previous : i));
+            throw err;
+        }
+    }, [issues, loadData]);
+
     const handleLogout = async () => {
         if (supabaseClient) {
             await supabaseClient.auth.signOut();
@@ -266,7 +314,7 @@ const App: React.FC = () => {
                 isCollapsed={isSidebarCollapsed}
                 onToggleCollapse={toggleSidebarCollapse}
                 projectsCount={projects.length}
-                openTasksCount={issues.filter(i => i.status === IssueStatus.Open || i.status === IssueStatus.InProgress).length}
+                openTasksCount={issues.filter(i => i.status !== IssueStatus.Closed).length}
             />
 
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -278,20 +326,24 @@ const App: React.FC = () => {
                     isSidebarCollapsed={isSidebarCollapsed}
                     onToggleSidebarCollapse={toggleSidebarCollapse}
                     notifications={notifications} onNotificationRead={loadData}
+                    view={view}
                 />
 
                 <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 custom-scrollbar">
-                    {view === 'myTasks' && allowedViews.includes('myTasks') && <MyTasks allIssues={issues} allProjects={projects} currentUser={currentUser} language={language} onUpdateIssue={async (id, d) => { await apiUpdateIssue(id, d); loadData(); }} onAddComment={async (id, uid, c) => { await apiAddIssueComment(id, uid, c); loadData(); }} />}
+                    {view === 'myTasks' && allowedViews.includes('myTasks') && <MyTasks allIssues={issues} allProjects={projects} currentUser={currentUser} language={language} onUpdateIssue={handleUpdateIssue} onAddComment={async (id, uid, c) => { await apiAddIssueComment(id, uid, c); loadData(); }} onUploadAttachment={async (id, uid, file) => { await apiUploadIssueAttachment(id, uid, file); loadData(); }} onDeleteAttachment={async (id, path) => { await apiDeleteIssueAttachment(id, path); loadData(); }} onGetAttachmentUrl={apiGetIssueAttachmentUrl} onViewHistory={(issue) => setViewingHistoryIssueId(issue.id)} />}
+                    {view === 'clientIssues' && allowedViews.includes('clientIssues') && <ClientIssues allIssues={issues} allProjects={projects} currentUser={currentUser} language={language} onAddIssue={async (d) => { await apiAddIssue(d); loadData(); }} onAddComment={async (id, uid, c) => { await apiAddIssueComment(id, uid, c); loadData(); }} onUpdateIssue={handleUpdateIssue} onUploadAttachment={async (id, uid, file) => { await apiUploadIssueAttachment(id, uid, file); loadData(); }} onDeleteAttachment={async (id, path) => { await apiDeleteIssueAttachment(id, path); loadData(); }} onGetAttachmentUrl={apiGetIssueAttachmentUrl} onViewHistory={(issue) => setViewingHistoryIssueId(issue.id)} />}
                     {view === 'dashboard' && allowedViews.includes('dashboard') && <KPIDashboard projects={projects} milestones={milestones} issues={issues} allUsers={users} projectManagers={lookups.projectManagers} language={language} />}
-                    {view === 'tasksOverview' && allowedViews.includes('tasksOverview') && <TasksOverview issues={issues} projects={projects} allUsers={users} language={language} currentUser={currentUser} onUpdateIssue={async (id, d) => { await apiUpdateIssue(id, d); loadData(); }} onAddComment={async (id, uid, c) => { await apiAddIssueComment(id, uid, c); loadData(); }} />}
+                    {view === 'tasksOverview' && allowedViews.includes('tasksOverview') && <TasksOverview issues={issues} projects={projects} allUsers={users} language={language} currentUser={currentUser} onUpdateIssue={handleUpdateIssue} onAddComment={async (id, uid, c) => { await apiAddIssueComment(id, uid, c); loadData(); }} />}
                     {view === 'paymentsTargetsDashboard' && allowedViews.includes('paymentsTargetsDashboard') && <DashboardTabs allProjects={projects} allMilestones={milestones} allProjectManagers={lookups.projectManagers} lookups={lookups} language={language} />}
                     {view === 'projects' && allowedViews.includes('projects') && <Projects allProjects={projects} allMilestones={milestones} allIssues={issues} allUsers={users} language={language} onAddProject={async (d) => { const created = await apiAddProject(d); await loadData(); return created; }} onAddMilestones={async (d) => { await apiAddMilestones(d); loadData(); }} onOpenEditModal={setEditingProject} onOpenDeleteModal={setDeletingProject} lookups={lookups} isImportModalOpen={isImportModalOpen} onOpenImportModal={() => setIsImportModalOpen(true)} onCloseImportModal={() => setIsImportModalOpen(false)} onImportProjects={async () => {}} currentUser={currentUser} />}
                     {view === 'milestones' && allowedViews.includes('milestones') && <Milestones allMilestones={milestones} allProjects={projects} language={language} onOpenEditModal={setEditingMilestone} onViewMilestoneDetails={setViewingMilestone} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} onRefresh={loadData} lookups={lookups} currentUser={currentUser} />}
-                    {view === 'team' && allowedViews.includes('team') && <Team allUsers={users} allProjects={projects} allIssues={issues} language={language} currentUser={currentUser} onUserInvited={loadData} />}
+                    {view === 'team' && allowedViews.includes('team') && <Team allUsers={users} allProjects={projects} allIssues={issues} allCustomers={lookups.customers} language={language} currentUser={currentUser} onUserInvited={loadData} />}
                     {view === 'payments' && allowedViews.includes('payments') && <Payments allProjects={projects} allMilestones={milestones} allTeams={lookups.teams} language={language} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} />}
                     {view === 'maintenanceContracts' && allowedViews.includes('maintenanceContracts') && <MaintenanceContracts contracts={maintenanceContracts} customers={lookups.customers} language={language} onAddContract={async (d) => { await apiAddContract(d); loadData(); }} onUpdateContract={async (id, d) => { await apiUpdateContract(id, d); loadData(); }} />}
                     {view === 'maintenanceOverview' && allowedViews.includes('maintenanceOverview') && <MaintenanceOverview maintenanceContracts={maintenanceContracts} customers={lookups.customers} language={language} />}
-                    {view === 'issues' && allowedViews.includes('issues') && <Issues allIssues={issues} allProjects={projects} allMilestones={milestones} allUsers={users} language={language} onAddIssue={async (d) => { await apiAddIssue(d); loadData(); }} onUpdateIssue={async (id, d) => { await apiUpdateIssue(id, d); loadData(); }} onAddComment={async (id, uid, c) => { await apiAddIssueComment(id, uid, c); loadData(); }} onDeleteIssue={async (id) => { await apiDeleteIssue(id); setIssues(prev => prev.filter(i => i.id !== id)); loadData(); }} currentUser={currentUser} />}
+                    {view === 'issues' && allowedViews.includes('issues') && <Issues allIssues={issues} allProjects={projects} allMilestones={milestones} allUsers={users} language={language} onAddIssue={async (d) => { await apiAddIssue(d); loadData(); }} onUpdateIssue={handleUpdateIssue} onAddComment={async (id, uid, c) => { await apiAddIssueComment(id, uid, c); loadData(); }} onDeleteIssue={async (id) => { await apiDeleteIssue(id); setIssues(prev => prev.filter(i => i.id !== id)); loadData(); }} onUploadAttachment={async (id, uid, file) => { await apiUploadIssueAttachment(id, uid, file); loadData(); }} onDeleteAttachment={async (id, path) => { await apiDeleteIssueAttachment(id, path); loadData(); }} onGetAttachmentUrl={apiGetIssueAttachmentUrl} onViewHistory={(issue) => setViewingHistoryIssueId(issue.id)} currentUser={currentUser} />}
+                    {view === 'internalTasks' && allowedViews.includes('internalTasks') && <Issues allIssues={issues} allProjects={projects} allMilestones={milestones} allUsers={users} language={language} onAddIssue={async (d) => { await apiAddIssue(d); loadData(); }} onUpdateIssue={handleUpdateIssue} onAddComment={async (id, uid, c) => { await apiAddIssueComment(id, uid, c); loadData(); }} onDeleteIssue={async (id) => { await apiDeleteIssue(id); setIssues(prev => prev.filter(i => i.id !== id)); loadData(); }} onUploadAttachment={async (id, uid, file) => { await apiUploadIssueAttachment(id, uid, file); loadData(); }} onDeleteAttachment={async (id, path) => { await apiDeleteIssueAttachment(id, path); loadData(); }} onGetAttachmentUrl={apiGetIssueAttachmentUrl} onViewHistory={(issue) => setViewingHistoryIssueId(issue.id)} currentUser={currentUser} lockedSource="internal" />}
+                    {view === 'customerTasks' && allowedViews.includes('customerTasks') && <Issues allIssues={issues} allProjects={projects} allMilestones={milestones} allUsers={users} language={language} onAddIssue={async (d) => { await apiAddIssue(d); loadData(); }} onUpdateIssue={handleUpdateIssue} onAddComment={async (id, uid, c) => { await apiAddIssueComment(id, uid, c); loadData(); }} onDeleteIssue={async (id) => { await apiDeleteIssue(id); setIssues(prev => prev.filter(i => i.id !== id)); loadData(); }} onUploadAttachment={async (id, uid, file) => { await apiUploadIssueAttachment(id, uid, file); loadData(); }} onDeleteAttachment={async (id, path) => { await apiDeleteIssueAttachment(id, path); loadData(); }} onGetAttachmentUrl={apiGetIssueAttachmentUrl} onViewHistory={(issue) => setViewingHistoryIssueId(issue.id)} currentUser={currentUser} lockedSource="external" />}
                     {view === 'system' && allowedViews.includes('system') && <SystemManagement lookups={lookups} onUpdate={apiUpdateLookups} language={language} onSaveConfig={(k, u) => { localStorage.setItem('supabaseAnonKey', k); localStorage.setItem('supabaseUrl', u); setupClient(k, u); }} rolePermissions={rolePermissions} onUpdatePermissions={(p) => { setRolePermissions(p); localStorage.setItem('rolePermissions', JSON.stringify(p)); }} allUsers={users} currentUser={currentUser} />}
                     {view === 'filter' && allowedViews.includes('filter') && <MilestoneFilter projects={projects} milestones={milestones} teams={lookups.teams} customers={lookups.customers} projectManagers={lookups.projectManagers} language={language} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} />}
                     {view === 'reports' && allowedViews.includes('reports') && <ReportsBuilder projects={projects} milestones={milestones} issues={issues} users={users} teams={lookups.teams} language={language} />}
@@ -317,6 +369,12 @@ const App: React.FC = () => {
                     onUpdateCustomer={async (id, d) => { await apiUpdateCustomer(id, d); loadData(); }}
                 />
             )}
+            {viewingHistoryIssueId && (() => {
+                const historyIssue = issues.find(i => i.id === viewingHistoryIssueId);
+                return historyIssue ? (
+                    <TaskHistory issue={historyIssue} language={language} onClose={() => setViewingHistoryIssueId(null)} />
+                ) : null;
+            })()}
             <style>{`@keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }`}</style>
         </div>
     );
