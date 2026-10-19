@@ -89,6 +89,9 @@ const App: React.FC = () => {
             // Read-only exec view: high-level dashboards and reports only,
             // no access to editing projects/milestones/payments/team etc.
             { role: 'TopManagement', allowedViews: ['paymentsTargetsDashboard', 'dashboard', 'tasksOverview', 'maintenanceOverview', 'reports'] },
+            // Finance: sees the Payments page only, read-only (see the
+            // CFO RLS migration - no write access to milestones).
+            { role: 'CFO', allowedViews: ['payments'] },
             // External customer portal user (linked to a Customer via
             // users.customer_id) - can only file/view/comment on their own
             // issues, nothing else. Deliberately minimal MVP scope.
@@ -116,6 +119,10 @@ const App: React.FC = () => {
             // Migrate: add the new TopManagement role if it's missing
             if (!migrated.some((p: any) => p.role === 'TopManagement')) {
                 migrated = [...migrated, { role: 'TopManagement', allowedViews: ['paymentsTargetsDashboard', 'dashboard', 'tasksOverview', 'maintenanceOverview', 'reports'] }];
+            }
+            // Migrate: add the new CFO role if it's missing
+            if (!migrated.some((p: any) => p.role === 'CFO')) {
+                migrated = [...migrated, { role: 'CFO', allowedViews: ['payments'] }];
             }
             // Migrate: add the new Client (portal) role if it's missing
             if (!migrated.some((p: any) => p.role === 'Client')) {
@@ -338,7 +345,7 @@ const App: React.FC = () => {
                     {view === 'projects' && allowedViews.includes('projects') && <Projects allProjects={projects} allMilestones={milestones} allIssues={issues} allUsers={users} language={language} onAddProject={async (d) => { const created = await apiAddProject(d); await loadData(); return created; }} onAddMilestones={async (d) => { await apiAddMilestones(d); loadData(); }} onOpenEditModal={setEditingProject} onOpenDeleteModal={setDeletingProject} lookups={lookups} isImportModalOpen={isImportModalOpen} onOpenImportModal={() => setIsImportModalOpen(true)} onCloseImportModal={() => setIsImportModalOpen(false)} onImportProjects={async () => {}} currentUser={currentUser} />}
                     {view === 'milestones' && allowedViews.includes('milestones') && <Milestones allMilestones={milestones} allProjects={projects} language={language} onOpenEditModal={setEditingMilestone} onViewMilestoneDetails={setViewingMilestone} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} onRefresh={loadData} lookups={lookups} currentUser={currentUser} />}
                     {view === 'team' && allowedViews.includes('team') && <Team allUsers={users} allProjects={projects} allIssues={issues} allCustomers={lookups.customers} language={language} currentUser={currentUser} onUserInvited={loadData} />}
-                    {view === 'payments' && allowedViews.includes('payments') && <Payments allProjects={projects} allMilestones={milestones} allTeams={lookups.teams} language={language} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} />}
+                    {view === 'payments' && allowedViews.includes('payments') && <Payments allProjects={projects} allMilestones={milestones} allTeams={lookups.teams} language={language} readOnly={currentUser?.type === 'CFO'} onUpdateMilestone={async (id, d) => { await apiUpdateMilestone(id, d); loadData(); }} />}
                     {view === 'maintenanceContracts' && allowedViews.includes('maintenanceContracts') && <MaintenanceContracts contracts={maintenanceContracts} customers={lookups.customers} language={language} onAddContract={async (d) => { await apiAddContract(d); loadData(); }} onUpdateContract={async (id, d) => { await apiUpdateContract(id, d); loadData(); }} />}
                     {view === 'maintenanceOverview' && allowedViews.includes('maintenanceOverview') && <MaintenanceOverview maintenanceContracts={maintenanceContracts} customers={lookups.customers} language={language} />}
                     {view === 'issues' && allowedViews.includes('issues') && <Issues allIssues={issues} allProjects={projects} allMilestones={milestones} allUsers={users} language={language} onAddIssue={async (d) => { await apiAddIssue(d); loadData(); }} onUpdateIssue={handleUpdateIssue} onAddComment={async (id, uid, c) => { await apiAddIssueComment(id, uid, c); loadData(); }} onDeleteIssue={async (id) => { await apiDeleteIssue(id); setIssues(prev => prev.filter(i => i.id !== id)); loadData(); }} onUploadAttachment={async (id, uid, file) => { await apiUploadIssueAttachment(id, uid, file); loadData(); }} onDeleteAttachment={async (id, path) => { await apiDeleteIssueAttachment(id, path); loadData(); }} onGetAttachmentUrl={apiGetIssueAttachmentUrl} onViewHistory={(issue) => setViewingHistoryIssueId(issue.id)} currentUser={currentUser} />}

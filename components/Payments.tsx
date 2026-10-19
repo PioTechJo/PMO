@@ -10,9 +10,10 @@ interface PaymentsProps {
     allTeams: Lookup[];
     language: Language;
     onUpdateMilestone: (milestoneId: string, updatedData: Partial<Omit<Milestone, 'id'>>) => Promise<void>;
+    readOnly?: boolean;
 }
 
-const Payments: React.FC<PaymentsProps> = ({ allProjects, allMilestones, allTeams, language, onUpdateMilestone }) => {
+const Payments: React.FC<PaymentsProps> = ({ allProjects, allMilestones, allTeams, language, onUpdateMilestone, readOnly = false }) => {
     const [selectedProjectId, setSelectedProjectId] = useState<string>('');
     const t = translations[language];
 
@@ -94,6 +95,7 @@ const Payments: React.FC<PaymentsProps> = ({ allProjects, allMilestones, allTeam
                                                 team={getTeamById(milestone.teamId)}
                                                 language={language}
                                                 onUpdateMilestone={onUpdateMilestone}
+                                                readOnly={readOnly}
                                             />
                                         ))}
                                     </tbody>

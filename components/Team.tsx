@@ -32,6 +32,7 @@ const translations = {
     typeManager: "Manager (صلاحية كاملة على كل النظام)",
     typeTasksAdmin: "Tasks Admin (كل المهام بس، بدون مشاريع أو مدفوعات)",
     typeTopManagement: "Top Management (لوحة المتابعة والنظرة العامة والتقارير فقط)",
+    typeCFO: "CFO (صفحة الدفعات للعرض فقط)",
     customer: "العميل المرتبط",
     selectCustomer: "اختر عميل...",
     searchCustomers: "بحث عن عميل...",
@@ -55,6 +56,7 @@ const translations = {
     groupStaff: "الموظفون",
     groupClient: "العملاء",
     groupTopManagement: "الإدارة العليا",
+    groupCFO: "المدير المالي (CFO)",
     groupOther: "أخرى",
   },
   en: {
@@ -74,6 +76,7 @@ const translations = {
     typeManager: "Manager (full access to everything)",
     typeTasksAdmin: "Tasks Admin (all tasks only, no projects or payments)",
     typeTopManagement: "Top Management (Dashboard, Overview & Reports only)",
+    typeCFO: "CFO (Payments page, view only)",
     customer: "Linked Customer",
     selectCustomer: "Select a customer...",
     searchCustomers: "Search customers...",
@@ -97,6 +100,7 @@ const translations = {
     groupStaff: "Staff",
     groupClient: "Clients",
     groupTopManagement: "Top Management",
+    groupCFO: "CFO",
     groupOther: "Other",
   }
 };
@@ -108,6 +112,7 @@ const TYPE_GROUPS: { key: string; typeValue: string }[] = [
   { key: 'groupStaff', typeValue: 'Staff' },
   { key: 'groupClient', typeValue: 'Client' },
   { key: 'groupTopManagement', typeValue: 'TopManagement' },
+  { key: 'groupCFO', typeValue: 'CFO' },
 ];
 
 const InviteUserModal: React.FC<{ language: Language; allCustomers: Customer[]; allProjects: Project[]; onClose: () => void; onInvited: () => void }> = ({ language, allCustomers, allProjects, onClose, onInvited }) => {
@@ -185,6 +190,7 @@ const InviteUserModal: React.FC<{ language: Language; allCustomers: Customer[]; 
                   <option value="Manager">{t.typeManager}</option>
                   <option value="TasksAdmin">{t.typeTasksAdmin}</option>
                   <option value="TopManagement">{t.typeTopManagement}</option>
+                  <option value="CFO">{t.typeCFO}</option>
                 </select>
               </div>
               {type === 'Client' && (
