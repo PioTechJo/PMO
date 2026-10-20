@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Project, Milestone, Lookup, Language } from '../types';
 import PaymentMilestoneRow from './PaymentMilestoneRow';
 import SearchableSelect from './SearchableSelect';
+import { usdToJod } from '../services/currency';
 
 interface PaymentsProps {
     allProjects: Project[];
@@ -74,6 +75,8 @@ const Payments: React.FC<PaymentsProps> = ({ allProjects, allMilestones, allTeam
                                 <div className="bg-green-500/10 text-green-800 dark:text-green-200 font-bold text-sm px-3 py-1.5 rounded-full">
                                     <span>{t.totalPayments}: </span>
                                     <span>{projectTotal.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD' })}</span>
+                                    <span className="mx-2 opacity-50">|</span>
+                                    <span>{usdToJod(projectTotal).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'JOD', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 </div>
                             </div>
                             <div className="overflow-x-auto pb-44 min-h-[400px]">
@@ -82,7 +85,8 @@ const Payments: React.FC<PaymentsProps> = ({ allProjects, allMilestones, allTeam
                                         <tr>
                                             <th scope="col" className="px-6 py-3 min-w-[250px]">{t.milestone}</th>
                                             <th scope="col" className="px-6 py-3">{t.team}</th>
-                                            <th scope="col" className="px-6 py-3 text-center">{t.amount}</th>
+                                            <th scope="col" className="px-6 py-3 text-center">{t.usdAmount}</th>
+                                            <th scope="col" className="px-6 py-3 text-center">{t.jodAmount}</th>
                                             <th scope="col" className="px-6 py-3 text-center">{t.dueDate}</th>
                                             <th scope="col" className="px-6 py-3 text-center">{t.status}</th>
                                         </tr>
@@ -126,6 +130,8 @@ const translations = {
         milestone: "المعلم",
         team: "الفريق",
         amount: "المبلغ",
+        usdAmount: "المبلغ (USD)",
+        jodAmount: "المبلغ (JOD)",
         dueDate: "تاريخ الاستحقاق",
         status: "الحالة",
         searchProjects: "ابحث عن مشروع...",
@@ -141,6 +147,8 @@ const translations = {
         milestone: "Milestone",
         team: "Team",
         amount: "Amount",
+        usdAmount: "USD Amount",
+        jodAmount: "JOD Amount",
         dueDate: "Due Date",
         status: "Status",
         searchProjects: "Search projects...",

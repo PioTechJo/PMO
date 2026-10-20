@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Milestone, Lookup, Language, PaymentStatus } from '../types';
 import { getPaymentStatusLabel } from '../services/paymentStatusLabels';
+import { usdToJod } from '../services/currency';
 
 interface PaymentMilestoneRowProps {
     milestone: Milestone;
@@ -50,6 +51,9 @@ const PaymentMilestoneRow: React.FC<PaymentMilestoneRowProps> = ({ milestone, te
             </td>
             <td className="px-6 py-4 text-center font-mono font-semibold text-green-600 dark:text-green-400">
                 {milestone.paymentAmount.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'USD' })}
+            </td>
+            <td className="px-6 py-4 text-center font-mono font-semibold text-emerald-700 dark:text-emerald-300">
+                {usdToJod(milestone.paymentAmount).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', { style: 'currency', currency: 'JOD', minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </td>
             <td className="px-6 py-4 text-center">
                 {dueDate ? dueDate.toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'long' }) : t.noDueDate}
