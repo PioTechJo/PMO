@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Milestone, Project, Lookup, MilestoneStatus, Language, PaymentStatus, PaymentType, MilestoneUpdate, User, MilestoneChangeRequest } from '../types';
 import { getPaymentStatusLabel } from '../services/paymentStatusLabels';
 import { requestMilestoneChange } from '../services/api';
+import PaymentAmountFields from './PaymentAmountFields';
 
 interface EditMilestoneModalProps {
   milestoneToEdit: Milestone;
@@ -357,7 +358,13 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
                                 </div>
                                 {formData.hasPayment && (
                                     <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-1">
-                                        <input type="number" name="paymentAmount" value={formData.paymentAmount} onChange={handleInputChange} className={inputClasses} placeholder="0.00" />
+                                        <PaymentAmountFields
+                                            value={formData.paymentAmount}
+                                            onChange={usd => setFormData(prev => ({ ...prev, paymentAmount: usd }))}
+                                            language={language}
+                                            inputClasses={inputClasses}
+                                            labelClasses="block text-[10px] font-bold text-slate-500 uppercase mb-1"
+                                        />
                                         <select name="paymentStatus" value={formData.paymentStatus || ''} onChange={handleInputChange} className={selectClasses}>
                                             {Object.values(PaymentStatus).map(s => (<option key={s} value={s}>{getPaymentStatusLabel(s, language)}</option>))}
                                         </select>

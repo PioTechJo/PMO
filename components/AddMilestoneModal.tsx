@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Milestone, Project, Lookup, MilestoneStatus, Language, PaymentStatus, PaymentType } from '../types';
 import SearchableSelect from './SearchableSelect';
+import PaymentAmountFields from './PaymentAmountFields';
 import { getPaymentStatusLabel } from '../services/paymentStatusLabels';
 
 interface AddMilestoneModalProps {
@@ -147,10 +148,13 @@ const AddMilestoneModal: React.FC<AddMilestoneModalProps> = ({ teams, projects, 
 
                         {currentMilestone.hasPayment && (
                             <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 animate-in slide-in-from-top-1">
-                                <div>
-                                    <label className={labelClasses}>{t.paymentAmount}</label>
-                                    <input type="number" name="paymentAmount" value={currentMilestone.paymentAmount} onChange={handleInputChange} className={inputClasses} placeholder="0.00" />
-                                </div>
+                                <PaymentAmountFields
+                                    value={currentMilestone.paymentAmount}
+                                    onChange={usd => setCurrentMilestone(prev => ({ ...prev, paymentAmount: usd }))}
+                                    language={language}
+                                    inputClasses={inputClasses}
+                                    labelClasses={labelClasses}
+                                />
                                 <div>
                                     <label className={labelClasses}>{t.paymentStatus}</label>
                                     <select name="paymentStatus" value={currentMilestone.paymentStatus} onChange={handleInputChange} className={inputClasses}>
