@@ -1,5 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { Customer, Project, MaintenanceContract, User, Language } from '../types';
 import { getContractRiskStatus } from '../services/maintenanceStatus';
 import AddEditCustomerModal from './AddEditCustomerModal';
@@ -49,6 +50,7 @@ const translations = {
         title: "العملاء", subtitle: "ملف كل عميل: مشاريعه، عقوده، وسجل التفاعلات.",
         search: "بحث بالاسم...", colName: "الاسم", colTier: "الفئة", colStatus: "الحالة", colRelationship: "نوع العلاقة", colProjects: "المشاريع", colContracts: "عقود الصيانة",
         colAtRisk: "تحتاج انتباه", noCustomers: "لا يوجد عملاء بهذا البحث", atRisk: "خطر التجديد",
+        exportToExcel: "تصدير إلى Excel", colContactName: "اسم جهة الاتصال", colContactEmail: "البريد الإلكتروني", colContactPhone: "الهاتف", colIndustry: "القطاع", colOwner: "المسؤول",
         addCustomer: "إضافة عميل", tierVIP: "VIP", tierStandard: "عادي", tierOther: "أخرى",
         statusActive: "نشط", statusProspect: "محتمل", statusChurned: "منسحب",
         relAll: "كل العلاقات", relBoth: "مشاريع وصيانة", relProjectsOnly: "مشاريع فقط", relMaintenanceOnly: "صيانة فقط", relNeither: "بدون",
@@ -57,6 +59,7 @@ const translations = {
         title: "Customers", subtitle: "Every customer's profile: projects, contracts, and interaction history.",
         search: "Search by name...", colName: "Name", colTier: "Tier", colStatus: "Status", colRelationship: "Relationship", colProjects: "Projects", colContracts: "Maintenance Contracts",
         colAtRisk: "Needs Attention", noCustomers: "No customers match your search", atRisk: "At Risk",
+        exportToExcel: "Export to Excel", colContactName: "Contact Name", colContactEmail: "Contact Email", colContactPhone: "Contact Phone", colIndustry: "Industry", colOwner: "Owner",
         addCustomer: "Add Customer", tierVIP: "VIP", tierStandard: "Standard", tierOther: "Other",
         statusActive: "Active", statusProspect: "Prospect", statusChurned: "Churned",
         relAll: "All Relationships", relBoth: "Projects & Maintenance", relProjectsOnly: "Projects Only", relMaintenanceOnly: "Maintenance Only", relNeither: "Neither",
@@ -90,6 +93,28 @@ const Customers: React.FC<CustomersProps> = ({ customers, allProjects, allMainte
             .sort((a, b) => a.customer.name.localeCompare(b.customer.name, language === 'ar' ? 'ar' : 'en'));
     }, [customers, allProjects, allMaintenanceContracts, search, relationshipFilter, language]);
 
+    // Exports exactly what the table shows (current search + relationship filter).
+    const exportToExcel = () => {
+        const data = rows.map(({ customer, projectCount, contractCount, atRiskCount, relationship }) => ({
+            [t.colName]: customer.name,
+            [t.colContactName]: customer.contactName || '',
+            [t.colContactEmail]: customer.contactEmail || '',
+            [t.colContactPhone]: customer.contactPhone || '',
+            [t.colIndustry]: customer.industry || '',
+            [t.colTier]: tierLabels[customer.tier] || customer.tier || '',
+            [t.colStatus]: statusLabels[customer.status] || customer.status || '',
+            [t.colOwner]: allUsers.find(u => u.id === customer.ownerId)?.name || '',
+            [t.colRelationship]: relationshipLabels[relationship],
+            [t.colProjects]: projectCount,
+            [t.colContracts]: contractCount,
+            [t.colAtRisk]: atRiskCount,
+        }));
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Customers');
+        XLSX.writeFile(wb, `Customers_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+
     return (
         <div className="space-y-6 md:space-y-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -121,6 +146,14 @@ const Customers: React.FC<CustomersProps> = ({ customers, allProjects, allMainte
                         <option value="maintenanceOnly">{t.relMaintenanceOnly}</option>
                         <option value="neither">{t.relNeither}</option>
                     </select>
+                    <button
+                        onClick={exportToExcel}
+                        disabled={rows.length === 0}
+                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-bold py-2.5 px-5 rounded-xl text-sm flex items-center justify-center gap-2 transition-all hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>
+                        <span>{t.exportToExcel}</span>
+                    </button>
                     {isManagerOrPM && (
                         <button
                             onClick={() => setIsAddOpen(true)}
