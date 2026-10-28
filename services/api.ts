@@ -706,7 +706,7 @@ export const addMilestones = async (ms: any[]) => {
         title: m.title, 
         description: m.description, 
         project_id: m.projectId, 
-        team_id: m.teamId, 
+        team_id: m.teamId || null, 
         due_date: m.dueDate, 
         status: m.status, 
         has_payment: m.hasPayment, // FIXED from m.has_payment
@@ -725,7 +725,7 @@ export const updateMilestone = async (id: string, m: any) => {
     if (m.paymentStatus !== undefined) updateData.payment_status = m.paymentStatus;
     if (m.paymentAmount !== undefined) updateData.payment_amount = m.paymentAmount;
     if (m.dueDate !== undefined) updateData.due_date = m.dueDate;
-    if (m.teamId !== undefined) updateData.team_id = m.teamId;
+    if (m.teamId !== undefined) updateData.team_id = m.teamId || null;
     const { error } = await supabase.from('activities').update(updateData).eq('id', id);
     if (error) throw error;
 };

@@ -59,6 +59,9 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
     const [changeReason, setChangeReason] = useState('');
     const [isMakerCheckerRequired, setIsMakerCheckerRequired] = useState(false);
 
+    // Milestones inherit the project's team when they have none of their own.
+    const projectTeamId = projects.find(p => p.id === milestoneToEdit.projectId)?.teamId || '';
+
     // Load initial or selected milestone into form
     useEffect(() => {
         const target = allMilestones.find(m => m.id === editingTargetId);
@@ -72,7 +75,7 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
                 title: merged.title || '',
                 description: merged.description || '',
                 projectId: merged.projectId || milestoneToEdit.projectId,
-                teamId: merged.teamId || '',
+                teamId: merged.teamId || projectTeamId,
                 dueDate: isValidDate ? new Date(merged.dueDate!).toISOString().split('T')[0] : '',
                 status: merged.status || MilestoneStatus.Pending,
                 hasPayment: merged.hasPayment ?? false,
@@ -113,7 +116,7 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
           applyToList: "تحديث المعلم في القائمة",
           addAsNew: "إضافة كمعلم جديد للمشروع",
           submitting: "جاري الحفظ...",
-          validationError: "يرجى ملء الحقول المطلوبة (الاسم والفريق).",
+          validationError: "يرجى ملء الحقل المطلوب (الاسم).",
           successMessage: "تم حفظ كافة التغييرات بنجاح!",
           updatesTitle: "سجل التحديثات (للمعلم الحالي)",
           noUpdates: "لا توجد تحديثات.",
@@ -150,7 +153,7 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
           applyToList: "Apply Changes to Item",
           addAsNew: "Add as New to Project",
           submitting: "Saving...",
-          validationError: "Fill required fields (Title, Team).",
+          validationError: "Fill required fields (Title).",
           successMessage: "All changes saved!",
           updatesTitle: "Updates (Active Item)",
           noUpdates: "No updates.",
@@ -197,7 +200,8 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
   };
 
   const applyChangesToLocal = () => {
-      if (!formData.title || !formData.teamId) {
+      // Team is optional: it lives on the project, and many projects have none.
+      if (!formData.title) {
           setError(t.validationError);
           return;
       }
@@ -221,7 +225,7 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
   const resetForm = () => {
       setEditingTargetId(null);
       setFormData({
-          title: '', description: '', projectId: milestoneToEdit.projectId, teamId: '', dueDate: '',
+          title: '', description: '', projectId: milestoneToEdit.projectId, teamId: projectTeamId, dueDate: '',
           status: MilestoneStatus.Pending, hasPayment: true, paymentAmount: 0, paymentStatus: PaymentStatus.Pending, paymentType: PaymentType.Progress,
       });
   };
@@ -316,8 +320,8 @@ const EditMilestoneModal: React.FC<EditMilestoneModalProps> = ({
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">{t.team}</label>
-                                    <select name="teamId" value={formData.teamId} onChange={handleInputChange} className={selectClasses} required>
-                                        <option value="" disabled>{t.team}</option>
+                                    <select name="teamId" value={formData.teamId} onChange={handleInputChange} className={selectClasses}>
+                                        <option value="">{t.team}</option>
                                         {teams.map(tm => (<option key={tm.id} value={tm.id}>{tm.name}</option>))}
                                     </select>
                                 </div>
